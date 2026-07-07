@@ -1,0 +1,258 @@
+.shell {
+  min-height: 100vh;
+  display: flex;
+}
+
+@media print {
+  .shell-sidebar,
+  .shell-mobile-topbar,
+  .shell-bottomnav {
+    display: none !important;
+  }
+  .shell-main {
+    margin-left: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+/* ---------- Sidebar (desktop) ---------- */
+.shell-sidebar {
+  width: 224px;
+  flex-shrink: 0;
+  background: var(--navy-800);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+}
+
+.shell-brand {
+  padding: 22px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.shell-logo {
+  width: 34px;
+  height: 34px;
+  background: #fff;
+  color: var(--navy-800);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.shell-brand-title {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.shell-brand-school {
+  font-size: 11px;
+  color: var(--sidebar-faint);
+}
+
+.shell-nav {
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.shell-nav-item {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  color: var(--sidebar-inactive);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-decoration: none;
+}
+
+.shell-nav-item:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.shell-nav-item.active {
+  background: var(--blue-600);
+  color: #fff;
+  font-weight: 600;
+}
+
+.shell-nav-icon {
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.shell-user {
+  margin-top: auto;
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shell-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--navy-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.shell-user-info {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.shell-user-name {
+  font-weight: 600;
+}
+
+.shell-user-role {
+  color: var(--sidebar-faint);
+}
+
+/* ---------- Main content ---------- */
+.shell-main {
+  flex: 1;
+  margin-left: 224px;
+  min-width: 0;
+  padding: 28px 32px;
+}
+
+/* ---------- Mobile-only elements (hidden on desktop) ---------- */
+.shell-mobile-topbar,
+.shell-drawer-overlay,
+.shell-bottomnav {
+  display: none;
+}
+
+/* ================= Mobile layout ================= */
+@media (max-width: 899px) {
+  .shell {
+    flex-direction: column;
+  }
+
+  .shell-sidebar {
+    display: none;
+  }
+
+  .shell-main {
+    margin-left: 0;
+    padding: 16px 16px 84px;
+  }
+
+  .shell-mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--navy-800);
+    color: #fff;
+    padding: 10px 16px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+
+  .shell-hamburger {
+    background: none;
+    border: none;
+    width: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0;
+    cursor: pointer;
+  }
+  .shell-hamburger span {
+    height: 2px;
+    background: #fff;
+    border-radius: 2px;
+  }
+
+  .shell-mobile-title-main {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .shell-mobile-title-sub {
+    font-size: 11px;
+    color: var(--sidebar-faint);
+  }
+
+  .shell-avatar-sm {
+    margin-left: auto;
+  }
+
+  .shell-drawer-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 15, 28, 0.55);
+    z-index: 40;
+  }
+
+  .shell-drawer {
+    width: min(270px, 80vw);
+    height: 100%;
+    background: var(--navy-800);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 8px 0 24px rgba(10, 15, 28, 0.3);
+  }
+
+  .shell-bottomnav {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 58px;
+    background: #fff;
+    border-top: 1px solid var(--border);
+    padding-bottom: 6px;
+    z-index: 20;
+  }
+
+  .shell-bottomnav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    color: var(--text-faint);
+    text-decoration: none;
+    font-size: 10px;
+  }
+
+  .shell-bottomnav-item.active {
+    color: var(--blue-600);
+    font-weight: 600;
+  }
+
+  .shell-bottomnav-icon {
+    font-size: 17px;
+  }
+}
