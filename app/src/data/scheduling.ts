@@ -1,4 +1,4 @@
-import { SLOT_TIME, type ExamSession, type Submission } from "./types";
+import type { Submission } from "./types";
 
 export interface CellTime {
   id: string;
@@ -30,9 +30,8 @@ const GAP_MINUTES = 15;
  * can be moved earlier and collide with a neighbor, which is what should
  * trigger the red conflict warning.
  */
-export function computeCellTimes(items: Submission[], session: ExamSession): CellTime[] {
-  const sessionStart = toMinutes(SLOT_TIME[session].start);
-  let cursor = sessionStart;
+export function computeCellTimes(items: Submission[], sessionStartTime: string): CellTime[] {
+  let cursor = toMinutes(sessionStartTime);
   const times: { id: string; start: number; end: number }[] = [];
 
   for (const item of items) {

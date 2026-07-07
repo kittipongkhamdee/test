@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { SCHOOL_NAME } from "../data/mockData";
+import { useStore } from "../data/store";
 import "./AppShell.css";
 
 const NAV_ITEMS = [
@@ -20,6 +20,8 @@ const BOTTOM_NAV_ITEMS = [
 
 export default function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { state } = useStore();
+  const schoolName = state.school?.schoolName ?? "";
 
   return (
     <div className="shell">
@@ -28,7 +30,7 @@ export default function AppShell() {
           <div className="shell-logo">ตบ</div>
           <div>
             <div className="shell-brand-title">ระบบจัดการสอบ</div>
-            <div className="shell-brand-school">{SCHOOL_NAME}</div>
+            <div className="shell-brand-school">{schoolName}</div>
           </div>
         </div>
         <nav className="shell-nav">
@@ -47,7 +49,7 @@ export default function AppShell() {
         <div className="shell-user">
           <div className="shell-avatar">อ</div>
           <div className="shell-user-info">
-            <div className="shell-user-name">ครูอนุชา (Admin)</div>
+            <div className="shell-user-name">ผู้ดูแลระบบ</div>
             <div className="shell-user-role">ฝ่ายวิชาการ</div>
           </div>
         </div>
@@ -65,7 +67,7 @@ export default function AppShell() {
         </button>
         <div className="shell-mobile-title">
           <div className="shell-mobile-title-main">ระบบจัดการสอบ</div>
-          <div className="shell-mobile-title-sub">{SCHOOL_NAME}</div>
+          <div className="shell-mobile-title-sub">{schoolName}</div>
         </div>
         <div className="shell-avatar shell-avatar-sm">อ</div>
       </div>
@@ -77,7 +79,7 @@ export default function AppShell() {
               <div className="shell-logo">ตบ</div>
               <div>
                 <div className="shell-brand-title">ระบบจัดการสอบ</div>
-                <div className="shell-brand-school">{SCHOOL_NAME}</div>
+                <div className="shell-brand-school">{schoolName}</div>
               </div>
             </div>
             <nav className="shell-nav">
@@ -97,7 +99,7 @@ export default function AppShell() {
             <div className="shell-user">
               <div className="shell-avatar">อ</div>
               <div className="shell-user-info">
-                <div className="shell-user-name">ครูอนุชา (Admin)</div>
+                <div className="shell-user-name">ผู้ดูแลระบบ</div>
                 <div className="shell-user-role">ฝ่ายวิชาการ</div>
               </div>
             </div>

@@ -1,20 +1,14 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useSubmissions } from "../data/store";
-import {
-  EXAM_TITLE,
-  EXPECTED_SUBJECTS_TOTAL,
-  GRADES,
-  SUBMISSION_DEADLINE,
-  SUBJECT_GROUPS_PER_GRADE,
-  TEACHERS,
-  gradeLabel,
-} from "../data/mockData";
+import { useCatalog, useStore, useSubmissions } from "../data/store";
+import { GRADES, gradeLabel } from "../data/mockData";
 import { formatRelativeTime } from "../lib/time";
 import "./Dashboard.css";
 
 export default function Dashboard() {
+  const { state } = useStore();
   const submissions = useSubmissions();
+  const catalog = useCatalog();
 
   const stats = useMemo(() => {
     const scheduled = submissions.filter((s) => s.status === "scheduled").length;
@@ -31,9 +25,10 @@ export default function Dashboard() {
   const perGrade = useMemo(() => {
     return GRADES.map((grade) => {
       const count = submissions.filter((s) => s.grade === grade).length;
-      return { grade, count, total: SUBJECT_GROUPS_PER_GRADE };
+      const total = catalog.filter((s) => s.grade === grade).length;
+      return { grade, count, total };
     });
-  }, [submissions]);
+  }, [submissions, catalog]);
 
   const recent = useMemo(
     () =>
@@ -44,15 +39,19 @@ export default function Dashboard() {
   );
 
   const scheduledPct = stats.submittedCount ? Math.round((stats.scheduled / stats.submittedCount) * 100) : 0;
+  const examTitle = state.round?.name ?? "";
+  const deadline = state.round?.submissionDeadline;
+  const expectedTotal = catalog.length;
+
+  if (state.loading) return <div className="dash">กำลังโหลดข้อมูล…</div>;
+  if (state.error) return <div className="dash">โหลดข้อมูลไม่สำเร็จ: {state.error}</div>;
 
   return (
     <div className="dash">
       <div className="page-header">
         <div>
           <h1>แดชบอร์ด</h1>
-          <div className="page-subtitle">
-            {EXAM_TITLE} · สอบวันที่ 4–5 มีนาคม 2569
-          </div>
+          <div className="page-subtitle">{examTitle}</div>
         </div>
         <Link to="/form" className="btn btn-primary">
           + เปิดรอบสำรวจใหม่
@@ -61,16 +60,14 @@ export default function Dashboard() {
 
       <div className="dash-hero card">
         <div>
-          <div className="dash-hero-title">{EXAM_TITLE}</div>
-          <div className="dash-hero-sub">
-            สอบวันที่ 4–5 มีนาคม 2569 · ปิดรับข้อมูล {SUBMISSION_DEADLINE}
-          </div>
+          <div className="dash-hero-title">{examTitle}</div>
+          <div className="dash-hero-sub">{deadline ? `ปิดรับข้อมูล ${deadline}` : "ยังไม่กำหนดวันปิดรับข้อมูล"}</div>
         </div>
         <div className="dash-hero-stats">
           <div>
             <div className="dash-hero-num">
               {stats.submittedCount}
-              <span>/{EXPECTED_SUBJECTS_TOTAL}</span>
+              <span>/{expectedTotal}</span>
             </div>
             <div className="dash-hero-label">วิชาที่ส่งแล้ว</div>
           </div>
@@ -89,12 +86,12 @@ export default function Dashboard() {
         <div className="card dash-stat">
           <div className="dash-stat-label">รายวิชาที่ส่งเข้ามา</div>
           <div className="dash-stat-value">{stats.submittedCount}</div>
-          <div className="dash-stat-note">จาก {EXPECTED_SUBJECTS_TOTAL} วิชาที่คาดไว้</div>
+          <div className="dash-stat-note">จาก {expectedTotal} วิชาที่คาดไว้</div>
         </div>
         <div className="card dash-stat">
           <div className="dash-stat-label">ครูที่ส่งข้อมูลแล้ว</div>
           <div className="dash-stat-value">{stats.teachersSubmitted}</div>
-          <div className="dash-stat-note">จากครู {TEACHERS.length} คน</div>
+          <div className="dash-stat-note">จากครู {state.teachers.length} คน</div>
         </div>
         <div className="card dash-stat">
           <div className="dash-stat-label">จัดลงตารางแล้ว</div>
@@ -104,7 +101,7 @@ export default function Dashboard() {
         <div className="card dash-stat">
           <div className="dash-stat-label">รอจัดลงตาราง</div>
           <div className="dash-stat-value warn">{stats.pending}</div>
-          <div className="dash-stat-note">ต้องจัดก่อน {SUBMISSION_DEADLINE}</div>
+          <div className="dash-stat-note">{deadline ? `ต้องจัดก่อน ${deadline}` : "ยังไม่กำหนดกำหนดการ"}</div>
         </div>
       </div>
 
@@ -118,7 +115,7 @@ export default function Dashboard() {
                 <div className="dash-progress-bar">
                   <div
                     className="dash-progress-fill"
-                    style={{ width: `${Math.min(100, (count / total) * 100)}%` }}
+                    style={{ width: `${total ? Math.min(100, (count / total) * 100) : 0}%` }}
                   />
                 </div>
                 <span className="dash-progress-count">

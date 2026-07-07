@@ -1,11 +1,17 @@
 import { useMemo, useState } from "react";
 import { useCellItems, useSubmissions, useStore, type AutoScheduleRules } from "../data/store";
 import { computeCellTimes } from "../data/scheduling";
-import { EXAM_DAYS, SLOT_TIME, type ExamDay, type ExamSession, type Grade, type Submission } from "../data/types";
+import type { ExamDay, ExamSession, ExamSlotMeta, Grade, Submission } from "../data/types";
 import { GRADES, gradeLabel } from "../data/mockData";
 import "./Scheduler.css";
 
 const SESSIONS: ExamSession[] = ["morning", "afternoon"];
+const DAYS: ExamDay[] = [1, 2];
+
+function dayLabel(slot: ExamSlotMeta | undefined, day: ExamDay): string {
+  if (!slot?.examDate) return `วันที่ ${day}`;
+  return new Date(slot.examDate).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" });
+}
 
 function subjectChipLabel(s: Submission): string {
   return `${s.code} · ${gradeLabel(s.grade)}`;
@@ -174,16 +180,20 @@ export default function Scheduler() {
               </div>
             ))}
 
-            {EXAM_DAYS.flatMap((d) =>
-              SESSIONS.map((session) => (
-                <RowCells
-                  key={`${d.day}-${session}`}
-                  day={d.day}
-                  dateLabel={d.label + " " + d.date}
-                  session={session}
-                  onDropCell={handleDropOnCell}
-                />
-              )),
+            {DAYS.flatMap((day) =>
+              SESSIONS.map((session) => {
+                const slot = state.slots.find((s) => s.day === day && s.session === session);
+                return (
+                  <RowCells
+                    key={`${day}-${session}`}
+                    day={day}
+                    dateLabel={dayLabel(slot, day)}
+                    slot={slot}
+                    session={session}
+                    onDropCell={handleDropOnCell}
+                  />
+                );
+              }),
             )}
           </div>
         </div>
@@ -192,16 +202,17 @@ export default function Scheduler() {
       {/* ---------- Mobile: tap-to-place ---------- */}
       <div className="sched-mobile">
         <div className="sched-mobile-pills">
-          {EXAM_DAYS.flatMap((d) =>
+          {DAYS.flatMap((day) =>
             SESSIONS.map((session) => {
-              const active = mobileSlot.day === d.day && mobileSlot.session === session;
+              const active = mobileSlot.day === day && mobileSlot.session === session;
+              const slot = state.slots.find((s) => s.day === day && s.session === session);
               return (
                 <button
-                  key={`${d.day}-${session}`}
+                  key={`${day}-${session}`}
                   className={"sched-pill" + (active ? " active" : "")}
-                  onClick={() => setMobileSlot({ day: d.day, session })}
+                  onClick={() => setMobileSlot({ day, session })}
                 >
-                  {d.label.slice(0, 3)} {d.date.split(" ")[0]} · {session === "morning" ? "เช้า" : "บ่าย"}
+                  {dayLabel(slot, day)} · {session === "morning" ? "เช้า" : "บ่าย"}
                 </button>
               );
             }),
@@ -288,11 +299,13 @@ function RowCells({
   day,
   dateLabel,
   session,
+  slot,
   onDropCell,
 }: {
   day: ExamDay;
   dateLabel: string;
   session: ExamSession;
+  slot: ExamSlotMeta | undefined;
   onDropCell: (e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession) => void;
 }) {
   return (
@@ -300,8 +313,7 @@ function RowCells({
       <div className="sched-grid-rowhead">
         <span className="sched-grid-rowhead-day">{dateLabel}</span>
         <span className="sched-grid-rowhead-time">
-          {session === "morning" ? "เช้า" : "บ่าย"} {SLOT_TIME[session].start.replace(":", ".")}–
-          {SLOT_TIME[session].end.replace(":", ".")}
+          {session === "morning" ? "เช้า" : "บ่าย"} {slot ? `${slot.start.replace(":", ".")}–${slot.end.replace(":", ".")}` : ""}
         </span>
       </div>
       {GRADES.map((g) => (
@@ -322,9 +334,10 @@ function GridCell({
   session: ExamSession;
   onDropCell: (e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession) => void;
 }) {
-  const { dispatch } = useStore();
+  const { dispatch, state } = useStore();
   const items = useCellItems(grade, day, session);
-  const times = useMemo(() => computeCellTimes(items, session), [items, session]);
+  const slotStart = state.slots.find((s) => s.day === day && s.session === session)?.start ?? "08:30";
+  const times = useMemo(() => computeCellTimes(items, slotStart), [items, slotStart]);
   const [dragOver, setDragOver] = useState(false);
 
   return (
@@ -391,7 +404,8 @@ function MobileGradeRow({
 }) {
   const { state } = useStore();
   const items = useCellItems(grade, day, session);
-  const times = useMemo(() => computeCellTimes(items, session), [items, session]);
+  const slotStart = state.slots.find((s) => s.day === day && s.session === session)?.start ?? "08:30";
+  const times = useMemo(() => computeCellTimes(items, slotStart), [items, slotStart]);
   const selectedSub = selectedPendingId ? state.submissions[selectedPendingId] : null;
   const isValidTarget = !!selectedSub && selectedSub.grade === grade;
 

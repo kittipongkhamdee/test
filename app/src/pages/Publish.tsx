@@ -1,16 +1,17 @@
 import { useMemo } from "react";
-import { useSubmissions } from "../data/store";
+import { useStore, useSubmissions } from "../data/store";
 import { computeCellTimes } from "../data/scheduling";
-import { EXAM_DAYS, type ExamDay, type ExamSession, type Grade } from "../data/types";
-import { EXAM_TITLE, PUBLISH_DATE, ROOMS_PER_GRADE, SCHOOL_NAME, gradeLabel } from "../data/mockData";
+import type { ExamDay, ExamSession, ExamSlotMeta, Grade } from "../data/types";
+import { ROOMS_PER_GRADE, gradeLabel } from "../data/mockData";
 import "./Publish.css";
 
 const SESSIONS: ExamSession[] = ["morning", "afternoon"];
+const DAYS: ExamDay[] = [1, 2];
 
-const FULL_DAY_TITLE: Record<ExamDay, string> = {
-  1: "วันพุธที่ 4 มีนาคม 2569",
-  2: "วันพฤหัสบดีที่ 5 มีนาคม 2569",
-};
+function dayTitle(examDate: string | null | undefined, day: ExamDay): string {
+  if (!examDate) return `วันที่ ${day} ของการสอบ`;
+  return new Date(examDate).toLocaleDateString("th-TH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+}
 
 interface PrintRow {
   start: string;
@@ -28,13 +29,15 @@ function formatRooms(rooms: number[]): string {
 }
 
 export default function Publish() {
+  const { state } = useStore();
   const submissions = useSubmissions();
 
   const rowsByDay = useMemo(() => {
     const byDay: Record<ExamDay, PrintRow[]> = { 1: [], 2: [] };
 
-    for (const day of EXAM_DAYS.map((d) => d.day)) {
+    for (const day of DAYS) {
       for (const session of SESSIONS) {
+        const slot = state.slots.find((s) => s.day === day && s.session === session);
         const grouped = new Map<Grade, typeof submissions>();
         for (const s of submissions) {
           if (s.status === "scheduled" && s.slot?.day === day && s.slot.session === session) {
@@ -44,7 +47,7 @@ export default function Publish() {
           }
         }
         for (const [grade, items] of grouped) {
-          const times = computeCellTimes(items, session);
+          const times = computeCellTimes(items, slot?.start ?? "08:30");
           items.forEach((item, i) => {
             byDay[day].push({
               start: times[i].start,
@@ -65,11 +68,18 @@ export default function Publish() {
     });
 
     return byDay;
-  }, [submissions]);
+  }, [submissions, state.slots]);
 
   function handlePrint() {
     window.print();
   }
+
+  const examTitle = state.round?.name ?? "";
+  const schoolName = state.school?.schoolName ?? "";
+  const headAcademicName = state.school?.headAcademicName ?? "";
+  const publishDate = state.round?.publishDate;
+
+  const slotsByDay = (day: ExamDay): ExamSlotMeta | undefined => state.slots.find((s) => s.day === day);
 
   return (
     <div className="pub-page">
@@ -86,15 +96,13 @@ export default function Publish() {
       <div className="pub-sheet-wrap">
         <div className="pub-sheet card">
           <div className="pub-sheet-title">
-            <div className="pub-sheet-h1">ตารางสอบ{EXAM_TITLE}</div>
-            <div className="pub-sheet-h2">
-              {SCHOOL_NAME} · สอบวันที่ 4–5 มีนาคม 2569
-            </div>
+            <div className="pub-sheet-h1">ตาราง{examTitle}</div>
+            <div className="pub-sheet-h2">{schoolName}</div>
           </div>
 
-          {EXAM_DAYS.map((d) => (
-            <div className="pub-day" key={d.day}>
-              <div className="pub-day-title">{FULL_DAY_TITLE[d.day]}</div>
+          {DAYS.map((day) => (
+            <div className="pub-day" key={day}>
+              <div className="pub-day-title">{dayTitle(slotsByDay(day)?.examDate, day)}</div>
               <div className="pub-table">
                 <div className="pub-table-head">
                   <span>เวลา</span>
@@ -104,7 +112,7 @@ export default function Publish() {
                   <span>ห้องสอบ</span>
                   <span>ครูผู้ออกข้อสอบ</span>
                 </div>
-                {rowsByDay[d.day].map((row, i) => (
+                {rowsByDay[day].map((row, i) => (
                   <div className="pub-table-row" key={i}>
                     <span>
                       {row.start.replace(":", ".")}–{row.end.replace(":", ".")}
@@ -116,7 +124,7 @@ export default function Publish() {
                     <span>{row.teacherName}</span>
                   </div>
                 ))}
-                {rowsByDay[d.day].length === 0 && (
+                {rowsByDay[day].length === 0 && (
                   <div className="pub-table-empty">ยังไม่มีวิชาที่จัดลงตารางสำหรับวันนี้</div>
                 )}
               </div>
@@ -124,11 +132,15 @@ export default function Publish() {
           ))}
 
           <div className="pub-footer">
-            <div className="pub-footer-date">ประกาศ ณ วันที่ {PUBLISH_DATE}</div>
+            <div className="pub-footer-date">
+              ประกาศ ณ วันที่ {publishDate ?? "…………………………"}
+            </div>
             <div className="pub-signature">
               <div className="pub-signature-line" />
               <div>ลงชื่อ ..............................................</div>
-              <div className="pub-signature-role">รองผู้อำนวยการฝ่ายวิชาการ</div>
+              <div className="pub-signature-role">
+                {headAcademicName ? `(${headAcademicName})` : ""} รองผู้อำนวยการฝ่ายวิชาการ
+              </div>
             </div>
           </div>
         </div>

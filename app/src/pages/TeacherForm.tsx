@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useStore } from "../data/store";
-import { EXAM_TITLE, ROOMS_PER_GRADE, SCHOOL_NAME, SUBMISSION_DEADLINE, TEACHERS, gradeLabel } from "../data/mockData";
-import type { Grade, MorningPreference, Submission } from "../data/types";
+import { ROOMS_PER_GRADE, gradeLabel } from "../data/mockData";
+import type { Grade, MorningPreference } from "../data/types";
 import "./TeacherForm.css";
 
 const GRADE_OPTIONS: Grade[] = [1, 2, 3, 4, 5, 6];
@@ -15,7 +15,7 @@ const PREFERENCE_OPTIONS: { value: MorningPreference; label: string; icon: strin
 ];
 
 export default function TeacherForm() {
-  const { dispatch } = useStore();
+  const { state, submit } = useStore();
   const [teacherName, setTeacherName] = useState("");
   const [code, setCode] = useState("");
   const [subjectName, setSubjectName] = useState("");
@@ -26,6 +26,7 @@ export default function TeacherForm() {
   const [preference, setPreference] = useState<MorningPreference>("none");
   const [submittedMsg, setSubmittedMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   function toggleRoom(room: number) {
     setRooms((prev) => (prev.includes(room) ? prev.filter((r) => r !== room) : [...prev, room].sort((a, b) => a - b)));
@@ -42,7 +43,7 @@ export default function TeacherForm() {
     setPreference("none");
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const finalDuration = duration ?? Number(customDuration);
     if (!teacherName.trim() || !code.trim() || !subjectName.trim() || !grade || !finalDuration) {
@@ -51,39 +52,45 @@ export default function TeacherForm() {
       return;
     }
     setError(null);
-
-    const teacher = TEACHERS.find((t) => t.name === teacherName.trim());
-    const submission: Submission = {
-      id: `sub-${Date.now()}`,
-      code: code.trim(),
-      subjectName: subjectName.trim(),
-      teacherId: teacher?.id ?? `custom-${teacherName.trim()}`,
-      teacherName: teacherName.trim(),
-      grade,
-      rooms,
-      durationMinutes: finalDuration,
-      morningPreference: preference,
-      status: "pending",
-      submittedAt: new Date().toISOString(),
-    };
-    dispatch({ type: "SUBMIT", submission });
-    setSubmittedMsg(`ส่งข้อมูลวิชา ${code.trim()} ${subjectName.trim()} เรียบร้อยแล้ว`);
-    resetForm();
+    setSubmitting(true);
+    try {
+      await submit({
+        code: code.trim(),
+        subjectName: subjectName.trim(),
+        teacherName: teacherName.trim(),
+        grade,
+        rooms,
+        durationMinutes: finalDuration,
+        morningPreference: preference,
+      });
+      setSubmittedMsg(`ส่งข้อมูลวิชา ${code.trim()} ${subjectName.trim()} เรียบร้อยแล้ว`);
+      resetForm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ส่งข้อมูลไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setSubmitting(false);
+    }
   }
+
+  const examTitle = state.round?.name ?? "";
+  const schoolName = state.school?.schoolName ?? "";
+  const deadline = state.round?.submissionDeadline;
 
   return (
     <div className="tform-page">
       <div className="tform-topbar">
         <div className="shell-logo">ตบ</div>
-        <div className="tform-topbar-title">แบบสำรวจการจัดสอบ · {SCHOOL_NAME}</div>
-        <div className="tform-topbar-period">{EXAM_TITLE}</div>
+        <div className="tform-topbar-title">แบบสำรวจการจัดสอบ · {schoolName}</div>
+        <div className="tform-topbar-period">{examTitle}</div>
       </div>
 
       <div className="tform-wrap">
         <form className="tform-card card" onSubmit={handleSubmit}>
           <div>
             <div className="tform-title">กรอกข้อมูลรายวิชาที่จัดสอบ</div>
-            <div className="tform-subtitle">กรอก 1 ฟอร์มต่อ 1 รายวิชา · ส่งได้ถึงวันที่ {SUBMISSION_DEADLINE}</div>
+            <div className="tform-subtitle">
+              กรอก 1 ฟอร์มต่อ 1 รายวิชา{deadline ? ` · ส่งได้ถึงวันที่ ${deadline}` : ""}
+            </div>
           </div>
 
           {submittedMsg && <div className="tform-success">✓ {submittedMsg}</div>}
@@ -96,11 +103,11 @@ export default function TeacherForm() {
               list="teacher-names"
               value={teacherName}
               onChange={(e) => setTeacherName(e.target.value)}
-              placeholder="เช่น นางสาวจันทร์เพ็ญ สุขใจ"
+              placeholder="เช่น นางสาวโสรดา ศรีสุข"
             />
             <datalist id="teacher-names">
-              {TEACHERS.map((t) => (
-                <option key={t.id} value={t.name} />
+              {state.teachers.map((name) => (
+                <option key={name} value={name} />
               ))}
             </datalist>
           </label>
@@ -216,8 +223,8 @@ export default function TeacherForm() {
             >
               บันทึกร่าง
             </button>
-            <button type="submit" className="btn btn-primary">
-              ส่งข้อมูล
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? "กำลังส่ง…" : "ส่งข้อมูล"}
             </button>
           </div>
         </form>
