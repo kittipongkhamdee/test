@@ -10,7 +10,7 @@ import Publish from "./pages/Publish";
 export default function App() {
   return (
     <StoreProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           {/* Teacher-facing survey form stands alone, no admin sidebar */}
           <Route path="form" element={<TeacherForm />} />
