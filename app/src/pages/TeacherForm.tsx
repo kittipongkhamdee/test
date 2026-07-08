@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useActiveFormOptions, useCatalog, useStore, useSubmissions } from "../data/store";
 import { gradeLabel } from "../data/mockData";
@@ -57,6 +58,7 @@ export default function TeacherForm() {
   const [submittedMsg, setSubmittedMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [activeSuggestField, setActiveSuggestField] = useState<"code" | "subjectName" | null>(null);
 
   const mySubmissions = useMemo(() => {
@@ -114,7 +116,7 @@ export default function TeacherForm() {
     finalDuration > 0 &&
     !!preference;
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (windowClosed) {
       setError(windowMessage);
@@ -126,6 +128,12 @@ export default function TeacherForm() {
       return;
     }
     setError(null);
+    setShowConfirm(true);
+  }
+
+  async function doSubmit() {
+    if (!grade || !preference) return;
+    setShowConfirm(false);
     setSubmitting(true);
     try {
       await submit({
@@ -165,8 +173,13 @@ export default function TeacherForm() {
             <div className="tform-title">กรอกข้อมูลรายวิชาที่จัดสอบ</div>
             <div className="tform-subtitle">
               กรอก 1 ฟอร์มต่อ 1 รายวิชา ต้องกรอกครบทุกช่องจึงจะส่งข้อมูลได้
-              {deadline ? ` · ส่งได้ถึงวันที่ ${deadline}` : ""}
             </div>
+            {deadline && (
+              <div className="tform-deadline">
+                <span className="tform-deadline-icon">!</span>
+                ส่งได้ถึงวันที่ {deadline}
+              </div>
+            )}
           </div>
 
           {windowMessage && <div className="tform-error">{windowMessage}</div>}
@@ -362,6 +375,58 @@ export default function TeacherForm() {
             </button>
           </div>
         </form>
+
+        {showConfirm && createPortal(
+          <div className="tform-confirm-overlay" onClick={() => setShowConfirm(false)}>
+            <div className="tform-confirm-modal card" onClick={(e) => e.stopPropagation()}>
+              <div className="tform-confirm-title">ยืนยันการส่งข้อมูล</div>
+              <div className="tform-confirm-body">
+                <div className="tform-confirm-row">
+                  <span className="tform-confirm-label">ครูผู้สอน</span>
+                  <span>{teacherName.trim()}</span>
+                </div>
+                <div className="tform-confirm-row">
+                  <span className="tform-confirm-label">รหัสวิชา</span>
+                  <span className="tform-confirm-code">{code.trim()}</span>
+                </div>
+                <div className="tform-confirm-row">
+                  <span className="tform-confirm-label">ชื่อวิชา</span>
+                  <span>{subjectName.trim()}</span>
+                </div>
+                <div className="tform-confirm-row">
+                  <span className="tform-confirm-label">ระดับชั้น</span>
+                  <span>{grade ? gradeLabel(grade) : ""}</span>
+                </div>
+                <div className="tform-confirm-row">
+                  <span className="tform-confirm-label">ห้องสอบ</span>
+                  <span>
+                    {roomsSelection === "all"
+                      ? "ทุกห้อง"
+                      : Array.isArray(roomsSelection)
+                        ? roomsSelection.map((r) => {
+                            const opt = roomOptions.find((o) => Number(o.value) === r);
+                            return opt ? opt.label : `ห้อง ${r}`;
+                          }).join(", ")
+                        : "—"}
+                  </span>
+                </div>
+                <div className="tform-confirm-row">
+                  <span className="tform-confirm-label">เวลาสอบ</span>
+                  <span>{finalDuration} นาที</span>
+                </div>
+              </div>
+              <div className="tform-confirm-actions">
+                <button type="button" className="btn btn-ghost" onClick={() => setShowConfirm(false)}>
+                  ยกเลิก
+                </button>
+                <button type="button" className="btn btn-primary" onClick={doSubmit} disabled={submitting}>
+                  {submitting ? "กำลังส่ง…" : "ยืนยัน ส่งข้อมูล"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
         {teacherName.trim() && (
           <div className="tform-card card tform-mysubs">

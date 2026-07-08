@@ -373,6 +373,7 @@ export default function AdminSettings() {
         </div>
       </div>
 
+      <div className="admin-settings-grid">
       {/* School info */}
       <form className="card admin-settings-card" onSubmit={handleSaveSchool}>
         <div className="admin-section-heading">ข้อมูลโรงเรียน</div>
@@ -465,6 +466,7 @@ export default function AdminSettings() {
           </button>
         </div>
       </form>
+      </div>
 
       <div className="admin-opt-section">
         <div className="admin-opt-section-title">ตัวเลือกในฟอร์มสำรวจ</div>

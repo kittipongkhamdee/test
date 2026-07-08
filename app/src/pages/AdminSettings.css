@@ -5,13 +5,27 @@
   max-width: var(--shell-max-width);
 }
 
-.admin-unlock-card,
-.admin-settings-card {
-  max-width: 640px;
+.admin-unlock-card {
+  max-width: 420px;
   padding: 28px 32px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.admin-settings-card {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---------- 2-column grid for the top settings cards ---------- */
+.admin-settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
 }
 
 .admin-section-heading {
@@ -255,4 +269,13 @@
 }
 .admin-opt-add-btn {
   flex-shrink: 0;
+}
+
+@media (max-width: 899px) {
+  .admin-settings-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-settings-card {
+    padding: 20px 18px;
+  }
 }
