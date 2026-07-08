@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useCellItems, useSubmissions, useStore, type AutoScheduleRules } from "../data/store";
 import { computeCellTimes } from "../data/scheduling";
 import type { ExamDay, ExamSession, ExamSlotMeta, Grade, Submission } from "../data/types";
@@ -30,6 +31,7 @@ export default function Scheduler() {
   const scheduledCount = submissions.filter((s) => s.status === "scheduled" && !s.selfScheduled).length;
 
   const [autoOpen, setAutoOpen] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const [rules, setRules] = useState<AutoScheduleRules>({
     morningFirst: true,
     balanceLoad: true,
@@ -67,8 +69,12 @@ export default function Scheduler() {
   function handleClear() {
     if (!requireAdmin()) return;
     if (scheduledCount === 0) return;
-    if (!window.confirm("ล้างตารางสอบทั้งหมดและย้ายทุกวิชากลับไปที่ \"รอจัด\" ใช่หรือไม่?")) return;
+    setConfirmClear(true);
+  }
+
+  function handleConfirmClear() {
     dispatch({ type: "CLEAR_SCHEDULE" });
+    setConfirmClear(false);
     showToast("ล้างตารางแล้ว");
   }
 
@@ -288,6 +294,26 @@ export default function Scheduler() {
           )}
         </div>
       </div>
+
+      {confirmClear && createPortal(
+        <div className="sched-confirm-overlay" onClick={() => setConfirmClear(false)}>
+          <div className="sched-confirm-modal card" onClick={(e) => e.stopPropagation()}>
+            <div className="sched-confirm-title">ล้างตารางสอบ</div>
+            <div className="sched-confirm-warn">
+              การดำเนินการนี้จะย้ายวิชาที่จัดแล้วทั้งหมด ({scheduledCount} วิชา) กลับไปที่ "รอจัด"
+            </div>
+            <div className="sched-confirm-actions">
+              <button className="btn btn-ghost" onClick={() => setConfirmClear(false)}>
+                ยกเลิก
+              </button>
+              <button className="sched-confirm-btn" onClick={handleConfirmClear}>
+                ล้างตาราง
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
