@@ -51,6 +51,13 @@
   flex-shrink: 0;
 }
 
+.shell-logo-img {
+  object-fit: contain;
+  background: transparent;
+  border: none;
+  padding: 2px;
+}
+
 .shell-brand-title {
   font-size: 14px;
   font-weight: 700;

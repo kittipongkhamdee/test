@@ -14,6 +14,45 @@
   gap: 16px;
 }
 
+.admin-section-heading {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-strong);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+/* ---------- Logo upload ---------- */
+.admin-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.admin-logo-preview {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  padding: 4px;
+}
+
+.admin-logo-upload-btn {
+  cursor: pointer;
+}
+
+.admin-logo-remove-btn {
+  color: var(--red-700);
+  border-color: var(--red-border);
+}
+.admin-logo-remove-btn:hover:not(:disabled) {
+  background: var(--red-100);
+}
+
 .admin-unlock-title {
   font-size: 15px;
   font-weight: 700;

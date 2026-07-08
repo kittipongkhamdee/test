@@ -23,6 +23,8 @@ import {
   updateFormOption as apiUpdateFormOption,
   updateManualStart,
   updateRoundSettings as apiUpdateRoundSettings,
+  updateSchoolSettings as apiUpdateSchoolSettings,
+  updateSlotExamDate as apiUpdateSlotExamDate,
   updateSubmissionDetails,
   type FormOptionInput,
   type PlacementPatch,
@@ -94,7 +96,9 @@ type Action =
   | { type: "UNPLACE"; id: string }
   | { type: "SET_MANUAL_START"; id: string; minutes: number | null }
   | { type: "AUTO_SCHEDULE"; rules: AutoScheduleRules }
-  | { type: "CLEAR_SCHEDULE" };
+  | { type: "CLEAR_SCHEDULE" }
+  | { type: "UPDATE_SCHOOL"; school: SchoolMeta }
+  | { type: "UPDATE_SLOT_DATE"; day: ExamDay; examDate: string | null };
 
 function removeFromAllCells(cellOrder: Record<string, string[]>, id: string): Record<string, string[]> {
   const next: Record<string, string[]> = {};
@@ -194,6 +198,13 @@ function reducer(state: DataState, action: Action): DataState {
         },
       };
     }
+    case "UPDATE_SCHOOL":
+      return { ...state, school: action.school };
+    case "UPDATE_SLOT_DATE":
+      return {
+        ...state,
+        slots: state.slots.map((s) => (s.day === action.day ? { ...s, examDate: action.examDate } : s)),
+      };
     case "CLEAR_SCHEDULE": {
       const submissions: Record<string, Submission> = {};
       for (const [id, s] of Object.entries(state.submissions)) {
@@ -288,6 +299,8 @@ interface StoreContextValue {
   addFormOption: (input: FormOptionInput) => Promise<FormOption>;
   editFormOption: (id: string, patch: Partial<Pick<FormOptionInput, "label" | "icon" | "sortOrder" | "isActive">>) => Promise<FormOption>;
   removeFormOption: (id: string) => Promise<void>;
+  updateSchoolSettings: (schoolName: string, logoUrl: string | null) => Promise<void>;
+  updateSlotDate: (day: ExamDay, examDate: string | null) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -474,6 +487,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     dispatchRaw({ type: "REMOVE_FORM_OPTION", id });
   }, []);
 
+  const updateSchoolSettings = useCallback(
+    async (schoolName: string, logoUrl: string | null) => {
+      await apiUpdateSchoolSettings(schoolName, logoUrl);
+      dispatchRaw({
+        type: "UPDATE_SCHOOL",
+        school: { ...(state.school ?? { headAcademicName: "" }), schoolName, logoUrl },
+      });
+    },
+    [state.school],
+  );
+
+  const updateSlotDate = useCallback(
+    async (day: ExamDay, examDate: string | null) => {
+      if (!state.round) throw new Error("ยังไม่มีรอบสอบที่เปิดใช้งาน");
+      await apiUpdateSlotExamDate(state.round.id, day, examDate);
+      dispatchRaw({ type: "UPDATE_SLOT_DATE", day, examDate });
+    },
+    [state.round],
+  );
+
   const value = useMemo(
     () => ({
       state,
@@ -488,6 +521,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addFormOption,
       editFormOption,
       removeFormOption,
+      updateSchoolSettings,
+      updateSlotDate,
     }),
     [
       state,
@@ -502,6 +537,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addFormOption,
       editFormOption,
       removeFormOption,
+      updateSchoolSettings,
+      updateSlotDate,
     ],
   );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

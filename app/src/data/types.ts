@@ -49,6 +49,7 @@ export interface ExamSlotMeta {
 export interface SchoolMeta {
   schoolName: string;
   headAcademicName: string;
+  logoUrl: string | null;
 }
 
 export type FormOptionCategory = "grade" | "room" | "duration" | "preference";

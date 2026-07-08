@@ -86,12 +86,76 @@
 
 .dash-lower {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: 1fr 1.2fr;
   gap: 16px;
 }
 
-.dash-progress,
+.dash-schedule-card,
 .dash-recent {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dash-schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dash-schedule-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-soft);
+}
+
+.dash-schedule-day {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dash-schedule-date {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.dash-schedule-unset {
+  color: var(--text-faint);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.dash-schedule-submitted {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.dash-schedule-submitted-num {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.dash-schedule-submitted-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* keep legacy names for progress/recent that now share same class */
+.dash-progress {
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
@@ -205,5 +269,8 @@
   .dash-hero {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .dash-schedule-submitted {
+    padding-top: 8px;
   }
 }

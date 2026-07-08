@@ -1,3 +1,13 @@
+export function formatThaiDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "ยังไม่กำหนด";
+  return new Date(dateStr).toLocaleDateString("th-TH", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 export function formatThaiDateTime(iso: string | null | undefined): string | null {
   if (!iso) return null;
   return new Date(iso).toLocaleString("th-TH", {
