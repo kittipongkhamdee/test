@@ -4,6 +4,26 @@
   gap: 24px;
 }
 
+/* ---------- Fade-in + slide-up animations ---------- */
+@keyframes dash-fadein {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dash-hero          { animation: dash-fadein 0.45s ease both 0.05s; }
+.dash-stat-grid     { animation: dash-fadein 0.4s  ease both 0.15s; }
+.dash-not-submitted { animation: dash-fadein 0.4s  ease both 0.28s; }
+.dash-lower         { animation: dash-fadein 0.4s  ease both 0.35s; }
+
+/* ---------- Countdown digit flip ---------- */
+@keyframes dash-digit-flip {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.dash-countdown-num {
+  animation: dash-digit-flip 0.18s ease;
+}
+
 .dash-survey-btn {
   font-size: 15px;
   padding: 12px 24px;
