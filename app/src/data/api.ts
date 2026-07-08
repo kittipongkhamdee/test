@@ -50,6 +50,8 @@ interface SubmissionRow {
   manual_start_minutes: number | null;
   sort_order: number;
   submitted_at: string;
+  self_scheduled: boolean;
+  self_scheduled_note: string;
 }
 
 function rowToSubmission(row: SubmissionRow): Submission {
@@ -67,6 +69,8 @@ function rowToSubmission(row: SubmissionRow): Submission {
     slot: row.slot_day && row.slot_session ? { day: row.slot_day as ExamDay, session: row.slot_session } : undefined,
     manualStartMinutes: row.manual_start_minutes ?? undefined,
     submittedAt: row.submitted_at,
+    selfScheduled: row.self_scheduled ?? false,
+    selfScheduledNote: row.self_scheduled_note ?? "",
   };
 }
 
@@ -105,7 +109,7 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
     supabase
       .from("exam_submissions")
       .select(
-        "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at",
+        "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at, self_scheduled, self_scheduled_note",
       )
       .eq("exam_round_id", round.id),
     supabase.from("config").select("key, value").in("key", ["school_name", "head_academic", "school_logo"]),
@@ -156,6 +160,8 @@ export interface SubmitInput {
   rooms: number[];
   durationMinutes: number;
   morningPreference: MorningPreference;
+  selfScheduled: boolean;
+  selfScheduledNote: string;
 }
 
 // Real subjects already exist in the catalog as "draft" rows (seeded from the
@@ -183,6 +189,8 @@ export async function submitSubmission(input: SubmitInput): Promise<Submission> 
     session_preference: input.morningPreference,
     status: "pending" as SubmissionStatus,
     submitted_at: new Date().toISOString(),
+    self_scheduled: input.selfScheduled,
+    self_scheduled_note: input.selfScheduledNote,
   };
 
   if (existing) {
@@ -191,7 +199,7 @@ export async function submitSubmission(input: SubmitInput): Promise<Submission> 
       .update(payload)
       .eq("id", existing.id)
       .select(
-        "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at",
+        "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at, self_scheduled, self_scheduled_note",
       )
       .single();
     if (error) throw error;
@@ -202,7 +210,7 @@ export async function submitSubmission(input: SubmitInput): Promise<Submission> 
     .from("exam_submissions")
     .insert({ exam_round_id: input.examRoundId, ...payload })
     .select(
-      "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at",
+      "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at, self_scheduled, self_scheduled_note",
     )
     .single();
   if (error) throw error;
@@ -335,7 +343,7 @@ export async function updateSubmissionDetails(id: string, input: SubmissionEditI
     })
     .eq("id", id)
     .select(
-      "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at",
+      "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at, self_scheduled, self_scheduled_note",
     )
     .single();
   if (error) throw error;

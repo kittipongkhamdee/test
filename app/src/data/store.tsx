@@ -289,6 +289,8 @@ interface StoreContextValue {
     rooms: number[];
     durationMinutes: number;
     morningPreference: MorningPreference;
+    selfScheduled: boolean;
+    selfScheduledNote: string;
   }) => Promise<Submission>;
   isAdmin: boolean;
   unlockAdmin: (password: string) => boolean;
@@ -400,6 +402,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       rooms: number[];
       durationMinutes: number;
       morningPreference: MorningPreference;
+      selfScheduled: boolean;
+      selfScheduledNote: string;
     }) => {
       if (!state.round) throw new Error("ยังไม่มีรอบสอบที่เปิดใช้งาน");
       const saved = await submitSubmission({ examRoundId: state.round.id, ...input });

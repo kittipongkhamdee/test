@@ -26,6 +26,8 @@ export interface Submission {
   slot?: Slot;
   manualStartMinutes?: number; // admin-forced start time override, minutes-from-midnight
   submittedAt: string; // ISO
+  selfScheduled: boolean;
+  selfScheduledNote: string;
 }
 
 export interface ExamRoundMeta {

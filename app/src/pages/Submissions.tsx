@@ -3,18 +3,19 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useActiveFormOptions, useStore, useSubmissions } from "../data/store";
 import { GRADES, gradeLabel } from "../data/mockData";
-import type { Grade, MorningPreference, Submission, SubmissionStatus } from "../data/types";
+import type { Grade, MorningPreference, Submission } from "../data/types";
 import "./Submissions.css";
 
-type StatusFilter = "all" | "scheduled" | "pending";
+type StatusFilter = "all" | "scheduled" | "pending" | "self-scheduled";
 
 function formatRooms(rooms: number[]): string {
   if (rooms.length === 0) return "ทุกห้อง";
   return rooms.join(", ");
 }
 
-function statusBadge(status: SubmissionStatus) {
-  if (status === "scheduled") return <span className="badge badge-green">จัดแล้ว</span>;
+function statusBadge(s: Submission) {
+  if (s.selfScheduled) return <span className="badge badge-purple">นอกตาราง</span>;
+  if (s.status === "scheduled") return <span className="badge badge-green">จัดแล้ว</span>;
   return <span className="badge badge-orange">รอจัด</span>;
 }
 
@@ -182,7 +183,11 @@ export default function Submissions() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return submissions
-      .filter((s) => (statusFilter === "all" ? true : s.status === statusFilter))
+      .filter((s) => {
+        if (statusFilter === "all") return true;
+        if (statusFilter === "self-scheduled") return s.selfScheduled;
+        return !s.selfScheduled && s.status === statusFilter;
+      })
       .filter((s) => (gradeFilter === "all" ? true : s.grade === gradeFilter))
       .filter((s) => (q ? s.teacherName.toLowerCase().includes(q) || s.code.toLowerCase().includes(q) || s.subjectName.toLowerCase().includes(q) : true))
       .sort((a, b) => a.grade - b.grade || a.code.localeCompare(b.code));
@@ -191,8 +196,9 @@ export default function Submissions() {
   const counts = useMemo(
     () => ({
       all: submissions.length,
-      scheduled: submissions.filter((s) => s.status === "scheduled").length,
-      pending: submissions.filter((s) => s.status === "pending").length,
+      scheduled: submissions.filter((s) => !s.selfScheduled && s.status === "scheduled").length,
+      pending: submissions.filter((s) => !s.selfScheduled && s.status === "pending").length,
+      selfScheduled: submissions.filter((s) => s.selfScheduled).length,
     }),
     [submissions],
   );
@@ -283,6 +289,14 @@ export default function Submissions() {
         >
           รอจัด ({counts.pending})
         </button>
+        {counts.selfScheduled > 0 && (
+          <button
+            className={"subs-tab subs-tab-purple" + (statusFilter === "self-scheduled" ? " active" : "")}
+            onClick={() => setStatusFilter("self-scheduled")}
+          >
+            นอกตาราง ({counts.selfScheduled})
+          </button>
+        )}
         <select
           className="subs-grade-select"
           value={gradeFilter}
@@ -317,7 +331,7 @@ export default function Submissions() {
               <span>{gradeLabel(s.grade)}</span>
               <span className="subs-muted">{formatRooms(s.rooms)}</span>
               <span>{s.durationMinutes} นาที</span>
-              <span>{statusBadge(s.status)}</span>
+              <span>{statusBadge(s)}</span>
               {isAdmin && (
                 <span className="subs-row-actions">
                   <button type="button" className="subs-action-btn subs-action-desktop" onClick={() => setEditing(s)}>

@@ -124,6 +124,14 @@ export default function Publish() {
     XLSX.writeFile(wb, `${examTitle}.xlsx`);
   }
 
+  const selfScheduledRows = useMemo(
+    () =>
+      submissions
+        .filter((s) => s.selfScheduled && (!gradeFilter || s.grade === gradeFilter))
+        .sort((a, b) => a.grade - b.grade || a.code.localeCompare(b.code)),
+    [submissions, gradeFilter],
+  );
+
   const examTitle = state.round?.name ?? "";
   const schoolName = state.school?.schoolName ?? "";
   const slotsByDay = (day: ExamDay): ExamSlotMeta | undefined => state.slots.find((s) => s.day === day);
@@ -202,6 +210,32 @@ export default function Publish() {
               </div>
             </div>
           ))}
+
+          {selfScheduledRows.length > 0 && (
+            <div className="pub-day pub-self-sched">
+              <div className="pub-day-title pub-self-sched-title">วิชาที่ครูจัดสอบเอง (นอกตารางกลาง)</div>
+              <div className="pub-table">
+                <div className="pub-table-head pub-table-head-self">
+                  <span>รหัสวิชา</span>
+                  <span>ชื่อวิชา</span>
+                  <span>ระดับชั้น</span>
+                  <span>ห้องสอบ</span>
+                  <span>ครูผู้ออกข้อสอบ</span>
+                  <span>หมายเหตุ</span>
+                </div>
+                {selfScheduledRows.map((s) => (
+                  <div className="pub-table-row pub-table-row-self" key={s.id}>
+                    <span className="pub-code">{s.code}</span>
+                    <span>{s.subjectName}</span>
+                    <span>{gradeLabel(s.grade)}</span>
+                    <span>{formatRooms(s.rooms)}</span>
+                    <span>{s.teacherName}</span>
+                    <span className="pub-self-note">{s.selfScheduledNote || "—"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
