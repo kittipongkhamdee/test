@@ -51,7 +51,7 @@ export default function Dashboard() {
 
   const totalTeachers = state.teachers.length;
   const submittedTeacherNames = useMemo(
-    () => new Set(submissions.filter((s) => !s.selfScheduled).map((s) => s.teacherName.trim().toLowerCase())),
+    () => new Set(submissions.map((s) => s.teacherName.trim().toLowerCase())),
     [submissions],
   );
   const notSubmittedTeachers = useMemo(
