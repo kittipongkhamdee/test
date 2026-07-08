@@ -98,17 +98,25 @@ function AdminStatus() {
   );
 }
 
+function SchoolLogo({ logoUrl }: { logoUrl: string | null }) {
+  if (logoUrl) {
+    return <img className="shell-logo shell-logo-img" src={logoUrl} alt="โลโก้โรงเรียน" />;
+  }
+  return <div className="shell-logo">ตบ</div>;
+}
+
 export default function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { state, isAdmin } = useStore();
   const schoolName = state.school?.schoolName ?? "";
+  const logoUrl = state.school?.logoUrl ?? null;
   const navItems = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
 
   return (
     <div className="shell">
       <aside className="shell-sidebar">
         <div className="shell-brand">
-          <div className="shell-logo">ตบ</div>
+          <SchoolLogo logoUrl={logoUrl} />
           <div>
             <div className="shell-brand-title">ระบบจัดการสอบ</div>
             <div className="shell-brand-school">{schoolName}</div>
@@ -151,7 +159,7 @@ export default function AppShell() {
         <div className="shell-drawer-overlay" onClick={() => setDrawerOpen(false)}>
           <div className="shell-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="shell-brand">
-              <div className="shell-logo">ตบ</div>
+              <SchoolLogo logoUrl={logoUrl} />
               <div>
                 <div className="shell-brand-title">ระบบจัดการสอบ</div>
                 <div className="shell-brand-school">{schoolName}</div>

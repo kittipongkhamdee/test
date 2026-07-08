@@ -148,7 +148,11 @@ export default function TeacherForm() {
   return (
     <div className="tform-page">
       <div className="tform-topbar">
-        <div className="shell-logo">ตบ</div>
+        {state.school?.logoUrl ? (
+          <img className="shell-logo shell-logo-img" src={state.school.logoUrl} alt="โลโก้โรงเรียน" />
+        ) : (
+          <div className="shell-logo">ตบ</div>
+        )}
         <div className="tform-topbar-title">แบบสำรวจการจัดสอบ · {schoolName}</div>
         <div className="tform-topbar-period">{examTitle}</div>
       </div>

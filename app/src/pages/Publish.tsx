@@ -76,8 +76,6 @@ export default function Publish() {
 
   const examTitle = state.round?.name ?? "";
   const schoolName = state.school?.schoolName ?? "";
-  const headAcademicName = state.school?.headAcademicName ?? "";
-  const publishDate = state.round?.publishDate;
 
   const slotsByDay = (day: ExamDay): ExamSlotMeta | undefined => state.slots.find((s) => s.day === day);
 
@@ -131,18 +129,6 @@ export default function Publish() {
             </div>
           ))}
 
-          <div className="pub-footer">
-            <div className="pub-footer-date">
-              ประกาศ ณ วันที่ {publishDate ?? "…………………………"}
-            </div>
-            <div className="pub-signature">
-              <div className="pub-signature-line" />
-              <div>ลงชื่อ ..............................................</div>
-              <div className="pub-signature-role">
-                {headAcademicName ? `(${headAcademicName})` : ""} รองผู้อำนวยการฝ่ายวิชาการ
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

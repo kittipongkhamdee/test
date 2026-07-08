@@ -108,7 +108,7 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
         "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at",
       )
       .eq("exam_round_id", round.id),
-    supabase.from("config").select("key, value").in("key", ["school_name", "head_academic"]),
+    supabase.from("config").select("key, value").in("key", ["school_name", "head_academic", "school_logo"]),
     supabase.from("exam_form_options").select("id, category, value, label, icon, sort_order, is_active").order("sort_order"),
   ]);
   if (slotError) throw slotError;
@@ -140,6 +140,7 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
     school: {
       schoolName: configMap.get("school_name") ?? "",
       headAcademicName: configMap.get("head_academic") ?? "",
+      logoUrl: configMap.get("school_logo") || null,
     },
     submissions: (subRows ?? []).map(rowToSubmission),
     formOptions: (formOptionRows ?? []).map(rowToFormOption),
@@ -337,5 +338,25 @@ export async function updateFormOption(
 
 export async function deleteFormOption(id: string): Promise<void> {
   const { error } = await supabase.from("exam_form_options").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateSchoolSettings(schoolName: string, logoUrl: string | null): Promise<void> {
+  const rows = [
+    { key: "school_name", value: schoolName },
+    { key: "school_logo", value: logoUrl ?? "" },
+  ];
+  for (const row of rows) {
+    const { error } = await supabase.from("config").upsert(row, { onConflict: "key" });
+    if (error) throw error;
+  }
+}
+
+export async function updateSlotExamDate(examRoundId: string, day: ExamDay, examDate: string | null): Promise<void> {
+  const { error } = await supabase
+    .from("exam_round_slots")
+    .update({ exam_date: examDate })
+    .eq("exam_round_id", examRoundId)
+    .eq("day_number", day);
   if (error) throw error;
 }

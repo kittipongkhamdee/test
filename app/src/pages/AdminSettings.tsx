@@ -3,8 +3,6 @@ import { useFormOptions, useStore } from "../data/store";
 import type { FormOption, FormOptionCategory } from "../data/types";
 import "./AdminSettings.css";
 
-// datetime-local inputs work in the browser's local time and expect/return
-// "YYYY-MM-DDTHH:mm" with no timezone suffix.
 function isoToLocalInput(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -15,6 +13,28 @@ function isoToLocalInput(iso: string | null): string {
 function localInputToIso(value: string): string | null {
   if (!value) return null;
   return new Date(value).toISOString();
+}
+
+function resizeImageToBase64(file: File, maxSize = 400): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/png", 0.85));
+      };
+      img.onerror = reject;
+      img.src = e.target!.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 function OptionRow({
@@ -234,16 +254,26 @@ function OptionCategorySection({
 }
 
 export default function AdminSettings() {
-  const { state, isAdmin, unlockAdmin, updateRoundSettings } = useStore();
+  const { state, isAdmin, unlockAdmin, updateRoundSettings, updateSchoolSettings, updateSlotDate } = useStore();
   const [password, setPassword] = useState("");
   const [unlockError, setUnlockError] = useState<string | null>(null);
 
+  // Round settings
   const [name, setName] = useState(state.round?.name ?? "");
   const [opensAt, setOpensAt] = useState(isoToLocalInput(state.round?.submissionOpensAt ?? null));
   const [closesAt, setClosesAt] = useState(isoToLocalInput(state.round?.submissionClosesAt ?? null));
+  const [examDate1, setExamDate1] = useState(state.slots.find((s) => s.day === 1)?.examDate ?? "");
+  const [examDate2, setExamDate2] = useState(state.slots.find((s) => s.day === 2)?.examDate ?? "");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // School settings
+  const [schoolName, setSchoolName] = useState(state.school?.schoolName ?? "");
+  const [logoPreview, setLogoPreview] = useState<string | null>(state.school?.logoUrl ?? null);
+  const [schoolSaving, setSchoolSaving] = useState(false);
+  const [schoolSaveMsg, setSchoolSaveMsg] = useState<string | null>(null);
+  const [schoolSaveError, setSchoolSaveError] = useState<string | null>(null);
 
   function handleUnlock(e: React.FormEvent) {
     e.preventDefault();
@@ -255,17 +285,49 @@ export default function AdminSettings() {
     }
   }
 
+  async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSchoolSaveError(null);
+    try {
+      const resized = await resizeImageToBase64(file);
+      setLogoPreview(resized);
+    } catch {
+      setSchoolSaveError("ไม่สามารถอ่านไฟล์รูปภาพได้");
+    }
+    e.target.value = "";
+  }
+
+  async function handleSaveSchool(e: React.FormEvent) {
+    e.preventDefault();
+    setSchoolSaving(true);
+    setSchoolSaveError(null);
+    setSchoolSaveMsg(null);
+    try {
+      await updateSchoolSettings(schoolName.trim(), logoPreview);
+      setSchoolSaveMsg("บันทึกข้อมูลโรงเรียนเรียบร้อยแล้ว");
+    } catch (err) {
+      setSchoolSaveError(err instanceof Error ? err.message : "บันทึกไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setSchoolSaving(false);
+    }
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setSaveError(null);
     setSaveMsg(null);
     try {
-      await updateRoundSettings({
-        name: name.trim(),
-        submissionOpensAt: localInputToIso(opensAt),
-        submissionClosesAt: localInputToIso(closesAt),
-      });
+      await Promise.all([
+        updateRoundSettings({
+          name: name.trim(),
+          submissionOpensAt: localInputToIso(opensAt),
+          submissionClosesAt: localInputToIso(closesAt),
+        }),
+        updateSlotDate(1, examDate1 || null),
+        updateSlotDate(2, examDate2 || null),
+      ]);
       setSaveMsg("บันทึกการตั้งค่าเรียบร้อยแล้ว");
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "บันทึกไม่สำเร็จ กรุณาลองใหม่");
@@ -307,11 +369,59 @@ export default function AdminSettings() {
       <div className="page-header">
         <div>
           <h1>ตั้งค่ารอบสอบ</h1>
-          <div className="page-subtitle">แก้ไขชื่อรอบสอบ ช่วงเวลาที่เปิดรับข้อมูล และตัวเลือกในฟอร์มสำรวจ</div>
+          <div className="page-subtitle">แก้ไขชื่อโรงเรียน โลโก้ รอบสอบ ช่วงเวลาที่เปิดรับข้อมูล และตัวเลือกในฟอร์มสำรวจ</div>
         </div>
       </div>
 
+      {/* School info */}
+      <form className="card admin-settings-card" onSubmit={handleSaveSchool}>
+        <div className="admin-section-heading">ข้อมูลโรงเรียน</div>
+        {schoolSaveMsg && <div className="tform-success">✓ {schoolSaveMsg}</div>}
+        {schoolSaveError && <div className="tform-error">{schoolSaveError}</div>}
+
+        <label className="tform-field">
+          <span className="tform-label">ชื่อโรงเรียน</span>
+          <input
+            className="tform-input"
+            value={schoolName}
+            onChange={(e) => setSchoolName(e.target.value)}
+            placeholder="โรงเรียนตาเบาวิทยา"
+            disabled={schoolSaving}
+          />
+        </label>
+
+        <div className="tform-field">
+          <span className="tform-label">โลโก้โรงเรียน</span>
+          <div className="admin-logo-row">
+            {logoPreview && <img className="admin-logo-preview" src={logoPreview} alt="โลโก้โรงเรียน" />}
+            <label className="btn btn-ghost admin-logo-upload-btn">
+              {logoPreview ? "เปลี่ยนรูป…" : "เลือกรูปภาพ…"}
+              <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleLogoChange} disabled={schoolSaving} />
+            </label>
+            {logoPreview && (
+              <button
+                type="button"
+                className="btn btn-ghost admin-logo-remove-btn"
+                onClick={() => setLogoPreview(null)}
+                disabled={schoolSaving}
+              >
+                ลบโลโก้
+              </button>
+            )}
+          </div>
+          <div className="tform-hint">รองรับ PNG, JPG — ระบบย่อขนาดอัตโนมัติ แนะนำ 400×400px ขึ้นไป</div>
+        </div>
+
+        <div className="tform-actions">
+          <button type="submit" className="btn btn-primary" disabled={schoolSaving}>
+            {schoolSaving ? "กำลังบันทึก…" : "บันทึกข้อมูลโรงเรียน"}
+          </button>
+        </div>
+      </form>
+
+      {/* Round settings */}
       <form className="card admin-settings-card" onSubmit={handleSave}>
+        <div className="admin-section-heading">การตั้งค่ารอบสอบ</div>
         {saveMsg && <div className="tform-success">✓ {saveMsg}</div>}
         {saveError && <div className="tform-error">{saveError}</div>}
 
@@ -328,24 +438,26 @@ export default function AdminSettings() {
         <div className="tform-row-2">
           <label className="tform-field">
             <span className="tform-label">เปิดรับข้อมูลตั้งแต่</span>
-            <input
-              className="tform-input"
-              type="datetime-local"
-              value={opensAt}
-              onChange={(e) => setOpensAt(e.target.value)}
-            />
+            <input className="tform-input" type="datetime-local" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} />
           </label>
           <label className="tform-field">
             <span className="tform-label">ปิดรับข้อมูลเมื่อ</span>
-            <input
-              className="tform-input"
-              type="datetime-local"
-              value={closesAt}
-              onChange={(e) => setClosesAt(e.target.value)}
-            />
+            <input className="tform-input" type="datetime-local" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} />
           </label>
         </div>
         <div className="tform-hint">เว้นว่างช่องใดช่องหนึ่งได้ ถ้ายังไม่ต้องการจำกัดเวลาเปิด/ปิดรับข้อมูล</div>
+
+        <div className="tform-row-2">
+          <label className="tform-field">
+            <span className="tform-label">วันที่สอบ (วันที่ 1)</span>
+            <input className="tform-input" type="date" value={examDate1 ?? ""} onChange={(e) => setExamDate1(e.target.value)} />
+          </label>
+          <label className="tform-field">
+            <span className="tform-label">วันที่สอบ (วันที่ 2)</span>
+            <input className="tform-input" type="date" value={examDate2 ?? ""} onChange={(e) => setExamDate2(e.target.value)} />
+          </label>
+        </div>
+        <div className="tform-hint">วันที่สอบจะแสดงในแดชบอร์ดและตารางสอบเผยแพร่</div>
 
         <div className="tform-actions">
           <button type="submit" className="btn btn-primary" disabled={saving}>
