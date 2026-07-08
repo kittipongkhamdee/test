@@ -209,22 +209,6 @@ export default function TeacherForm() {
           {windowMessage && <div className="tform-error">{windowMessage}</div>}
           {error && <div className="tform-error">{error}</div>}
 
-          <label className="tform-field">
-            <span className="tform-label">ชื่อครูผู้สอน</span>
-            <input
-              className="tform-input"
-              list="teacher-names"
-              value={teacherName}
-              onChange={(e) => setTeacherName(e.target.value)}
-              placeholder="เช่น นางสาวโสรดา ศรีสุข"
-            />
-            <datalist id="teacher-names">
-              {state.teachers.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
-          </label>
-
           {teacherName.trim() && (
             <div className="tform-mysubs-inline">
               <div className="tform-mysubs-title">
@@ -254,6 +238,22 @@ export default function TeacherForm() {
               )}
             </div>
           )}
+
+          <label className="tform-field">
+            <span className="tform-label">ชื่อครูผู้สอน</span>
+            <input
+              className="tform-input"
+              list="teacher-names"
+              value={teacherName}
+              onChange={(e) => setTeacherName(e.target.value)}
+              placeholder="เช่น นางสาวโสรดา ศรีสุข"
+            />
+            <datalist id="teacher-names">
+              {state.teachers.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          </label>
 
           <div className="tform-row-2 tform-row-suggest">
             <label className="tform-field">
