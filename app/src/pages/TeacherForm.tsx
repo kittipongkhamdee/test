@@ -119,14 +119,9 @@ export default function TeacherForm() {
 
   const finalDuration = duration ?? Number(customDuration);
   const isRoomsValid = roomsSelection === "all" || (Array.isArray(roomsSelection) && roomsSelection.length > 0);
-  const isComplete =
-    !!teacherName.trim() &&
-    !!code.trim() &&
-    !!subjectName.trim() &&
-    !!grade &&
-    isRoomsValid &&
-    finalDuration > 0 &&
-    (selfScheduled || !!preference);
+  const isComplete = selfScheduled
+    ? !!teacherName.trim()
+    : !!teacherName.trim() && !!code.trim() && !!subjectName.trim() && !!grade && isRoomsValid && finalDuration > 0 && !!preference;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -134,8 +129,8 @@ export default function TeacherForm() {
       setError(windowMessage);
       return;
     }
-    if (!isComplete || !grade || !preference) {
-      setError("กรุณากรอกข้อมูลให้ครบทุกช่องก่อนส่งข้อมูล");
+    if (!isComplete) {
+      setError(selfScheduled ? "กรุณากรอกชื่อครูผู้สอน" : "กรุณากรอกข้อมูลให้ครบทุกช่องก่อนส่งข้อมูล");
       setSubmittedMsg(null);
       return;
     }
@@ -144,22 +139,25 @@ export default function TeacherForm() {
   }
 
   async function doSubmit() {
-    if (!grade) return;
     setShowConfirm(false);
     setSubmitting(true);
     try {
       await submit({
-        code: code.trim(),
-        subjectName: subjectName.trim(),
+        code: selfScheduled ? "–" : code.trim(),
+        subjectName: selfScheduled ? "จัดสอบเอง" : subjectName.trim(),
         teacherName: teacherName.trim(),
-        grade,
-        rooms: roomsSelection === "all" ? [] : (roomsSelection ?? []),
-        durationMinutes: finalDuration,
-        morningPreference: preference ?? "none",
+        grade: selfScheduled ? 1 : grade!,
+        rooms: selfScheduled ? [] : (roomsSelection === "all" ? [] : (roomsSelection ?? [])),
+        durationMinutes: selfScheduled ? 60 : finalDuration,
+        morningPreference: selfScheduled ? "none" : (preference ?? "none"),
         selfScheduled,
         selfScheduledNote: selfScheduledNote.trim(),
       });
-      setSubmittedMsg(`ส่งข้อมูลวิชา ${code.trim()} ${subjectName.trim()} เรียบร้อยแล้ว`);
+      setSubmittedMsg(
+        selfScheduled
+          ? "ส่งคำขอจัดสอบนอกตารางเรียบร้อยแล้ว"
+          : `ส่งข้อมูลวิชา ${code.trim()} ${subjectName.trim()} เรียบร้อยแล้ว`,
+      );
       resetForm();
     } catch (err) {
       setError(err instanceof Error ? err.message : "ส่งข้อมูลไม่สำเร็จ กรุณาลองใหม่");
@@ -255,163 +253,6 @@ export default function TeacherForm() {
             </datalist>
           </label>
 
-          <div className="tform-row-2 tform-row-suggest">
-            <label className="tform-field">
-              <span className="tform-label">รหัสวิชา</span>
-              <input
-                className="tform-input"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                onFocus={() => setActiveSuggestField("code")}
-                onBlur={() => setTimeout(() => setActiveSuggestField(null), 150)}
-                placeholder="อ23101"
-                autoComplete="off"
-              />
-              {activeSuggestField === "code" && suggestions.length > 0 && (
-                <ul className="tform-suggest-list">
-                  {suggestions.map((s) => (
-                    <li key={`${s.code}_${s.grade}`}>
-                      <button type="button" onMouseDown={() => applySuggestion(s)} className="tform-suggest-item">
-                        <span className="tform-suggest-code">{s.code}</span>
-                        <span className="tform-suggest-name">
-                          {s.subjectName} · {gradeLabel(s.grade)}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </label>
-            <label className="tform-field">
-              <span className="tform-label">ชื่อวิชา</span>
-              <input
-                className="tform-input"
-                value={subjectName}
-                onChange={(e) => setSubjectName(e.target.value)}
-                onFocus={() => setActiveSuggestField("subjectName")}
-                onBlur={() => setTimeout(() => setActiveSuggestField(null), 150)}
-                placeholder="ภาษาอังกฤษ 5"
-                autoComplete="off"
-              />
-              {activeSuggestField === "subjectName" && suggestions.length > 0 && (
-                <ul className="tform-suggest-list">
-                  {suggestions.map((s) => (
-                    <li key={`${s.code}_${s.grade}`}>
-                      <button type="button" onMouseDown={() => applySuggestion(s)} className="tform-suggest-item">
-                        <span className="tform-suggest-code">{s.code}</span>
-                        <span className="tform-suggest-name">
-                          {s.subjectName} · {gradeLabel(s.grade)}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </label>
-          </div>
-
-          <div className="tform-field">
-            <span className="tform-label">ระดับชั้น</span>
-            <div className="tform-chip-row">
-              {gradeOptions.map((opt) => {
-                const g = Number(opt.value) as Grade;
-                return (
-                  <button
-                    type="button"
-                    key={opt.id}
-                    className={"tform-chip" + (grade === g ? " selected" : "")}
-                    onClick={() => setGrade(g)}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="tform-field">
-            <span className="tform-label">
-              ห้องที่จัดสอบ <span className="tform-label-note">(เลือกได้หลายห้อง หรือเลือก "ทุกห้อง")</span>
-            </span>
-            <div className="tform-chip-row">
-              <button
-                type="button"
-                className={"tform-chip" + (roomsSelection === "all" ? " selected" : "")}
-                onClick={() => setRoomsSelection("all")}
-              >
-                ทุกห้อง
-              </button>
-              {roomOptions.map((opt) => {
-                const r = Number(opt.value);
-                const selected = Array.isArray(roomsSelection) && roomsSelection.includes(r);
-                return (
-                  <button
-                    type="button"
-                    key={opt.id}
-                    className={"tform-chip" + (selected ? " selected" : "")}
-                    onClick={() => toggleRoom(r)}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="tform-field">
-            <span className="tform-label">เวลาที่ใช้สอบ</span>
-            <div className="tform-chip-row">
-              {durationOptions.map((opt) => {
-                const d = Number(opt.value);
-                return (
-                  <button
-                    type="button"
-                    key={opt.id}
-                    className={"tform-chip" + (duration === d ? " selected" : "")}
-                    onClick={() => {
-                      setDuration(d);
-                      setCustomDuration("");
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-              <input
-                className="tform-custom-duration"
-                type="number"
-                min={5}
-                step={5}
-                placeholder="กำหนดเอง…"
-                value={customDuration}
-                onChange={(e) => {
-                  setCustomDuration(e.target.value);
-                  setDuration(null);
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="tform-field">
-            <span className="tform-label">
-              ช่วงเวลาที่เหมาะสมในการสอบ <span className="tform-label-note">(ใช้จัดตารางอัตโนมัติ)</span>
-            </span>
-            <div className="tform-chip-row">
-              {preferenceOptions.map((opt) => (
-                <button
-                  type="button"
-                  key={opt.id}
-                  className={"tform-chip" + (preference === opt.value ? " selected" : "")}
-                  onClick={() => setPreference(opt.value as MorningPreference)}
-                >
-                  {opt.icon ? `${opt.icon} ` : ""}
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <div className="tform-hint">เลือก "ควรสอบเช้า" สำหรับวิชาที่ต้องใช้สมาธิสูง เช่น คณิตศาสตร์ วิทยาศาสตร์</div>
-          </div>
-
           <div className="tform-self-sched">
             <label className="tform-self-sched-toggle">
               <input
@@ -434,6 +275,167 @@ export default function TeacherForm() {
               </div>
             )}
           </div>
+
+          {!selfScheduled && (
+            <>
+              <div className="tform-row-2 tform-row-suggest">
+                <label className="tform-field">
+                  <span className="tform-label">รหัสวิชา</span>
+                  <input
+                    className="tform-input"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    onFocus={() => setActiveSuggestField("code")}
+                    onBlur={() => setTimeout(() => setActiveSuggestField(null), 150)}
+                    placeholder="อ23101"
+                    autoComplete="off"
+                  />
+                  {activeSuggestField === "code" && suggestions.length > 0 && (
+                    <ul className="tform-suggest-list">
+                      {suggestions.map((s) => (
+                        <li key={`${s.code}_${s.grade}`}>
+                          <button type="button" onMouseDown={() => applySuggestion(s)} className="tform-suggest-item">
+                            <span className="tform-suggest-code">{s.code}</span>
+                            <span className="tform-suggest-name">
+                              {s.subjectName} · {gradeLabel(s.grade)}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </label>
+                <label className="tform-field">
+                  <span className="tform-label">ชื่อวิชา</span>
+                  <input
+                    className="tform-input"
+                    value={subjectName}
+                    onChange={(e) => setSubjectName(e.target.value)}
+                    onFocus={() => setActiveSuggestField("subjectName")}
+                    onBlur={() => setTimeout(() => setActiveSuggestField(null), 150)}
+                    placeholder="ภาษาอังกฤษ 5"
+                    autoComplete="off"
+                  />
+                  {activeSuggestField === "subjectName" && suggestions.length > 0 && (
+                    <ul className="tform-suggest-list">
+                      {suggestions.map((s) => (
+                        <li key={`${s.code}_${s.grade}`}>
+                          <button type="button" onMouseDown={() => applySuggestion(s)} className="tform-suggest-item">
+                            <span className="tform-suggest-code">{s.code}</span>
+                            <span className="tform-suggest-name">
+                              {s.subjectName} · {gradeLabel(s.grade)}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </label>
+              </div>
+
+              <div className="tform-field">
+                <span className="tform-label">ระดับชั้น</span>
+                <div className="tform-chip-row">
+                  {gradeOptions.map((opt) => {
+                    const g = Number(opt.value) as Grade;
+                    return (
+                      <button
+                        type="button"
+                        key={opt.id}
+                        className={"tform-chip" + (grade === g ? " selected" : "")}
+                        onClick={() => setGrade(g)}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="tform-field">
+                <span className="tform-label">
+                  ห้องที่จัดสอบ <span className="tform-label-note">(เลือกได้หลายห้อง หรือเลือก "ทุกห้อง")</span>
+                </span>
+                <div className="tform-chip-row">
+                  <button
+                    type="button"
+                    className={"tform-chip" + (roomsSelection === "all" ? " selected" : "")}
+                    onClick={() => setRoomsSelection("all")}
+                  >
+                    ทุกห้อง
+                  </button>
+                  {roomOptions.map((opt) => {
+                    const r = Number(opt.value);
+                    const selected = Array.isArray(roomsSelection) && roomsSelection.includes(r);
+                    return (
+                      <button
+                        type="button"
+                        key={opt.id}
+                        className={"tform-chip" + (selected ? " selected" : "")}
+                        onClick={() => toggleRoom(r)}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="tform-field">
+                <span className="tform-label">เวลาที่ใช้สอบ</span>
+                <div className="tform-chip-row">
+                  {durationOptions.map((opt) => {
+                    const d = Number(opt.value);
+                    return (
+                      <button
+                        type="button"
+                        key={opt.id}
+                        className={"tform-chip" + (duration === d ? " selected" : "")}
+                        onClick={() => {
+                          setDuration(d);
+                          setCustomDuration("");
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                  <input
+                    className="tform-custom-duration"
+                    type="number"
+                    min={5}
+                    step={5}
+                    placeholder="กำหนดเอง…"
+                    value={customDuration}
+                    onChange={(e) => {
+                      setCustomDuration(e.target.value);
+                      setDuration(null);
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="tform-field">
+                <span className="tform-label">
+                  ช่วงเวลาที่เหมาะสมในการสอบ <span className="tform-label-note">(ใช้จัดตารางอัตโนมัติ)</span>
+                </span>
+                <div className="tform-chip-row">
+                  {preferenceOptions.map((opt) => (
+                    <button
+                      type="button"
+                      key={opt.id}
+                      className={"tform-chip" + (preference === opt.value ? " selected" : "")}
+                      onClick={() => setPreference(opt.value as MorningPreference)}
+                    >
+                      {opt.icon ? `${opt.icon} ` : ""}
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="tform-hint">เลือก "ควรสอบเช้า" สำหรับวิชาที่ต้องใช้สมาธิสูง เช่น คณิตศาสตร์ วิทยาศาสตร์</div>
+              </div>
+            </>
+          )}
 
           <div className="tform-actions">
             <button
@@ -469,40 +471,51 @@ export default function TeacherForm() {
                   <span className="tform-confirm-label">ครูผู้สอน</span>
                   <span>{teacherName.trim()}</span>
                 </div>
-                <div className="tform-confirm-row">
-                  <span className="tform-confirm-label">รหัสวิชา</span>
-                  <span className="tform-confirm-code">{code.trim()}</span>
-                </div>
-                <div className="tform-confirm-row">
-                  <span className="tform-confirm-label">ชื่อวิชา</span>
-                  <span>{subjectName.trim()}</span>
-                </div>
-                <div className="tform-confirm-row">
-                  <span className="tform-confirm-label">ระดับชั้น</span>
-                  <span>{grade ? gradeLabel(grade) : ""}</span>
-                </div>
-                <div className="tform-confirm-row">
-                  <span className="tform-confirm-label">ห้องสอบ</span>
-                  <span>
-                    {roomsSelection === "all"
-                      ? "ทุกห้อง"
-                      : Array.isArray(roomsSelection)
-                        ? roomsSelection.map((r) => {
-                            const opt = roomOptions.find((o) => Number(o.value) === r);
-                            return opt ? opt.label : `ห้อง ${r}`;
-                          }).join(", ")
-                        : "—"}
-                  </span>
-                </div>
-                <div className="tform-confirm-row">
-                  <span className="tform-confirm-label">เวลาสอบ</span>
-                  <span>{finalDuration} นาที</span>
-                </div>
-                {selfScheduled && (
-                  <div className="tform-confirm-row">
-                    <span className="tform-confirm-label">หมายเหตุ</span>
-                    <span className="tform-self-sched-badge">นอกตาราง{selfScheduledNote ? ` · ${selfScheduledNote}` : ""}</span>
-                  </div>
+                {selfScheduled ? (
+                  <>
+                    <div className="tform-confirm-row">
+                      <span className="tform-confirm-label">ประเภท</span>
+                      <span className="tform-self-sched-badge">จัดสอบนอกตาราง</span>
+                    </div>
+                    {selfScheduledNote.trim() && (
+                      <div className="tform-confirm-row">
+                        <span className="tform-confirm-label">หมายเหตุ</span>
+                        <span>{selfScheduledNote.trim()}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="tform-confirm-row">
+                      <span className="tform-confirm-label">รหัสวิชา</span>
+                      <span className="tform-confirm-code">{code.trim()}</span>
+                    </div>
+                    <div className="tform-confirm-row">
+                      <span className="tform-confirm-label">ชื่อวิชา</span>
+                      <span>{subjectName.trim()}</span>
+                    </div>
+                    <div className="tform-confirm-row">
+                      <span className="tform-confirm-label">ระดับชั้น</span>
+                      <span>{grade ? gradeLabel(grade) : ""}</span>
+                    </div>
+                    <div className="tform-confirm-row">
+                      <span className="tform-confirm-label">ห้องสอบ</span>
+                      <span>
+                        {roomsSelection === "all"
+                          ? "ทุกห้อง"
+                          : Array.isArray(roomsSelection)
+                            ? roomsSelection.map((r) => {
+                                const opt = roomOptions.find((o) => Number(o.value) === r);
+                                return opt ? opt.label : `ห้อง ${r}`;
+                              }).join(", ")
+                            : "—"}
+                      </span>
+                    </div>
+                    <div className="tform-confirm-row">
+                      <span className="tform-confirm-label">เวลาสอบ</span>
+                      <span>{finalDuration} นาที</span>
+                    </div>
+                  </>
                 )}
               </div>
               <div className="tform-confirm-actions">
