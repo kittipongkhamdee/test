@@ -5,6 +5,7 @@ import { useActiveFormOptions, useCatalog, useStore, useSubmissions } from "../d
 import { gradeLabel } from "../data/mockData";
 import type { Grade, MorningPreference, Submission, SubmissionStatus } from "../data/types";
 import { formatRelativeTime, formatThaiDateTime } from "../lib/time";
+import { useCountdown } from "../lib/useCountdown";
 import "./TeacherForm.css";
 
 function statusLabel(status: SubmissionStatus): { text: string; className: string } {
@@ -36,6 +37,7 @@ export default function TeacherForm() {
   const examTitle = state.round?.name ?? "";
   const schoolName = state.school?.schoolName ?? "";
   const deadline = formatThaiDateTime(state.round?.submissionClosesAt);
+  const countdown = useCountdown(state.round?.submissionClosesAt);
   const opensAt = state.round?.submissionOpensAt ? new Date(state.round.submissionOpensAt).getTime() : null;
   const closesAt = state.round?.submissionClosesAt ? new Date(state.round.submissionClosesAt).getTime() : null;
   const notYetOpen = opensAt !== null && Date.now() < opensAt;
@@ -183,7 +185,17 @@ export default function TeacherForm() {
             {deadline && (
               <div className="tform-deadline">
                 <span className="tform-deadline-icon">!</span>
-                ส่งได้ถึงวันที่ {deadline}
+                <span>
+                  ส่งได้ถึงวันที่ {deadline}
+                  {countdown && !countdown.expired && (
+                    <span className={"tform-deadline-countdown" + (countdown.urgent ? " urgent" : "")}>
+                      {countdown.days > 0
+                        ? ` · เหลือ ${countdown.days} วัน ${String(countdown.hours).padStart(2, "0")}:${String(countdown.minutes).padStart(2, "0")}:${String(countdown.seconds).padStart(2, "0")}`
+                        : ` · เหลือ ${String(countdown.hours).padStart(2, "0")}:${String(countdown.minutes).padStart(2, "0")}:${String(countdown.seconds).padStart(2, "0")}`}
+                    </span>
+                  )}
+                  {countdown?.expired && <span className="tform-deadline-countdown urgent"> · หมดเวลาแล้ว</span>}
+                </span>
               </div>
             )}
           </div>

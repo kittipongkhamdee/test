@@ -60,6 +60,59 @@
   color: var(--sidebar-faint);
 }
 
+/* ---------- Countdown ---------- */
+.dash-countdown {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.dash-countdown-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.dash-countdown-num {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 4px 8px;
+  min-width: 44px;
+  text-align: center;
+}
+
+.dash-countdown.urgent .dash-countdown-num {
+  background: rgba(255, 120, 60, 0.35);
+  color: #ffb187;
+}
+
+.dash-countdown-unit {
+  font-size: 10px;
+  color: var(--sidebar-faint);
+  letter-spacing: 0.03em;
+}
+
+.dash-countdown-colon {
+  font-size: 22px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 14px;
+}
+
+.dash-countdown-expired {
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffb187;
+}
+
 .dash-stat-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
