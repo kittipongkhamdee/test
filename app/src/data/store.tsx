@@ -14,8 +14,10 @@ import type {
 import { cellKey } from "./mockData";
 import { timeToMinutes } from "./scheduling";
 import {
+  addExamDay as apiAddExamDay,
   bulkUpdatePlacements,
   createFormOption,
+  deleteExamDay as apiDeleteExamDay,
   deleteFormOption as apiDeleteFormOption,
   deleteSubmission as apiDeleteSubmission,
   fetchActiveRoundBundle,
@@ -98,7 +100,9 @@ type Action =
   | { type: "AUTO_SCHEDULE"; rules: AutoScheduleRules }
   | { type: "CLEAR_SCHEDULE" }
   | { type: "UPDATE_SCHOOL"; school: SchoolMeta }
-  | { type: "UPDATE_SLOT_DATE"; day: ExamDay; examDate: string | null };
+  | { type: "UPDATE_SLOT_DATE"; day: ExamDay; examDate: string | null }
+  | { type: "ADD_SLOTS"; slots: ExamSlotMeta[] }
+  | { type: "REMOVE_DAY"; day: ExamDay };
 
 function removeFromAllCells(cellOrder: Record<string, string[]>, id: string): Record<string, string[]> {
   const next: Record<string, string[]> = {};
@@ -109,12 +113,6 @@ function removeFromAllCells(cellOrder: Record<string, string[]>, id: string): Re
 }
 
 const HEAVY_MINUTES = 90;
-const ALL_CELLS: { day: ExamDay; session: ExamSession }[] = [
-  { day: 1, session: "morning" },
-  { day: 1, session: "afternoon" },
-  { day: 2, session: "morning" },
-  { day: 2, session: "afternoon" },
-];
 
 function reducer(state: DataState, action: Action): DataState {
   switch (action.type) {
@@ -213,9 +211,30 @@ function reducer(state: DataState, action: Action): DataState {
       }
       return { ...state, submissions, cellOrder: {} };
     }
+    case "ADD_SLOTS":
+      return { ...state, slots: [...state.slots, ...action.slots] };
+    case "REMOVE_DAY": {
+      const submissions: Record<string, Submission> = {};
+      for (const [id, s] of Object.entries(state.submissions)) {
+        submissions[id] =
+          s.slot?.day === action.day ? { ...s, status: "pending", slot: undefined, manualStartMinutes: undefined } : s;
+      }
+      const cellOrder: Record<string, string[]> = {};
+      for (const [key, ids] of Object.entries(state.cellOrder)) {
+        const filtered = ids.filter((id) => submissions[id]?.slot !== undefined);
+        if (filtered.length > 0) cellOrder[key] = filtered;
+      }
+      return {
+        ...state,
+        slots: state.slots.filter((s) => s.day !== action.day),
+        submissions,
+        cellOrder,
+      };
+    }
     case "AUTO_SCHEDULE": {
       const { rules } = action;
-      const pending = Object.values(state.submissions).filter((s) => s.status === "pending");
+      const allCells = state.slots.map((s) => ({ day: s.day, session: s.session }));
+      const pending = Object.values(state.submissions).filter((s) => s.status === "pending" && !s.selfScheduled);
       const sorted = [...pending].sort((a, b) => {
         if (rules.morningFirst) {
           const aMorning = a.morningPreference === "morning" ? 0 : 1;
@@ -235,9 +254,9 @@ function reducer(state: DataState, action: Action): DataState {
       const submissions = { ...state.submissions };
 
       for (const item of sorted) {
-        let candidates = ALL_CELLS;
+        let candidates = allCells;
         if (rules.morningFirst && item.morningPreference === "morning") {
-          candidates = ALL_CELLS.filter((c) => c.session === "morning");
+          candidates = allCells.filter((c) => c.session === "morning");
         }
         if (rules.spreadHeavy && item.durationMinutes >= HEAVY_MINUTES) {
           const usedDays = heavyDayUsed.get(String(item.grade)) ?? new Set<ExamDay>();
@@ -303,6 +322,8 @@ interface StoreContextValue {
   removeFormOption: (id: string) => Promise<void>;
   updateSchoolSettings: (schoolName: string, logoUrl: string | null) => Promise<void>;
   updateSlotDate: (day: ExamDay, examDate: string | null) => Promise<void>;
+  addExamDay: (morningStart: string, morningEnd: string, afternoonStart: string, afternoonEnd: string) => Promise<void>;
+  removeExamDay: (day: ExamDay) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -511,6 +532,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [state.round],
   );
 
+  const addExamDay = useCallback(
+    async (morningStart: string, morningEnd: string, afternoonStart: string, afternoonEnd: string) => {
+      if (!state.round) throw new Error("ยังไม่มีรอบสอบที่เปิดใช้งาน");
+      const existingDays = [...new Set(state.slots.map((s) => s.day))].sort((a, b) => a - b);
+      const newDay = existingDays.length > 0 ? existingDays[existingDays.length - 1] + 1 : 1;
+      const newSlots = await apiAddExamDay(state.round.id, newDay, morningStart, morningEnd, afternoonStart, afternoonEnd);
+      dispatchRaw({ type: "ADD_SLOTS", slots: newSlots });
+    },
+    [state.round, state.slots],
+  );
+
+  const removeExamDay = useCallback(
+    async (day: ExamDay) => {
+      if (!state.round) throw new Error("ยังไม่มีรอบสอบที่เปิดใช้งาน");
+      await apiDeleteExamDay(state.round.id, day);
+      dispatchRaw({ type: "REMOVE_DAY", day });
+    },
+    [state.round],
+  );
+
   const value = useMemo(
     () => ({
       state,
@@ -527,6 +568,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       removeFormOption,
       updateSchoolSettings,
       updateSlotDate,
+      addExamDay,
+      removeExamDay,
     }),
     [
       state,
@@ -543,6 +586,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       removeFormOption,
       updateSchoolSettings,
       updateSlotDate,
+      addExamDay,
+      removeExamDay,
     ],
   );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

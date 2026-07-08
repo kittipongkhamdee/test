@@ -341,3 +341,35 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- Dynamic exam days ---------- */
+.admin-exam-days {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-exam-day-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.admin-exam-day-field {
+  flex: 1;
+}
+
+.admin-exam-day-remove {
+  flex-shrink: 0;
+  height: 38px;
+  padding: 0 12px;
+  font-size: 13px;
+  color: var(--color-danger, #dc2626);
+  border-color: var(--color-danger, #dc2626);
+}
+
+.admin-add-day-btn {
+  align-self: flex-start;
+  margin-top: 4px;
+  font-size: 13px;
+}

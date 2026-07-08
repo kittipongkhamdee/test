@@ -256,7 +256,7 @@ function OptionCategorySection({
 }
 
 export default function AdminSettings() {
-  const { state, isAdmin, unlockAdmin, updateRoundSettings, updateSchoolSettings, updateSlotDate } = useStore();
+  const { state, isAdmin, unlockAdmin, updateRoundSettings, updateSchoolSettings, updateSlotDate, addExamDay, removeExamDay } = useStore();
   const [password, setPassword] = useState("");
   const [unlockError, setUnlockError] = useState<string | null>(null);
 
@@ -264,11 +264,29 @@ export default function AdminSettings() {
   const [name, setName] = useState(state.round?.name ?? "");
   const [opensAt, setOpensAt] = useState(isoToLocalInput(state.round?.submissionOpensAt ?? null));
   const [closesAt, setClosesAt] = useState(isoToLocalInput(state.round?.submissionClosesAt ?? null));
-  const [examDate1, setExamDate1] = useState(state.slots.find((s) => s.day === 1)?.examDate ?? "");
-  const [examDate2, setExamDate2] = useState(state.slots.find((s) => s.day === 2)?.examDate ?? "");
+
+  const uniqueDays = [...new Set(state.slots.map((s) => s.day))].sort((a, b) => a - b);
+  const [examDates, setExamDates] = useState<Record<number, string>>(() =>
+    Object.fromEntries(uniqueDays.map((d) => [d, state.slots.find((s) => s.day === d)?.examDate ?? ""])),
+  );
+
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Add day modal
+  const [showAddDay, setShowAddDay] = useState(false);
+  const defaultMorningSlot = state.slots.find((s) => s.session === "morning");
+  const defaultAfternoonSlot = state.slots.find((s) => s.session === "afternoon");
+  const [addDayMorningStart, setAddDayMorningStart] = useState(defaultMorningSlot?.start ?? "08:30");
+  const [addDayMorningEnd, setAddDayMorningEnd] = useState(defaultMorningSlot?.end ?? "11:30");
+  const [addDayAfternoonStart, setAddDayAfternoonStart] = useState(defaultAfternoonSlot?.start ?? "13:00");
+  const [addDayAfternoonEnd, setAddDayAfternoonEnd] = useState(defaultAfternoonSlot?.end ?? "16:00");
+  const [addDaySaving, setAddDaySaving] = useState(false);
+  const [addDayError, setAddDayError] = useState<string | null>(null);
+
+  // Remove day state
+  const [removingDay, setRemovingDay] = useState<number | null>(null);
 
   // New round modal
   const [showNewRound, setShowNewRound] = useState(false);
@@ -361,20 +379,50 @@ export default function AdminSettings() {
     setSaveError(null);
     setSaveMsg(null);
     try {
+      const currentDays = [...new Set(state.slots.map((s) => s.day))].sort((a, b) => a - b);
       await Promise.all([
         updateRoundSettings({
           name: name.trim(),
           submissionOpensAt: localInputToIso(opensAt),
           submissionClosesAt: localInputToIso(closesAt),
         }),
-        updateSlotDate(1, examDate1 || null),
-        updateSlotDate(2, examDate2 || null),
+        ...currentDays.map((day) => updateSlotDate(day, examDates[day] || null)),
       ]);
       setSaveMsg("บันทึกการตั้งค่าเรียบร้อยแล้ว");
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "บันทึกไม่สำเร็จ กรุณาลองใหม่");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleAddDay(e: React.FormEvent) {
+    e.preventDefault();
+    setAddDaySaving(true);
+    setAddDayError(null);
+    try {
+      await addExamDay(addDayMorningStart, addDayMorningEnd, addDayAfternoonStart, addDayAfternoonEnd);
+      setShowAddDay(false);
+    } catch (err) {
+      setAddDayError(err instanceof Error ? err.message : "เพิ่มวันสอบไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setAddDaySaving(false);
+    }
+  }
+
+  async function handleRemoveDay(day: number) {
+    setRemovingDay(day);
+    try {
+      await removeExamDay(day);
+      setExamDates((prev) => {
+        const next = { ...prev };
+        delete next[day];
+        return next;
+      });
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "ลบวันสอบไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setRemovingDay(null);
     }
   }
 
@@ -417,6 +465,43 @@ export default function AdminSettings() {
           + สร้างรอบสอบใหม่
         </button>
       </div>
+
+      {showAddDay && createPortal(
+        <div className="admin-modal-overlay" onClick={() => !addDaySaving && setShowAddDay(false)}>
+          <form className="admin-modal card" onClick={(e) => e.stopPropagation()} onSubmit={handleAddDay}>
+            <div className="admin-modal-title">เพิ่มวันสอบ</div>
+            {addDayError && <div className="tform-error">{addDayError}</div>}
+            <div className="tform-row-2">
+              <label className="tform-field">
+                <span className="tform-label">เช้า เริ่ม</span>
+                <input className="tform-input" type="time" value={addDayMorningStart} onChange={(e) => setAddDayMorningStart(e.target.value)} disabled={addDaySaving} />
+              </label>
+              <label className="tform-field">
+                <span className="tform-label">เช้า สิ้นสุด</span>
+                <input className="tform-input" type="time" value={addDayMorningEnd} onChange={(e) => setAddDayMorningEnd(e.target.value)} disabled={addDaySaving} />
+              </label>
+            </div>
+            <div className="tform-row-2">
+              <label className="tform-field">
+                <span className="tform-label">บ่าย เริ่ม</span>
+                <input className="tform-input" type="time" value={addDayAfternoonStart} onChange={(e) => setAddDayAfternoonStart(e.target.value)} disabled={addDaySaving} />
+              </label>
+              <label className="tform-field">
+                <span className="tform-label">บ่าย สิ้นสุด</span>
+                <input className="tform-input" type="time" value={addDayAfternoonEnd} onChange={(e) => setAddDayAfternoonEnd(e.target.value)} disabled={addDaySaving} />
+              </label>
+            </div>
+            <div className="tform-hint">ระบบจะกำหนดเป็นวันที่ {uniqueDays.length > 0 ? uniqueDays[uniqueDays.length - 1] + 1 : 1} โดยอัตโนมัติ</div>
+            <div className="admin-modal-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setShowAddDay(false)} disabled={addDaySaving}>ยกเลิก</button>
+              <button type="submit" className="btn btn-primary" disabled={addDaySaving}>
+                {addDaySaving ? "กำลังเพิ่ม…" : "เพิ่มวันสอบ"}
+              </button>
+            </div>
+          </form>
+        </div>,
+        document.body
+      )}
 
       {showNewRound && createPortal(
         <div className="admin-modal-overlay" onClick={() => !newRoundSaving && setShowNewRound(false)}>
@@ -583,17 +668,51 @@ export default function AdminSettings() {
         </div>
         <div className="tform-hint">เว้นว่างช่องใดช่องหนึ่งได้ ถ้ายังไม่ต้องการจำกัดเวลาเปิด/ปิดรับข้อมูล</div>
 
-        <div className="tform-row-2">
-          <label className="tform-field">
-            <span className="tform-label">วันที่สอบ (วันที่ 1)</span>
-            <input className="tform-input" type="date" value={examDate1 ?? ""} onChange={(e) => setExamDate1(e.target.value)} />
-          </label>
-          <label className="tform-field">
-            <span className="tform-label">วันที่สอบ (วันที่ 2)</span>
-            <input className="tform-input" type="date" value={examDate2 ?? ""} onChange={(e) => setExamDate2(e.target.value)} />
-          </label>
+        <div className="admin-exam-days">
+          {uniqueDays.map((day) => {
+            const morningSlot = state.slots.find((s) => s.day === day && s.session === "morning");
+            const afternoonSlot = state.slots.find((s) => s.day === day && s.session === "afternoon");
+            return (
+              <div key={day} className="admin-exam-day-row">
+                <label className="tform-field admin-exam-day-field">
+                  <span className="tform-label">
+                    วันที่สอบ วันที่ {day}
+                    {morningSlot && (
+                      <span className="tform-label-note"> ({morningSlot.start}–{morningSlot.end} / {afternoonSlot?.start}–{afternoonSlot?.end})</span>
+                    )}
+                  </span>
+                  <input
+                    className="tform-input"
+                    type="date"
+                    value={examDates[day] ?? ""}
+                    onChange={(e) => setExamDates((prev) => ({ ...prev, [day]: e.target.value }))}
+                    disabled={saving}
+                  />
+                </label>
+                {uniqueDays.length > 1 && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost admin-exam-day-remove"
+                    onClick={() => handleRemoveDay(day)}
+                    disabled={saving || removingDay === day}
+                    title={`ลบวันที่ ${day}`}
+                  >
+                    {removingDay === day ? "…" : "ลบ"}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
         <div className="tform-hint">วันที่สอบจะแสดงในแดชบอร์ดและตารางสอบเผยแพร่</div>
+        <button
+          type="button"
+          className="btn btn-ghost admin-add-day-btn"
+          onClick={() => { setShowAddDay(true); setAddDayError(null); }}
+          disabled={saving}
+        >
+          + เพิ่มวันสอบ
+        </button>
 
         <div className="tform-actions">
           <button type="submit" className="btn btn-primary" disabled={saving}>
