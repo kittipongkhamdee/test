@@ -150,6 +150,39 @@
   color: var(--text-muted);
 }
 
+/* ---------- Menu toggle card ---------- */
+.admin-menu-toggle-card {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-menu-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+}
+
+.admin-menu-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-menu-toggle-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.admin-menu-toggle-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 /* ---------- Category grid ---------- */
 .admin-opt-grid {
   display: grid;
