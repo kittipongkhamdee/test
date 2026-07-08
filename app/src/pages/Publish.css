@@ -95,6 +95,7 @@
 .pub-table-row span {
   padding: 9px 10px;
   border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
 }
 .pub-code {
   font-weight: 600;
