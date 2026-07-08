@@ -40,6 +40,18 @@
   line-height: 1.5;
 }
 
+.admin-modal-name-preview {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.admin-modal-name-preview strong {
+  color: var(--blue-600);
+}
+
 .admin-modal-actions {
   display: flex;
   gap: 10px;
