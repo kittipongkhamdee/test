@@ -1,9 +1,14 @@
 import { useMemo, useState } from "react";
-import { useCatalog, useStore } from "../data/store";
+import { useCatalog, useStore, useSubmissions } from "../data/store";
 import { ROOMS_PER_GRADE, gradeLabel } from "../data/mockData";
-import type { Grade, MorningPreference, Submission } from "../data/types";
-import { formatThaiDateTime } from "../lib/time";
+import type { Grade, MorningPreference, Submission, SubmissionStatus } from "../data/types";
+import { formatRelativeTime, formatThaiDateTime } from "../lib/time";
 import "./TeacherForm.css";
+
+function statusLabel(status: SubmissionStatus): { text: string; className: string } {
+  if (status === "scheduled") return { text: "จัดตารางแล้ว", className: "badge-green" };
+  return { text: "รอจัดตาราง", className: "badge-orange" };
+}
 
 const GRADE_OPTIONS: Grade[] = [1, 2, 3, 4, 5, 6];
 const DURATION_OPTIONS = [30, 45, 60, 90, 120];
@@ -27,6 +32,7 @@ function dedupeCatalog(catalog: Submission[]): Submission[] {
 export default function TeacherForm() {
   const { state, submit } = useStore();
   const catalog = useCatalog();
+  const submissions = useSubmissions();
   const knownSubjects = useMemo(() => dedupeCatalog(catalog), [catalog]);
 
   const examTitle = state.round?.name ?? "";
@@ -55,6 +61,14 @@ export default function TeacherForm() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [activeSuggestField, setActiveSuggestField] = useState<"code" | "subjectName" | null>(null);
+
+  const mySubmissions = useMemo(() => {
+    const q = teacherName.trim().toLowerCase();
+    if (!q) return [];
+    return submissions
+      .filter((s) => s.teacherName.trim().toLowerCase() === q)
+      .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+  }, [submissions, teacherName]);
 
   const suggestions = useMemo(() => {
     if (!activeSuggestField) return [];
@@ -313,6 +327,36 @@ export default function TeacherForm() {
             </button>
           </div>
         </form>
+
+        {teacherName.trim() && (
+          <div className="tform-card card tform-mysubs">
+            <div className="tform-mysubs-title">
+              รายวิชาที่คุณส่งไปแล้ว <span className="tform-mysubs-count">({mySubmissions.length})</span>
+            </div>
+            {mySubmissions.length === 0 ? (
+              <div className="tform-mysubs-empty">ยังไม่มีข้อมูลที่ส่งในชื่อ "{teacherName.trim()}"</div>
+            ) : (
+              <div className="tform-mysubs-list">
+                {mySubmissions.map((s) => {
+                  const badge = statusLabel(s.status);
+                  return (
+                    <div className="tform-mysubs-row" key={s.id}>
+                      <div className="tform-mysubs-row-main">
+                        <span className="tform-mysubs-code">{s.code}</span>
+                        <span>{s.subjectName}</span>
+                        <span className="tform-mysubs-grade">{gradeLabel(s.grade)}</span>
+                      </div>
+                      <div className="tform-mysubs-row-meta">
+                        <span className={"badge " + badge.className}>{badge.text}</span>
+                        <span className="tform-mysubs-time">{formatRelativeTime(s.submittedAt)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
