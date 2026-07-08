@@ -207,6 +207,36 @@ export default function TeacherForm() {
             </datalist>
           </label>
 
+          {teacherName.trim() && (
+            <div className="tform-mysubs-inline">
+              <div className="tform-mysubs-title">
+                รายวิชาที่คุณส่งไปแล้ว <span className="tform-mysubs-count">({mySubmissions.length})</span>
+              </div>
+              {mySubmissions.length === 0 ? (
+                <div className="tform-mysubs-empty">ยังไม่มีข้อมูลที่ส่งในชื่อ "{teacherName.trim()}"</div>
+              ) : (
+                <div className="tform-mysubs-list">
+                  {mySubmissions.map((s) => {
+                    const badge = statusLabel(s.status);
+                    return (
+                      <div className="tform-mysubs-row" key={s.id}>
+                        <div className="tform-mysubs-row-main">
+                          <span className="tform-mysubs-code">{s.code}</span>
+                          <span>{s.subjectName}</span>
+                          <span className="tform-mysubs-grade">{gradeLabel(s.grade)}</span>
+                        </div>
+                        <div className="tform-mysubs-row-meta">
+                          <span className={"badge " + badge.className}>{badge.text}</span>
+                          <span className="tform-mysubs-time">{formatRelativeTime(s.submittedAt)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="tform-row-2 tform-row-suggest">
             <label className="tform-field">
               <span className="tform-label">รหัสวิชา</span>
@@ -441,35 +471,6 @@ export default function TeacherForm() {
           document.body
         )}
 
-        {teacherName.trim() && (
-          <div className="tform-card card tform-mysubs">
-            <div className="tform-mysubs-title">
-              รายวิชาที่คุณส่งไปแล้ว <span className="tform-mysubs-count">({mySubmissions.length})</span>
-            </div>
-            {mySubmissions.length === 0 ? (
-              <div className="tform-mysubs-empty">ยังไม่มีข้อมูลที่ส่งในชื่อ "{teacherName.trim()}"</div>
-            ) : (
-              <div className="tform-mysubs-list">
-                {mySubmissions.map((s) => {
-                  const badge = statusLabel(s.status);
-                  return (
-                    <div className="tform-mysubs-row" key={s.id}>
-                      <div className="tform-mysubs-row-main">
-                        <span className="tform-mysubs-code">{s.code}</span>
-                        <span>{s.subjectName}</span>
-                        <span className="tform-mysubs-grade">{gradeLabel(s.grade)}</span>
-                      </div>
-                      <div className="tform-mysubs-row-meta">
-                        <span className={"badge " + badge.className}>{badge.text}</span>
-                        <span className="tform-mysubs-time">{formatRelativeTime(s.submittedAt)}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

@@ -175,6 +175,9 @@ export default function Submissions() {
   const [gradeFilter, setGradeFilter] = useState<number | "all">("all");
   const [editing, setEditing] = useState<Submission | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteSub, setConfirmDeleteSub] = useState<Submission | null>(null);
+  const [menuSubmission, setMenuSubmission] = useState<Submission | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number } | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -207,8 +210,25 @@ export default function Submissions() {
     URL.revokeObjectURL(url);
   }
 
-  async function handleDelete(s: Submission) {
-    if (!window.confirm(`ลบข้อมูลวิชา ${s.code} ${s.subjectName} ใช่หรือไม่? การลบนี้ไม่สามารถย้อนกลับได้`)) return;
+  function openMenu(e: React.MouseEvent, s: Submission) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setMenuSubmission(s);
+    setMenuAnchor({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+  }
+
+  function closeMenu() {
+    setMenuSubmission(null);
+    setMenuAnchor(null);
+  }
+
+  function handleDelete(s: Submission) {
+    setConfirmDeleteSub(s);
+  }
+
+  async function doDelete() {
+    if (!confirmDeleteSub) return;
+    const s = confirmDeleteSub;
+    setConfirmDeleteSub(null);
     setDeletingId(s.id);
     try {
       await removeSubmission(s.id);
@@ -300,16 +320,24 @@ export default function Submissions() {
               <span>{statusBadge(s.status)}</span>
               {isAdmin && (
                 <span className="subs-row-actions">
-                  <button type="button" className="subs-action-btn" onClick={() => setEditing(s)}>
+                  <button type="button" className="subs-action-btn subs-action-desktop" onClick={() => setEditing(s)}>
                     แก้ไข
                   </button>
                   <button
                     type="button"
-                    className="subs-action-btn danger"
+                    className="subs-action-btn danger subs-action-desktop"
                     onClick={() => handleDelete(s)}
                     disabled={deletingId === s.id}
                   >
                     ลบ
+                  </button>
+                  <button
+                    type="button"
+                    className="subs-action-btn subs-action-mobile"
+                    aria-label="จัดการ"
+                    onClick={(e) => openMenu(e, s)}
+                  >
+                    ⋮
                   </button>
                 </span>
               )}
@@ -320,6 +348,73 @@ export default function Submissions() {
       </div>
 
       {editing && <EditSubmissionModal submission={editing} onClose={() => setEditing(null)} />}
+
+      {confirmDeleteSub && createPortal(
+        <div className="subs-delete-overlay" onClick={() => setConfirmDeleteSub(null)}>
+          <div className="subs-delete-modal card" onClick={(e) => e.stopPropagation()}>
+            <div className="subs-delete-title">ยืนยันการลบรายวิชา</div>
+            <div className="subs-delete-warn">การลบนี้ไม่สามารถย้อนกลับได้</div>
+            <div className="subs-delete-body">
+              <div className="subs-delete-row">
+                <span className="subs-delete-label">รหัสวิชา</span>
+                <span className="subs-delete-code">{confirmDeleteSub.code}</span>
+              </div>
+              <div className="subs-delete-row">
+                <span className="subs-delete-label">ชื่อวิชา</span>
+                <span>{confirmDeleteSub.subjectName}</span>
+              </div>
+              <div className="subs-delete-row">
+                <span className="subs-delete-label">ครูผู้สอน</span>
+                <span>{confirmDeleteSub.teacherName}</span>
+              </div>
+              <div className="subs-delete-row">
+                <span className="subs-delete-label">ระดับชั้น</span>
+                <span>{gradeLabel(confirmDeleteSub.grade)}</span>
+              </div>
+            </div>
+            <div className="subs-delete-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setConfirmDeleteSub(null)}>
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                className="subs-delete-btn"
+                onClick={doDelete}
+                disabled={deletingId === confirmDeleteSub.id}
+              >
+                {deletingId === confirmDeleteSub.id ? "กำลังลบ…" : "ลบรายวิชา"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {menuSubmission && menuAnchor &&
+        createPortal(
+          <div className="subs-kebab-overlay" onClick={closeMenu}>
+            <div
+              className="subs-kebab-menu"
+              style={{ top: menuAnchor.top, right: menuAnchor.right }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="subs-kebab-item"
+                onClick={() => { setEditing(menuSubmission); closeMenu(); }}
+              >
+                ✏ แก้ไข
+              </button>
+              <button
+                className="subs-kebab-item danger"
+                onClick={() => { handleDelete(menuSubmission); closeMenu(); }}
+                disabled={deletingId === menuSubmission.id}
+              >
+                🗑 ลบ
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

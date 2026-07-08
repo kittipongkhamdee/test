@@ -100,6 +100,152 @@
   cursor: not-allowed;
 }
 
+.subs-action-mobile {
+  display: none;
+}
+
+/* ---------- Delete confirmation modal ---------- */
+.subs-delete-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 28, 0.55);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.subs-delete-modal {
+  width: min(420px, 90vw);
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.subs-delete-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.subs-delete-warn {
+  background: var(--red-100);
+  color: var(--red-700);
+  border: 1px solid var(--red-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.subs-delete-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  border: 1px solid var(--border-soft);
+}
+
+.subs-delete-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-strong);
+}
+
+.subs-delete-label {
+  width: 68px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.subs-delete-code {
+  font-weight: 700;
+  color: var(--red-700);
+}
+
+.subs-delete-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.subs-delete-btn {
+  background: var(--red-700);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.subs-delete-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+.subs-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- Kebab dropdown (mobile admin) ---------- */
+.subs-kebab-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+
+.subs-kebab-menu {
+  position: fixed;
+  z-index: 51;
+  background: #fff;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(22, 35, 61, 0.16);
+  min-width: 140px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.subs-kebab-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-strong);
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+.subs-kebab-item:hover {
+  background: var(--blue-100);
+}
+.subs-kebab-item.danger {
+  color: var(--red-700);
+}
+.subs-kebab-item.danger:hover {
+  background: var(--red-100);
+}
+.subs-kebab-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .subs-modal-overlay {
   position: fixed;
   inset: 0;
@@ -158,6 +304,13 @@
   .subs-row-head {
     grid-template-columns: 70px 1fr 90px;
   }
+  /* Override 8-column admin grid for mobile; reserve right edge for ⋮ button */
+  .subs-row.admin,
+  .subs-row-head.admin {
+    grid-template-columns: 70px 1fr 90px;
+    position: relative;
+    padding-right: 44px;
+  }
   .subs-row span:nth-child(3),
   .subs-row span:nth-child(5),
   .subs-row span:nth-child(6) {
@@ -168,8 +321,33 @@
   .subs-row-head span:nth-child(6) {
     display: none;
   }
-  .subs-row span:nth-child(8),
+  /* Hide จัดการ header; keep data row column 8 for ⋮ button */
   .subs-row-head span:nth-child(8) {
     display: none;
+  }
+  .subs-row.admin span:nth-child(8) {
+    display: flex;
+    position: absolute;
+    right: 6px;
+    top: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+  }
+  /* Desktop action buttons hidden; mobile ⋮ button shown */
+  .subs-action-desktop {
+    display: none;
+  }
+  .subs-action-mobile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
   }
 }
