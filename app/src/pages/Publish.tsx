@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import { useStore, useSubmissions } from "../data/store";
 import { computeCellTimes } from "../data/scheduling";
 import type { ExamDay, ExamSession, ExamSlotMeta, Grade } from "../data/types";
@@ -31,6 +32,7 @@ function formatRooms(rooms: number[]): string {
 export default function Publish() {
   const { state } = useStore();
   const submissions = useSubmissions();
+  const [gradeFilter, setGradeFilter] = useState<Grade | null>(null);
 
   const rowsByDay = useMemo(() => {
     const byDay: Record<ExamDay, PrintRow[]> = { 1: [], 2: [] };
@@ -70,13 +72,60 @@ export default function Publish() {
     return byDay;
   }, [submissions, state.slots]);
 
+  const availableGrades = useMemo(() => {
+    const grades = new Set<Grade>();
+    for (const day of DAYS) {
+      for (const row of rowsByDay[day]) grades.add(row.grade);
+    }
+    return [...grades].sort((a, b) => a - b);
+  }, [rowsByDay]);
+
+  const filteredByDay = useMemo(() => {
+    if (!gradeFilter) return rowsByDay;
+    const result: Record<ExamDay, PrintRow[]> = { 1: [], 2: [] };
+    for (const day of DAYS) {
+      result[day] = rowsByDay[day].filter((r) => r.grade === gradeFilter);
+    }
+    return result;
+  }, [rowsByDay, gradeFilter]);
+
   function handlePrint() {
     window.print();
   }
 
+  function handleExportExcel() {
+    const examTitle = state.round?.name ?? "ตารางสอบ";
+    const wb = XLSX.utils.book_new();
+
+    for (const day of DAYS) {
+      const slot = state.slots.find((s) => s.day === day);
+      const sheetName = slot?.examDate
+        ? new Date(slot.examDate).toLocaleDateString("th-TH", { day: "numeric", month: "short" })
+        : `วันที่ ${day}`;
+
+      const rows = rowsByDay[day];
+      const data = [
+        ["เวลา", "รหัสวิชา", "ชื่อวิชา", "ระดับชั้น", "ห้องสอบ", "ครูผู้ออกข้อสอบ"],
+        ...rows.map((r) => [
+          `${r.start}–${r.end}`,
+          r.code,
+          r.subjectName,
+          gradeLabel(r.grade),
+          r.rooms,
+          r.teacherName,
+        ]),
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      ws["!cols"] = [{ wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 10 }, { wch: 12 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    }
+
+    XLSX.writeFile(wb, `${examTitle}.xlsx`);
+  }
+
   const examTitle = state.round?.name ?? "";
   const schoolName = state.school?.schoolName ?? "";
-
   const slotsByDay = (day: ExamDay): ExamSlotMeta | undefined => state.slots.find((s) => s.day === day);
 
   return (
@@ -86,10 +135,35 @@ export default function Publish() {
           <h1>ตารางสอบเผยแพร่</h1>
           <div className="page-subtitle">พร้อมพิมพ์และเผยแพร่ให้ครูและนักเรียน</div>
         </div>
-        <button className="btn btn-primary" onClick={handlePrint}>
-          🖨 พิมพ์ / บันทึก PDF
-        </button>
+        <div className="pub-header-actions">
+          <button className="btn btn-ghost" onClick={handleExportExcel}>
+            📊 ส่งออก Excel
+          </button>
+          <button className="btn btn-primary" onClick={handlePrint}>
+            🖨 พิมพ์ / บันทึก PDF
+          </button>
+        </div>
       </div>
+
+      {availableGrades.length > 0 && (
+        <div className="pub-grade-filter no-print">
+          <button
+            className={"pub-grade-chip" + (gradeFilter === null ? " active" : "")}
+            onClick={() => setGradeFilter(null)}
+          >
+            ทั้งหมด
+          </button>
+          {availableGrades.map((g) => (
+            <button
+              key={g}
+              className={"pub-grade-chip" + (gradeFilter === g ? " active" : "")}
+              onClick={() => setGradeFilter(g)}
+            >
+              {gradeLabel(g)}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="pub-sheet-wrap">
         <div className="pub-sheet card">
@@ -110,7 +184,7 @@ export default function Publish() {
                   <span>ห้องสอบ</span>
                   <span>ครูผู้ออกข้อสอบ</span>
                 </div>
-                {rowsByDay[day].map((row, i) => (
+                {filteredByDay[day].map((row, i) => (
                   <div className="pub-table-row" key={i}>
                     <span>
                       {row.start.replace(":", ".")}–{row.end.replace(":", ".")}
@@ -122,7 +196,7 @@ export default function Publish() {
                     <span>{row.teacherName}</span>
                   </div>
                 ))}
-                {rowsByDay[day].length === 0 && (
+                {filteredByDay[day].length === 0 && (
                   <div className="pub-table-empty">ยังไม่มีวิชาที่จัดลงตารางสำหรับวันนี้</div>
                 )}
               </div>
