@@ -304,43 +304,19 @@
   .subs-page {
     height: auto;
   }
-  /* 4 visible cols on mobile: รหัสวิชา, ชื่อวิชา, ระดับ, สถานะ */
+  /* ให้ตารางเลื่อนซ้าย-ขวาได้ แสดงครบทุก column */
+  .subs-table-card {
+    overflow-x: auto;
+  }
   .subs-row,
   .subs-row-head {
-    grid-template-columns: 70px 1fr 56px 88px;
+    min-width: 680px;
   }
-  /* Override 8-column admin grid for mobile; reserve right edge for ⋮ button */
   .subs-row.admin,
   .subs-row-head.admin {
-    grid-template-columns: 70px 1fr 56px 88px;
-    position: relative;
-    padding-right: 44px;
+    min-width: 820px;
   }
-  .subs-row span:nth-child(3),
-  .subs-row span:nth-child(5),
-  .subs-row span:nth-child(6) {
-    display: none;
-  }
-  .subs-row-head span:nth-child(3),
-  .subs-row-head span:nth-child(5),
-  .subs-row-head span:nth-child(6) {
-    display: none;
-  }
-  /* Hide จัดการ header; keep data row column 8 for ⋮ button */
-  .subs-row-head span:nth-child(8) {
-    display: none;
-  }
-  .subs-row.admin span:nth-child(8) {
-    display: flex;
-    position: absolute;
-    right: 6px;
-    top: 0;
-    bottom: 0;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-  }
-  /* Desktop action buttons hidden; mobile ⋮ button shown */
+  /* Desktop action buttons hidden on mobile; show ⋮ instead */
   .subs-action-desktop {
     display: none;
   }
