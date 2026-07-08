@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useActiveFormOptions, useCatalog, useStore, useSubmissions } from "../data/store";
 import { gradeLabel } from "../data/mockData";
 import type { Grade, MorningPreference, Submission, SubmissionStatus } from "../data/types";
@@ -155,6 +156,7 @@ export default function TeacherForm() {
         )}
         <div className="tform-topbar-title">แบบสำรวจการจัดสอบ · {schoolName}</div>
         <div className="tform-topbar-period">{examTitle}</div>
+        <Link to="/" className="tform-topbar-home">← หน้าหลัก</Link>
       </div>
 
       <div className="tform-wrap">

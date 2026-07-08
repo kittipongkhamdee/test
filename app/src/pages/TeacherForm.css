@@ -21,6 +21,21 @@
   color: var(--sidebar-faint);
 }
 
+.tform-topbar-home {
+  font-size: 13px;
+  color: var(--sidebar-faint);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+.tform-topbar-home:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
 .tform-wrap {
   padding: 40px;
   display: flex;
