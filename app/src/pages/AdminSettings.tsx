@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useStore } from "../data/store";
+import { useFormOptions, useStore } from "../data/store";
+import type { FormOption, FormOptionCategory } from "../data/types";
 import "./AdminSettings.css";
 
 // datetime-local inputs work in the browser's local time and expect/return
@@ -14,6 +15,190 @@ function isoToLocalInput(iso: string | null): string {
 function localInputToIso(value: string): string | null {
   if (!value) return null;
   return new Date(value).toISOString();
+}
+
+function OptionRow({
+  option,
+  siblings,
+  allowDelete,
+  withIcon,
+}: {
+  option: FormOption;
+  siblings: FormOption[];
+  allowDelete: boolean;
+  withIcon: boolean;
+}) {
+  const { editFormOption, removeFormOption } = useStore();
+  const [label, setLabel] = useState(option.label);
+  const [icon, setIcon] = useState(option.icon ?? "");
+  const [busy, setBusy] = useState(false);
+  const dirty = label !== option.label || icon !== (option.icon ?? "");
+  const index = siblings.findIndex((o) => o.id === option.id);
+
+  async function saveLabel() {
+    if (!dirty) return;
+    setBusy(true);
+    try {
+      await editFormOption(option.id, { label: label.trim() || option.label, icon: icon.trim() || null });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleActive() {
+    setBusy(true);
+    try {
+      await editFormOption(option.id, { isActive: !option.isActive });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function move(direction: -1 | 1) {
+    const target = siblings[index + direction];
+    if (!target) return;
+    setBusy(true);
+    try {
+      await Promise.all([
+        editFormOption(option.id, { sortOrder: target.sortOrder }),
+        editFormOption(target.id, { sortOrder: option.sortOrder }),
+      ]);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm(`ลบตัวเลือก "${option.label}" ใช่หรือไม่?`)) return;
+    setBusy(true);
+    try {
+      await removeFormOption(option.id);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="admin-opt-row">
+      <input type="checkbox" checked={option.isActive} onChange={toggleActive} disabled={busy} title="เปิด/ปิดการใช้งาน" />
+      <input
+        className="tform-input admin-opt-label"
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        onBlur={saveLabel}
+        disabled={busy}
+      />
+      {withIcon && (
+        <input
+          className="tform-input admin-opt-icon"
+          value={icon}
+          onChange={(e) => setIcon(e.target.value)}
+          onBlur={saveLabel}
+          disabled={busy}
+          placeholder="ไอคอน"
+        />
+      )}
+      <div className="admin-opt-actions">
+        <button type="button" className="admin-opt-btn" onClick={() => move(-1)} disabled={busy || index === 0} title="ย้ายขึ้น">
+          ↑
+        </button>
+        <button
+          type="button"
+          className="admin-opt-btn"
+          onClick={() => move(1)}
+          disabled={busy || index === siblings.length - 1}
+          title="ย้ายลง"
+        >
+          ↓
+        </button>
+        {allowDelete && (
+          <button type="button" className="admin-opt-btn danger" onClick={handleDelete} disabled={busy} title="ลบตัวเลือก">
+            ลบ
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AddOptionForm({ category, nextSortOrder, withIcon }: { category: FormOptionCategory; nextSortOrder: number; withIcon: boolean }) {
+  const { addFormOption } = useStore();
+  const [value, setValue] = useState("");
+  const [label, setLabel] = useState("");
+  const [icon, setIcon] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!value.trim() || !label.trim()) {
+      setError("กรอกค่าและป้ายชื่อให้ครบ");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await addFormOption({
+        category,
+        value: value.trim(),
+        label: label.trim(),
+        icon: icon.trim() || null,
+        sortOrder: nextSortOrder,
+        isActive: true,
+      });
+      setValue("");
+      setLabel("");
+      setIcon("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เพิ่มตัวเลือกไม่สำเร็จ");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="admin-opt-add" onSubmit={handleAdd}>
+      <input className="tform-input" placeholder="ค่า (value)" value={value} onChange={(e) => setValue(e.target.value)} disabled={busy} />
+      <input className="tform-input" placeholder="ป้ายชื่อที่แสดง" value={label} onChange={(e) => setLabel(e.target.value)} disabled={busy} />
+      {withIcon && (
+        <input className="tform-input admin-opt-icon" placeholder="ไอคอน" value={icon} onChange={(e) => setIcon(e.target.value)} disabled={busy} />
+      )}
+      <button type="submit" className="btn btn-ghost" disabled={busy}>
+        + เพิ่ม
+      </button>
+      {error && <div className="tform-error">{error}</div>}
+    </form>
+  );
+}
+
+function OptionCategorySection({
+  category,
+  title,
+  hint,
+  allowAddRemove,
+  withIcon,
+}: {
+  category: FormOptionCategory;
+  title: string;
+  hint: string;
+  allowAddRemove: boolean;
+  withIcon: boolean;
+}) {
+  const options = useFormOptions(category);
+  const nextSortOrder = options.length ? Math.max(...options.map((o) => o.sortOrder)) + 1 : 1;
+
+  return (
+    <div className="card admin-opt-card">
+      <div className="admin-opt-title">{title}</div>
+      <div className="admin-opt-hint">{hint}</div>
+      <div className="admin-opt-list">
+        {options.map((opt) => (
+          <OptionRow key={opt.id} option={opt} siblings={options} allowDelete={allowAddRemove} withIcon={withIcon} />
+        ))}
+      </div>
+      {allowAddRemove && <AddOptionForm category={category} nextSortOrder={nextSortOrder} withIcon={withIcon} />}
+    </div>
+  );
 }
 
 export default function AdminSettings() {
@@ -90,7 +275,7 @@ export default function AdminSettings() {
       <div className="page-header">
         <div>
           <h1>ตั้งค่ารอบสอบ</h1>
-          <div className="page-subtitle">แก้ไขชื่อรอบสอบและช่วงเวลาที่เปิดรับข้อมูลจากครู</div>
+          <div className="page-subtitle">แก้ไขชื่อรอบสอบ ช่วงเวลาที่เปิดรับข้อมูล และตัวเลือกในฟอร์มสำรวจ</div>
         </div>
       </div>
 
@@ -136,6 +321,37 @@ export default function AdminSettings() {
           </button>
         </div>
       </form>
+
+      <div className="admin-opt-section-title">ตัวเลือกในฟอร์มสำรวจ</div>
+
+      <OptionCategorySection
+        category="grade"
+        title="ระดับชั้น"
+        hint="เปิด/ปิด แก้ไขป้ายชื่อ และจัดลำดับได้ — ไม่รองรับเพิ่ม/ลบ เพราะผูกกับโครงตารางจัดสอบทั้งระบบ"
+        allowAddRemove={false}
+        withIcon={false}
+      />
+      <OptionCategorySection
+        category="room"
+        title="ห้องที่จัดสอบ"
+        hint="เปิด/ปิด เพิ่ม ลบ แก้ไข และจัดลำดับห้องที่ให้เลือกในฟอร์มได้อย่างอิสระ"
+        allowAddRemove={true}
+        withIcon={false}
+      />
+      <OptionCategorySection
+        category="duration"
+        title="เวลาที่ใช้สอบ"
+        hint="เปิด/ปิด เพิ่ม ลบ แก้ไข ตัวเลือกเวลาสอบ (นาที) — ครูยังกำหนดเวลาเองนอกเหนือจากนี้ได้เสมอ"
+        allowAddRemove={true}
+        withIcon={false}
+      />
+      <OptionCategorySection
+        category="preference"
+        title="ช่วงเวลาที่เหมาะสมในการสอบ"
+        hint="เปิด/ปิด แก้ไขป้ายชื่อ/ไอคอน และจัดลำดับได้ — ไม่รองรับเพิ่ม/ลบ เพราะระบบจัดอัตโนมัติผูกความหมายกับ 3 ตัวเลือกนี้โดยตรง"
+        allowAddRemove={false}
+        withIcon={true}
+      />
     </div>
   );
 }

@@ -1,15 +1,30 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from "react";
-import type { ExamDay, ExamRoundMeta, ExamSession, ExamSlotMeta, Grade, MorningPreference, SchoolMeta, Submission } from "./types";
+import type {
+  ExamDay,
+  ExamRoundMeta,
+  ExamSession,
+  ExamSlotMeta,
+  FormOption,
+  FormOptionCategory,
+  Grade,
+  MorningPreference,
+  SchoolMeta,
+  Submission,
+} from "./types";
 import { cellKey } from "./mockData";
 import { timeToMinutes } from "./scheduling";
 import {
   bulkUpdatePlacements,
+  createFormOption,
+  deleteFormOption as apiDeleteFormOption,
   deleteSubmission as apiDeleteSubmission,
   fetchActiveRoundBundle,
   submitSubmission,
+  updateFormOption as apiUpdateFormOption,
   updateManualStart,
   updateRoundSettings as apiUpdateRoundSettings,
   updateSubmissionDetails,
+  type FormOptionInput,
   type PlacementPatch,
   type RoundSettingsInput,
   type SubmissionEditInput,
@@ -27,6 +42,7 @@ interface DataState {
   school: SchoolMeta | null;
   submissions: Record<string, Submission>; // includes not-yet-confirmed "draft" catalog rows
   cellOrder: Record<string, string[]>;
+  formOptions: FormOption[];
 }
 
 const initialState: DataState = {
@@ -38,6 +54,7 @@ const initialState: DataState = {
   school: null,
   submissions: {},
   cellOrder: {},
+  formOptions: [],
 };
 
 function buildCellOrder(submissions: Submission[]): Record<string, string[]> {
@@ -58,11 +75,21 @@ export interface AutoScheduleRules {
 }
 
 type Action =
-  | { type: "LOADED"; submissions: Submission[]; round: ExamRoundMeta; slots: ExamSlotMeta[]; teachers: string[]; school: SchoolMeta }
+  | {
+      type: "LOADED";
+      submissions: Submission[];
+      round: ExamRoundMeta;
+      slots: ExamSlotMeta[];
+      teachers: string[];
+      school: SchoolMeta;
+      formOptions: FormOption[];
+    }
   | { type: "LOAD_ERROR"; message: string }
   | { type: "UPSERT_SUBMISSION"; submission: Submission }
   | { type: "REMOVE_SUBMISSION"; id: string }
   | { type: "UPDATE_ROUND"; round: ExamRoundMeta }
+  | { type: "UPSERT_FORM_OPTION"; option: FormOption }
+  | { type: "REMOVE_FORM_OPTION"; id: string }
   | { type: "PLACE"; id: string; day: ExamDay; session: ExamSession; index?: number }
   | { type: "UNPLACE"; id: string }
   | { type: "SET_MANUAL_START"; id: string; minutes: number | null }
@@ -98,6 +125,7 @@ function reducer(state: DataState, action: Action): DataState {
         school: action.school,
         submissions: Object.fromEntries(action.submissions.map((s) => [s.id, s])),
         cellOrder: buildCellOrder(action.submissions),
+        formOptions: action.formOptions,
       };
     case "LOAD_ERROR":
       return { ...state, loading: false, error: action.message };
@@ -109,6 +137,17 @@ function reducer(state: DataState, action: Action): DataState {
     }
     case "UPDATE_ROUND":
       return { ...state, round: action.round };
+    case "UPSERT_FORM_OPTION": {
+      const exists = state.formOptions.some((o) => o.id === action.option.id);
+      return {
+        ...state,
+        formOptions: exists
+          ? state.formOptions.map((o) => (o.id === action.option.id ? action.option : o))
+          : [...state.formOptions, action.option],
+      };
+    }
+    case "REMOVE_FORM_OPTION":
+      return { ...state, formOptions: state.formOptions.filter((o) => o.id !== action.id) };
     case "PLACE": {
       const existing = state.submissions[action.id];
       if (!existing) return state;
@@ -246,6 +285,9 @@ interface StoreContextValue {
   removeSubmission: (id: string) => Promise<void>;
   editSubmission: (id: string, input: SubmissionEditInput) => Promise<Submission>;
   updateRoundSettings: (input: RoundSettingsInput) => Promise<void>;
+  addFormOption: (input: FormOptionInput) => Promise<FormOption>;
+  editFormOption: (id: string, patch: Partial<Pick<FormOptionInput, "label" | "icon" | "sortOrder" | "isActive">>) => Promise<FormOption>;
+  removeFormOption: (id: string) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -280,6 +322,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           slots: bundle.slots,
           teachers: bundle.teachers,
           school: bundle.school,
+          formOptions: bundle.formOptions,
         });
       })
       .catch((err: Error) => {
@@ -411,9 +454,55 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [state.round],
   );
 
+  const addFormOption = useCallback(async (input: FormOptionInput) => {
+    const saved = await createFormOption(input);
+    dispatchRaw({ type: "UPSERT_FORM_OPTION", option: saved });
+    return saved;
+  }, []);
+
+  const editFormOption = useCallback(
+    async (id: string, patch: Partial<Pick<FormOptionInput, "label" | "icon" | "sortOrder" | "isActive">>) => {
+      const saved = await apiUpdateFormOption(id, patch);
+      dispatchRaw({ type: "UPSERT_FORM_OPTION", option: saved });
+      return saved;
+    },
+    [],
+  );
+
+  const removeFormOption = useCallback(async (id: string) => {
+    await apiDeleteFormOption(id);
+    dispatchRaw({ type: "REMOVE_FORM_OPTION", id });
+  }, []);
+
   const value = useMemo(
-    () => ({ state, dispatch, submit, isAdmin, unlockAdmin, lockAdmin, removeSubmission, editSubmission, updateRoundSettings }),
-    [state, dispatch, submit, isAdmin, unlockAdmin, lockAdmin, removeSubmission, editSubmission, updateRoundSettings],
+    () => ({
+      state,
+      dispatch,
+      submit,
+      isAdmin,
+      unlockAdmin,
+      lockAdmin,
+      removeSubmission,
+      editSubmission,
+      updateRoundSettings,
+      addFormOption,
+      editFormOption,
+      removeFormOption,
+    }),
+    [
+      state,
+      dispatch,
+      submit,
+      isAdmin,
+      unlockAdmin,
+      lockAdmin,
+      removeSubmission,
+      editSubmission,
+      updateRoundSettings,
+      addFormOption,
+      editFormOption,
+      removeFormOption,
+    ],
   );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
@@ -441,6 +530,21 @@ export function useSubmissions(): Submission[] {
 export function useCatalog(): Submission[] {
   const { state } = useStore();
   return useMemo(() => Object.values(state.submissions), [state.submissions]);
+}
+
+// All options for a category (any status), sorted for the admin management list.
+export function useFormOptions(category: FormOptionCategory): FormOption[] {
+  const { state } = useStore();
+  return useMemo(
+    () => state.formOptions.filter((o) => o.category === category).sort((a, b) => a.sortOrder - b.sortOrder),
+    [state.formOptions, category],
+  );
+}
+
+// Only the enabled options, for rendering the survey form's chips.
+export function useActiveFormOptions(category: FormOptionCategory): FormOption[] {
+  const options = useFormOptions(category);
+  return useMemo(() => options.filter((o) => o.isActive), [options]);
 }
 
 export function useCellItems(grade: number, day: ExamDay, session: ExamSession): Submission[] {

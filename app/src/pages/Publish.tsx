@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useStore, useSubmissions } from "../data/store";
 import { computeCellTimes } from "../data/scheduling";
 import type { ExamDay, ExamSession, ExamSlotMeta, Grade } from "../data/types";
-import { ROOMS_PER_GRADE, gradeLabel } from "../data/mockData";
+import { gradeLabel } from "../data/mockData";
 import "./Publish.css";
 
 const SESSIONS: ExamSession[] = ["morning", "afternoon"];
@@ -24,7 +24,7 @@ interface PrintRow {
 }
 
 function formatRooms(rooms: number[]): string {
-  if (rooms.length === 0) return `1–${ROOMS_PER_GRADE}`;
+  if (rooms.length === 0) return "ทุกห้อง";
   return rooms.join(", ");
 }
 

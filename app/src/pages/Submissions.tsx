@@ -1,15 +1,15 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { useStore, useSubmissions } from "../data/store";
-import { GRADES, ROOMS_PER_GRADE, gradeLabel } from "../data/mockData";
+import { useActiveFormOptions, useStore, useSubmissions } from "../data/store";
+import { GRADES, gradeLabel } from "../data/mockData";
 import type { Grade, MorningPreference, Submission, SubmissionStatus } from "../data/types";
 import "./Submissions.css";
 
 type StatusFilter = "all" | "scheduled" | "pending";
 
 function formatRooms(rooms: number[]): string {
-  if (rooms.length === 0) return `1–${ROOMS_PER_GRADE} (ทุกห้อง)`;
+  if (rooms.length === 0) return "ทุกห้อง";
   return rooms.join(", ");
 }
 
@@ -39,14 +39,10 @@ function toCsv(rows: Submission[]): string {
   return lines.join("\n");
 }
 
-const PREFERENCE_OPTIONS: { value: MorningPreference; label: string }[] = [
-  { value: "morning", label: "☀ ควรสอบเช้า" },
-  { value: "afternoon-ok", label: "🌤 บ่ายก็ได้" },
-  { value: "none", label: "ไม่ระบุ" },
-];
-
 function EditSubmissionModal({ submission, onClose }: { submission: Submission; onClose: () => void }) {
   const { editSubmission } = useStore();
+  const roomOptions = useActiveFormOptions("room");
+  const preferenceOptions = useActiveFormOptions("preference");
   const [code, setCode] = useState(submission.code);
   const [subjectName, setSubjectName] = useState(submission.subjectName);
   const [teacherName, setTeacherName] = useState(submission.teacherName);
@@ -116,16 +112,19 @@ function EditSubmissionModal({ submission, onClose }: { submission: Submission; 
         <div className="tform-field">
           <span className="tform-label">ห้องที่จัดสอบ (ไม่เลือก = ทุกห้อง)</span>
           <div className="tform-chip-row">
-            {Array.from({ length: ROOMS_PER_GRADE }, (_, i) => i + 1).map((r) => (
-              <button
-                type="button"
-                key={r}
-                className={"tform-chip" + (rooms.includes(r) ? " selected" : "")}
-                onClick={() => toggleRoom(r)}
-              >
-                ห้อง {r}
-              </button>
-            ))}
+            {roomOptions.map((opt) => {
+              const r = Number(opt.value);
+              return (
+                <button
+                  type="button"
+                  key={opt.id}
+                  className={"tform-chip" + (rooms.includes(r) ? " selected" : "")}
+                  onClick={() => toggleRoom(r)}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -144,9 +143,10 @@ function EditSubmissionModal({ submission, onClose }: { submission: Submission; 
           <label className="tform-field">
             <span className="tform-label">ช่วงเวลาที่เหมาะสม</span>
             <select className="tform-input" value={preference} onChange={(e) => setPreference(e.target.value as MorningPreference)}>
-              {PREFERENCE_OPTIONS.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
+              {preferenceOptions.map((opt) => (
+                <option key={opt.id} value={opt.value}>
+                  {opt.icon ? `${opt.icon} ` : ""}
+                  {opt.label}
                 </option>
               ))}
             </select>
