@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useStore, useSubmissions } from "../data/store";
 import { GRADES, ROOMS_PER_GRADE, gradeLabel } from "../data/mockData";
@@ -74,7 +75,7 @@ function EditSubmissionModal({ submission, onClose }: { submission: Submission; 
     }
   }
 
-  return (
+  return createPortal(
     <div className="subs-modal-overlay" onClick={onClose}>
       <form className="card subs-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSave}>
         <div className="subs-modal-title">แก้ไขข้อมูลรายวิชา</div>
@@ -161,7 +162,8 @@ function EditSubmissionModal({ submission, onClose }: { submission: Submission; 
           </button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
