@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useFormOptions, useStore } from "../data/store";
+import { createNewExamRound } from "../data/api";
 import type { FormOption, FormOptionCategory } from "../data/types";
 import "./AdminSettings.css";
 
@@ -268,12 +270,46 @@ export default function AdminSettings() {
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // New round modal
+  const [showNewRound, setShowNewRound] = useState(false);
+  const [newRoundName, setNewRoundName] = useState("");
+  const [newRoundYear, setNewRoundYear] = useState(state.round?.academicYear ?? "");
+  const [newRoundSemester, setNewRoundSemester] = useState<1 | 2>(1);
+  const [newRoundOpensAt, setNewRoundOpensAt] = useState("");
+  const [newRoundClosesAt, setNewRoundClosesAt] = useState("");
+  const [newRoundSaving, setNewRoundSaving] = useState(false);
+  const [newRoundError, setNewRoundError] = useState<string | null>(null);
+
   // School settings
   const [schoolName, setSchoolName] = useState(state.school?.schoolName ?? "");
   const [logoPreview, setLogoPreview] = useState<string | null>(state.school?.logoUrl ?? null);
   const [schoolSaving, setSchoolSaving] = useState(false);
   const [schoolSaveMsg, setSchoolSaveMsg] = useState<string | null>(null);
   const [schoolSaveError, setSchoolSaveError] = useState<string | null>(null);
+
+  async function handleCreateRound(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newRoundName.trim() || !newRoundYear.trim()) {
+      setNewRoundError("กรุณากรอกชื่อการจัดสอบและปีการศึกษา");
+      return;
+    }
+    if (!state.round?.id) return;
+    setNewRoundSaving(true);
+    setNewRoundError(null);
+    try {
+      await createNewExamRound(state.round.id, {
+        name: newRoundName.trim(),
+        academicYear: newRoundYear.trim(),
+        semester: newRoundSemester,
+        submissionOpensAt: newRoundOpensAt ? new Date(newRoundOpensAt).toISOString() : null,
+        submissionClosesAt: newRoundClosesAt ? new Date(newRoundClosesAt).toISOString() : null,
+      });
+      window.location.reload();
+    } catch (err) {
+      setNewRoundError(err instanceof Error ? err.message : "สร้างรอบสอบไม่สำเร็จ กรุณาลองใหม่");
+      setNewRoundSaving(false);
+    }
+  }
 
   function handleUnlock(e: React.FormEvent) {
     e.preventDefault();
@@ -371,7 +407,78 @@ export default function AdminSettings() {
           <h1>ตั้งค่ารอบสอบ</h1>
           <div className="page-subtitle">แก้ไขชื่อโรงเรียน โลโก้ รอบสอบ ช่วงเวลาที่เปิดรับข้อมูล และตัวเลือกในฟอร์มสำรวจ</div>
         </div>
+        <button type="button" className="btn btn-primary" onClick={() => { setShowNewRound(true); setNewRoundError(null); }}>
+          + สร้างรอบสอบใหม่
+        </button>
       </div>
+
+      {showNewRound && createPortal(
+        <div className="admin-modal-overlay" onClick={() => !newRoundSaving && setShowNewRound(false)}>
+          <form className="admin-modal card" onClick={(e) => e.stopPropagation()} onSubmit={handleCreateRound}>
+            <div className="admin-modal-title">สร้างรอบสอบใหม่</div>
+            <div className="admin-modal-warn">
+              รอบสอบปัจจุบัน "<strong>{state.round?.name}</strong>" จะถูกปิด — ข้อมูลเดิมยังคงอยู่ในฐานข้อมูล
+            </div>
+            {newRoundError && <div className="tform-error">{newRoundError}</div>}
+            <label className="tform-field">
+              <span className="tform-label">ชื่อการจัดสอบ</span>
+              <input
+                className="tform-input"
+                value={newRoundName}
+                onChange={(e) => setNewRoundName(e.target.value)}
+                placeholder="เช่น กลางภาคเรียนที่ 1/2569"
+                disabled={newRoundSaving}
+                autoFocus
+              />
+            </label>
+            <div className="tform-row-2">
+              <label className="tform-field">
+                <span className="tform-label">ปีการศึกษา</span>
+                <input
+                  className="tform-input"
+                  value={newRoundYear}
+                  onChange={(e) => setNewRoundYear(e.target.value)}
+                  placeholder="2569"
+                  disabled={newRoundSaving}
+                />
+              </label>
+              <div className="tform-field">
+                <span className="tform-label">ภาคเรียนที่</span>
+                <div className="tform-chip-row">
+                  {([1, 2] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={"tform-chip" + (newRoundSemester === s ? " selected" : "")}
+                      onClick={() => setNewRoundSemester(s)}
+                      disabled={newRoundSaving}
+                    >
+                      ภาคเรียนที่ {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="tform-row-2">
+              <label className="tform-field">
+                <span className="tform-label">เปิดรับข้อมูลตั้งแต่ <span className="tform-label-note">(ถ้ามี)</span></span>
+                <input className="tform-input" type="datetime-local" value={newRoundOpensAt} onChange={(e) => setNewRoundOpensAt(e.target.value)} disabled={newRoundSaving} />
+              </label>
+              <label className="tform-field">
+                <span className="tform-label">ปิดรับข้อมูลเมื่อ <span className="tform-label-note">(ถ้ามี)</span></span>
+                <input className="tform-input" type="datetime-local" value={newRoundClosesAt} onChange={(e) => setNewRoundClosesAt(e.target.value)} disabled={newRoundSaving} />
+              </label>
+            </div>
+            <div className="admin-modal-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setShowNewRound(false)} disabled={newRoundSaving}>ยกเลิก</button>
+              <button type="submit" className="btn btn-primary" disabled={newRoundSaving || !newRoundName.trim()}>
+                {newRoundSaving ? "กำลังสร้าง…" : "สร้างรอบสอบใหม่"}
+              </button>
+            </div>
+          </form>
+        </div>,
+        document.body
+      )}
 
       <div className="admin-settings-grid">
       {/* School info */}

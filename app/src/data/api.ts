@@ -242,6 +242,58 @@ export interface RoundSettingsInput {
   submissionClosesAt: string | null;
 }
 
+export interface NewRoundInput {
+  name: string;
+  academicYear: string;
+  semester: number;
+  submissionOpensAt: string | null;
+  submissionClosesAt: string | null;
+}
+
+export async function createNewExamRound(currentRoundId: string, input: NewRoundInput): Promise<void> {
+  const { data: slotRows, error: slotError } = await supabase
+    .from("exam_round_slots")
+    .select("day_number, session, start_time, end_time")
+    .eq("exam_round_id", currentRoundId);
+  if (slotError) throw slotError;
+
+  const { data: newRound, error: roundError } = await supabase
+    .from("exam_rounds")
+    .insert({
+      name: input.name,
+      academic_year: input.academicYear,
+      semester: input.semester,
+      is_active: true,
+      submission_opens_at: input.submissionOpensAt,
+      submission_closes_at: input.submissionClosesAt,
+    })
+    .select("id")
+    .single();
+  if (roundError) throw roundError;
+
+  const { error: deactivateError } = await supabase
+    .from("exam_rounds")
+    .update({ is_active: false })
+    .eq("id", currentRoundId);
+  if (deactivateError) throw deactivateError;
+
+  if (slotRows && slotRows.length > 0) {
+    const { error: slotInsertError } = await supabase
+      .from("exam_round_slots")
+      .insert(
+        slotRows.map((s) => ({
+          exam_round_id: newRound.id,
+          day_number: s.day_number,
+          session: s.session,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          exam_date: null,
+        }))
+      );
+    if (slotInsertError) throw slotInsertError;
+  }
+}
+
 export async function updateRoundSettings(examRoundId: string, input: RoundSettingsInput): Promise<void> {
   const { error } = await supabase
     .from("exam_rounds")
