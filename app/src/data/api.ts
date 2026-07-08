@@ -57,7 +57,7 @@ export interface RoundBundle {
 export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
   const { data: round, error: roundError } = await supabase
     .from("exam_rounds")
-    .select("id, name, academic_year, semester, submission_deadline, publish_date")
+    .select("id, name, academic_year, semester, submission_opens_at, submission_closes_at, publish_date")
     .eq("is_active", true)
     .limit(1)
     .single();
@@ -93,7 +93,8 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
       name: round.name,
       academicYear: round.academic_year,
       semester: round.semester,
-      submissionDeadline: round.submission_deadline,
+      submissionOpensAt: round.submission_opens_at,
+      submissionClosesAt: round.submission_closes_at,
       publishDate: round.publish_date,
     },
     slots: (slotRows ?? []).map((s) => ({
@@ -199,4 +200,58 @@ export async function updateManualStart(id: string, minutes: number | null): Pro
 export async function setRoundPublishDate(examRoundId: string, publishDate: string): Promise<void> {
   const { error } = await supabase.from("exam_rounds").update({ publish_date: publishDate }).eq("id", examRoundId);
   if (error) throw error;
+}
+
+export interface RoundSettingsInput {
+  name: string;
+  submissionOpensAt: string | null;
+  submissionClosesAt: string | null;
+}
+
+export async function updateRoundSettings(examRoundId: string, input: RoundSettingsInput): Promise<void> {
+  const { error } = await supabase
+    .from("exam_rounds")
+    .update({
+      name: input.name,
+      submission_opens_at: input.submissionOpensAt,
+      submission_closes_at: input.submissionClosesAt,
+    })
+    .eq("id", examRoundId);
+  if (error) throw error;
+}
+
+export async function deleteSubmission(id: string): Promise<void> {
+  const { error } = await supabase.from("exam_submissions").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export interface SubmissionEditInput {
+  code: string;
+  subjectName: string;
+  teacherName: string;
+  grade: Grade;
+  rooms: number[];
+  durationMinutes: number;
+  morningPreference: MorningPreference;
+}
+
+export async function updateSubmissionDetails(id: string, input: SubmissionEditInput): Promise<Submission> {
+  const { data, error } = await supabase
+    .from("exam_submissions")
+    .update({
+      subject_code: input.code,
+      subject_name: input.subjectName,
+      teacher_name: input.teacherName,
+      grade_level: input.grade,
+      rooms: input.rooms,
+      duration_minutes: input.durationMinutes,
+      session_preference: input.morningPreference,
+    })
+    .eq("id", id)
+    .select(
+      "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at",
+    )
+    .single();
+  if (error) throw error;
+  return rowToSubmission(data);
 }

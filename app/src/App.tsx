@@ -6,6 +6,7 @@ import TeacherForm from "./pages/TeacherForm";
 import Submissions from "./pages/Submissions";
 import Scheduler from "./pages/Scheduler";
 import Publish from "./pages/Publish";
+import AdminSettings from "./pages/AdminSettings";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
             <Route path="submissions" element={<Submissions />} />
             <Route path="scheduler" element={<Scheduler />} />
             <Route path="publish" element={<Publish />} />
+            <Route path="admin" element={<AdminSettings />} />
           </Route>
         </Routes>
       </BrowserRouter>

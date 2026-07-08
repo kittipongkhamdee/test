@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useCatalog, useStore, useSubmissions } from "../data/store";
 import { GRADES, gradeLabel } from "../data/mockData";
-import { formatRelativeTime } from "../lib/time";
+import { formatRelativeTime, formatThaiDateTime } from "../lib/time";
 import "./Dashboard.css";
 
 export default function Dashboard() {
@@ -40,7 +40,7 @@ export default function Dashboard() {
 
   const scheduledPct = stats.submittedCount ? Math.round((stats.scheduled / stats.submittedCount) * 100) : 0;
   const examTitle = state.round?.name ?? "";
-  const deadline = state.round?.submissionDeadline;
+  const deadline = formatThaiDateTime(state.round?.submissionClosesAt);
   const expectedTotal = catalog.length;
 
   if (state.loading) return <div className="dash">กำลังโหลดข้อมูล…</div>;

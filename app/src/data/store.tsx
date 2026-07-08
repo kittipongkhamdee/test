@@ -1,14 +1,22 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from "react";
 import type { ExamDay, ExamRoundMeta, ExamSession, ExamSlotMeta, Grade, MorningPreference, SchoolMeta, Submission } from "./types";
 import { cellKey } from "./mockData";
 import { timeToMinutes } from "./scheduling";
 import {
   bulkUpdatePlacements,
+  deleteSubmission as apiDeleteSubmission,
   fetchActiveRoundBundle,
   submitSubmission,
   updateManualStart,
+  updateRoundSettings as apiUpdateRoundSettings,
+  updateSubmissionDetails,
   type PlacementPatch,
+  type RoundSettingsInput,
+  type SubmissionEditInput,
 } from "./api";
+
+const ADMIN_PASSWORD = "32140";
+const ADMIN_STORAGE_KEY = "exam-scheduler-admin-unlocked";
 
 interface DataState {
   loading: boolean;
@@ -53,6 +61,8 @@ type Action =
   | { type: "LOADED"; submissions: Submission[]; round: ExamRoundMeta; slots: ExamSlotMeta[]; teachers: string[]; school: SchoolMeta }
   | { type: "LOAD_ERROR"; message: string }
   | { type: "UPSERT_SUBMISSION"; submission: Submission }
+  | { type: "REMOVE_SUBMISSION"; id: string }
+  | { type: "UPDATE_ROUND"; round: ExamRoundMeta }
   | { type: "PLACE"; id: string; day: ExamDay; session: ExamSession; index?: number }
   | { type: "UNPLACE"; id: string }
   | { type: "SET_MANUAL_START"; id: string; minutes: number | null }
@@ -93,6 +103,12 @@ function reducer(state: DataState, action: Action): DataState {
       return { ...state, loading: false, error: action.message };
     case "UPSERT_SUBMISSION":
       return { ...state, submissions: { ...state.submissions, [action.submission.id]: action.submission } };
+    case "REMOVE_SUBMISSION": {
+      const { [action.id]: _removed, ...submissions } = state.submissions;
+      return { ...state, submissions, cellOrder: removeFromAllCells(state.cellOrder, action.id) };
+    }
+    case "UPDATE_ROUND":
+      return { ...state, round: action.round };
     case "PLACE": {
       const existing = state.submissions[action.id];
       if (!existing) return state;
@@ -224,6 +240,12 @@ interface StoreContextValue {
     durationMinutes: number;
     morningPreference: MorningPreference;
   }) => Promise<Submission>;
+  isAdmin: boolean;
+  unlockAdmin: (password: string) => boolean;
+  lockAdmin: () => void;
+  removeSubmission: (id: string) => Promise<void>;
+  editSubmission: (id: string, input: SubmissionEditInput) => Promise<Submission>;
+  updateRoundSettings: (input: RoundSettingsInput) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -331,7 +353,68 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [state.round],
   );
 
-  const value = useMemo(() => ({ state, dispatch, submit }), [state, dispatch, submit]);
+  const [isAdmin, setIsAdmin] = useState(() => {
+    try {
+      return localStorage.getItem(ADMIN_STORAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  const unlockAdmin = useCallback((password: string) => {
+    const ok = password === ADMIN_PASSWORD;
+    if (ok) {
+      setIsAdmin(true);
+      try {
+        localStorage.setItem(ADMIN_STORAGE_KEY, "1");
+      } catch {
+        // storage unavailable — admin unlock still works for this session
+      }
+    }
+    return ok;
+  }, []);
+
+  const lockAdmin = useCallback(() => {
+    setIsAdmin(false);
+    try {
+      localStorage.removeItem(ADMIN_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const removeSubmission = useCallback(async (id: string) => {
+    await apiDeleteSubmission(id);
+    dispatchRaw({ type: "REMOVE_SUBMISSION", id });
+  }, []);
+
+  const editSubmission = useCallback(async (id: string, input: SubmissionEditInput) => {
+    const saved = await updateSubmissionDetails(id, input);
+    dispatchRaw({ type: "UPSERT_SUBMISSION", submission: saved });
+    return saved;
+  }, []);
+
+  const updateRoundSettings = useCallback(
+    async (input: RoundSettingsInput) => {
+      if (!state.round) throw new Error("ยังไม่มีรอบสอบที่เปิดใช้งาน");
+      await apiUpdateRoundSettings(state.round.id, input);
+      dispatchRaw({
+        type: "UPDATE_ROUND",
+        round: {
+          ...state.round,
+          name: input.name,
+          submissionOpensAt: input.submissionOpensAt,
+          submissionClosesAt: input.submissionClosesAt,
+        },
+      });
+    },
+    [state.round],
+  );
+
+  const value = useMemo(
+    () => ({ state, dispatch, submit, isAdmin, unlockAdmin, lockAdmin, removeSubmission, editSubmission, updateRoundSettings }),
+    [state, dispatch, submit, isAdmin, unlockAdmin, lockAdmin, removeSubmission, editSubmission, updateRoundSettings],
+  );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 

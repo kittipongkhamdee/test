@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useCatalog, useStore } from "../data/store";
 import { ROOMS_PER_GRADE, gradeLabel } from "../data/mockData";
 import type { Grade, MorningPreference, Submission } from "../data/types";
+import { formatThaiDateTime } from "../lib/time";
 import "./TeacherForm.css";
 
 const GRADE_OPTIONS: Grade[] = [1, 2, 3, 4, 5, 6];
@@ -27,6 +28,21 @@ export default function TeacherForm() {
   const { state, submit } = useStore();
   const catalog = useCatalog();
   const knownSubjects = useMemo(() => dedupeCatalog(catalog), [catalog]);
+
+  const examTitle = state.round?.name ?? "";
+  const schoolName = state.school?.schoolName ?? "";
+  const deadline = formatThaiDateTime(state.round?.submissionClosesAt);
+  const opensAt = state.round?.submissionOpensAt ? new Date(state.round.submissionOpensAt).getTime() : null;
+  const closesAt = state.round?.submissionClosesAt ? new Date(state.round.submissionClosesAt).getTime() : null;
+  const notYetOpen = opensAt !== null && Date.now() < opensAt;
+  const alreadyClosed = closesAt !== null && Date.now() > closesAt;
+  const windowClosed = notYetOpen || alreadyClosed;
+  const windowMessage = notYetOpen
+    ? `ยังไม่ถึงเวลาเปิดรับข้อมูล (เปิดรับ ${formatThaiDateTime(state.round?.submissionOpensAt)})`
+    : alreadyClosed
+      ? `ปิดรับข้อมูลแล้ว (ปิดรับเมื่อ ${deadline})`
+      : null;
+
   const [teacherName, setTeacherName] = useState("");
   const [code, setCode] = useState("");
   const [subjectName, setSubjectName] = useState("");
@@ -74,6 +90,10 @@ export default function TeacherForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (windowClosed) {
+      setError(windowMessage);
+      return;
+    }
     const finalDuration = duration ?? Number(customDuration);
     if (!teacherName.trim() || !code.trim() || !subjectName.trim() || !grade || !finalDuration) {
       setError("กรุณากรอกข้อมูลให้ครบทุกช่องที่จำเป็น");
@@ -101,10 +121,6 @@ export default function TeacherForm() {
     }
   }
 
-  const examTitle = state.round?.name ?? "";
-  const schoolName = state.school?.schoolName ?? "";
-  const deadline = state.round?.submissionDeadline;
-
   return (
     <div className="tform-page">
       <div className="tform-topbar">
@@ -122,6 +138,7 @@ export default function TeacherForm() {
             </div>
           </div>
 
+          {windowMessage && <div className="tform-error">{windowMessage}</div>}
           {submittedMsg && <div className="tform-success">✓ {submittedMsg}</div>}
           {error && <div className="tform-error">{error}</div>}
 
@@ -291,7 +308,7 @@ export default function TeacherForm() {
             >
               บันทึกร่าง
             </button>
-            <button type="submit" className="btn btn-primary" disabled={submitting}>
+            <button type="submit" className="btn btn-primary" disabled={submitting || windowClosed}>
               {submitting ? "กำลังส่ง…" : "ส่งข้อมูล"}
             </button>
           </div>

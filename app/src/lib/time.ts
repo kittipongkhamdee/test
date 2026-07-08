@@ -1,3 +1,14 @@
+export function formatThaiDateTime(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  return new Date(iso).toLocaleString("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function formatRelativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const minutes = Math.floor(diffMs / 60_000);

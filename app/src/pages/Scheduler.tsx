@@ -18,7 +18,7 @@ function subjectChipLabel(s: Submission): string {
 }
 
 export default function Scheduler() {
-  const { state, dispatch } = useStore();
+  const { state, dispatch, isAdmin } = useStore();
   const submissions = useSubmissions();
   const pending = useMemo(
     () => submissions.filter((s) => s.status === "pending").sort((a, b) => a.grade - b.grade),
@@ -46,13 +46,23 @@ export default function Scheduler() {
     window.setTimeout(() => setToast(null), 3000);
   }
 
+  function requireAdmin(): boolean {
+    if (!isAdmin) {
+      showToast("ต้องเข้าสู่โหมดผู้ดูแลระบบก่อนจึงจะจัดตารางสอบได้");
+      return false;
+    }
+    return true;
+  }
+
   function handleAutoSchedule() {
+    if (!requireAdmin()) return;
     dispatch({ type: "AUTO_SCHEDULE", rules });
     setAutoOpen(false);
     showToast("จัดตารางอัตโนมัติเรียบร้อยแล้ว — ยังลาก/แก้ไขได้ทุกช่อง");
   }
 
   function handleClear() {
+    if (!requireAdmin()) return;
     if (scheduledCount === 0) return;
     if (!window.confirm("ล้างตารางสอบทั้งหมดและย้ายทุกวิชากลับไปที่ \"รอจัด\" ใช่หรือไม่?")) return;
     dispatch({ type: "CLEAR_SCHEDULE" });
@@ -65,6 +75,7 @@ export default function Scheduler() {
 
   function handleDropOnCell(e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession) {
     e.preventDefault();
+    if (!requireAdmin()) return;
     const id = e.dataTransfer.getData("text/plain");
     const sub = state.submissions[id];
     if (!sub || sub.grade !== grade) return;
@@ -72,6 +83,7 @@ export default function Scheduler() {
   }
 
   function handleMobilePlace(grade: Grade) {
+    if (!requireAdmin()) return;
     if (!selectedPendingId) return;
     const sub = state.submissions[selectedPendingId];
     if (!sub) return;
@@ -91,11 +103,11 @@ export default function Scheduler() {
           <div className="page-subtitle">จัดอัตโนมัติได้ในคลิกเดียว แล้วลากปรับแก้ต่อได้ · ระบบเตือนเมื่อเวลาซ้อนกัน</div>
         </div>
         <div className="sched-header-actions">
-          <button className="btn btn-ghost" onClick={handleClear}>
+          <button className="btn btn-ghost" onClick={handleClear} disabled={!isAdmin}>
             ล้างตาราง
           </button>
           <div className="sched-auto-wrap">
-            <button className="btn btn-success" onClick={() => setAutoOpen((v) => !v)}>
+            <button className="btn btn-success" onClick={() => (requireAdmin() ? setAutoOpen((v) => !v) : undefined)}>
               ⚡ จัดอัตโนมัติ ▾
             </button>
             {autoOpen && (
@@ -138,6 +150,12 @@ export default function Scheduler() {
         </div>
       </div>
 
+      {!isAdmin && (
+        <div className="sched-locked-banner">
+          🔒 ดูตารางได้ตามปกติ แต่ต้อง<b>เข้าสู่โหมดผู้ดูแลระบบ</b>ก่อนจึงจะลาก/แก้ไข/จัดอัตโนมัติได้
+        </div>
+      )}
+
       {toast && <div className="sched-toast">{toast}</div>}
 
       {/* ---------- Desktop: drag & drop grid ---------- */}
@@ -152,7 +170,7 @@ export default function Scheduler() {
               <div
                 key={s.id}
                 className="sched-tray-item"
-                draggable
+                draggable={isAdmin}
                 onDragStart={(e) => e.dataTransfer.setData("text/plain", s.id)}
               >
                 <span className="sched-drag-handle">⠿</span>
@@ -255,7 +273,7 @@ export default function Scheduler() {
               <button
                 key={s.id}
                 className={"sched-mobile-pick-chip" + (selectedPendingId === s.id ? " selected" : "")}
-                onClick={() => setSelectedPendingId(s.id)}
+                onClick={() => (requireAdmin() ? setSelectedPendingId(s.id) : undefined)}
               >
                 {subjectChipLabel(s)}
               </button>
@@ -334,7 +352,7 @@ function GridCell({
   session: ExamSession;
   onDropCell: (e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession) => void;
 }) {
-  const { dispatch, state } = useStore();
+  const { dispatch, state, isAdmin } = useStore();
   const items = useCellItems(grade, day, session);
   const slotStart = state.slots.find((s) => s.day === day && s.session === session)?.start ?? "08:30";
   const times = useMemo(() => computeCellTimes(items, slotStart), [items, slotStart]);
@@ -363,20 +381,22 @@ function GridCell({
           <div
             key={item.id}
             className={"sched-chip" + (t?.conflict ? " conflict" : "")}
-            draggable
+            draggable={isAdmin}
             onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
           >
             <div className="sched-chip-top">
               <span className="sched-chip-time">
                 {t?.start.replace(":", ".")}–{t?.end.replace(":", ".")} · {item.code}
               </span>
-              <button
-                className="sched-chip-remove"
-                title="ย้ายกลับไปรอจัด"
-                onClick={() => dispatch({ type: "UNPLACE", id: item.id })}
-              >
-                ×
-              </button>
+              {isAdmin && (
+                <button
+                  className="sched-chip-remove"
+                  title="ย้ายกลับไปรอจัด"
+                  onClick={() => dispatch({ type: "UNPLACE", id: item.id })}
+                >
+                  ×
+                </button>
+              )}
             </div>
             <div className="sched-chip-name">{item.subjectName}</div>
             {t?.conflict && (

@@ -11,6 +11,8 @@ const NAV_ITEMS = [
   { to: "/publish", label: "ตารางสอบเผยแพร่", icon: "⎙", end: false },
 ];
 
+const ADMIN_NAV_ITEM = { to: "/admin", label: "ตั้งค่ารอบสอบ", icon: "⚙", end: false };
+
 const BOTTOM_NAV_ITEMS = [
   { to: "/", label: "แดชบอร์ด", icon: "◧", end: true },
   { to: "/submissions", label: "รายวิชา", icon: "≡", end: false },
@@ -18,10 +20,86 @@ const BOTTOM_NAV_ITEMS = [
   { to: "/publish", label: "เผยแพร่", icon: "⎙", end: false },
 ];
 
+function AdminStatus() {
+  const { isAdmin, unlockAdmin, lockAdmin } = useStore();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function handleUnlock(e: React.FormEvent) {
+    e.preventDefault();
+    if (unlockAdmin(password)) {
+      setOpen(false);
+      setPassword("");
+      setError(null);
+    } else {
+      setError("รหัสผ่านไม่ถูกต้อง");
+    }
+  }
+
+  if (isAdmin) {
+    return (
+      <button
+        type="button"
+        className="shell-user shell-user-btn"
+        onClick={() => {
+          if (window.confirm("ออกจากโหมดผู้ดูแลระบบใช่หรือไม่?")) lockAdmin();
+        }}
+      >
+        <div className="shell-avatar">🔓</div>
+        <div className="shell-user-info">
+          <div className="shell-user-name">ผู้ดูแลระบบ (ปลดล็อกแล้ว)</div>
+          <div className="shell-user-role">แตะเพื่อออกจากโหมดผู้ดูแล</div>
+        </div>
+      </button>
+    );
+  }
+
+  return (
+    <>
+      <button type="button" className="shell-user shell-user-btn" onClick={() => setOpen(true)}>
+        <div className="shell-avatar">🔒</div>
+        <div className="shell-user-info">
+          <div className="shell-user-name">เข้าสู่โหมดผู้ดูแลระบบ</div>
+          <div className="shell-user-role">ฝ่ายวิชาการ</div>
+        </div>
+      </button>
+      {open && (
+        <div className="shell-admin-overlay" onClick={() => setOpen(false)}>
+          <form className="shell-admin-modal card" onClick={(e) => e.stopPropagation()} onSubmit={handleUnlock}>
+            <div className="shell-admin-title">เข้าสู่โหมดผู้ดูแลระบบ</div>
+            <input
+              className="tform-input"
+              type="password"
+              autoFocus
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError(null);
+              }}
+              placeholder="รหัสผ่านผู้ดูแลระบบ"
+            />
+            {error && <div className="tform-error">{error}</div>}
+            <div className="shell-admin-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
+                ยกเลิก
+              </button>
+              <button type="submit" className="btn btn-primary">
+                เข้าสู่ระบบ
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { state } = useStore();
+  const { state, isAdmin } = useStore();
   const schoolName = state.school?.schoolName ?? "";
+  const navItems = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
 
   return (
     <div className="shell">
@@ -34,7 +112,7 @@ export default function AppShell() {
           </div>
         </div>
         <nav className="shell-nav">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -46,13 +124,7 @@ export default function AppShell() {
             </NavLink>
           ))}
         </nav>
-        <div className="shell-user">
-          <div className="shell-avatar">อ</div>
-          <div className="shell-user-info">
-            <div className="shell-user-name">ผู้ดูแลระบบ</div>
-            <div className="shell-user-role">ฝ่ายวิชาการ</div>
-          </div>
-        </div>
+        <AdminStatus />
       </aside>
 
       <div className="shell-mobile-topbar">
@@ -69,7 +141,7 @@ export default function AppShell() {
           <div className="shell-mobile-title-main">ระบบจัดการสอบ</div>
           <div className="shell-mobile-title-sub">{schoolName}</div>
         </div>
-        <div className="shell-avatar shell-avatar-sm">อ</div>
+        <div className="shell-avatar shell-avatar-sm">{isAdmin ? "🔓" : "🔒"}</div>
       </div>
 
       {drawerOpen && (
@@ -83,7 +155,7 @@ export default function AppShell() {
               </div>
             </div>
             <nav className="shell-nav">
-              {NAV_ITEMS.map((item) => (
+              {navItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
@@ -96,13 +168,7 @@ export default function AppShell() {
                 </NavLink>
               ))}
             </nav>
-            <div className="shell-user">
-              <div className="shell-avatar">อ</div>
-              <div className="shell-user-info">
-                <div className="shell-user-name">ผู้ดูแลระบบ</div>
-                <div className="shell-user-role">ฝ่ายวิชาการ</div>
-              </div>
-            </div>
+            <AdminStatus />
           </div>
         </div>
       )}

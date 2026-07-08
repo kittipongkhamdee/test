@@ -1,0 +1,20 @@
+.admin-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.admin-unlock-card,
+.admin-settings-card {
+  max-width: 480px;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-unlock-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-strong);
+}

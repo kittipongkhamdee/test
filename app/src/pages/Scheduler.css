@@ -107,6 +107,14 @@
   font-weight: 600;
 }
 
+.sched-locked-banner {
+  background: var(--amber-100);
+  color: var(--amber-ink);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  font-size: 13px;
+}
+
 /* ---------- Desktop grid ---------- */
 .sched-desktop {
   flex: 1;
