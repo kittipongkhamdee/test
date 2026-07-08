@@ -7,7 +7,6 @@ import { gradeLabel } from "../data/mockData";
 import "./Publish.css";
 
 const SESSIONS: ExamSession[] = ["morning", "afternoon"];
-const DAYS: ExamDay[] = [1, 2];
 
 function dayTitle(examDate: string | null | undefined, day: ExamDay): string {
   if (!examDate) return `วันที่ ${day} ของการสอบ`;
@@ -34,10 +33,16 @@ export default function Publish() {
   const submissions = useSubmissions();
   const [gradeFilter, setGradeFilter] = useState<Grade | null>(null);
 
-  const rowsByDay = useMemo(() => {
-    const byDay: Record<ExamDay, PrintRow[]> = { 1: [], 2: [] };
+  const days = useMemo(
+    () => [...new Set(state.slots.map((s) => s.day))].sort((a, b) => a - b),
+    [state.slots],
+  );
 
-    for (const day of DAYS) {
+  const rowsByDay = useMemo(() => {
+    const byDay: Record<ExamDay, PrintRow[]> = {};
+    for (const d of days) byDay[d] = [];
+
+    for (const day of days) {
       for (const session of SESSIONS) {
         const slot = state.slots.find((s) => s.day === day && s.session === session);
         const grouped = new Map<Grade, typeof submissions>();
@@ -65,29 +70,29 @@ export default function Publish() {
       }
     }
 
-    (Object.keys(byDay) as unknown as ExamDay[]).forEach((day) => {
+    for (const day of days) {
       byDay[day].sort((a, b) => a.start.localeCompare(b.start) || a.grade - b.grade);
-    });
+    }
 
     return byDay;
-  }, [submissions, state.slots]);
+  }, [submissions, state.slots, days]);
 
   const availableGrades = useMemo(() => {
     const grades = new Set<Grade>();
-    for (const day of DAYS) {
-      for (const row of rowsByDay[day]) grades.add(row.grade);
+    for (const day of days) {
+      for (const row of rowsByDay[day] ?? []) grades.add(row.grade);
     }
     return [...grades].sort((a, b) => a - b);
   }, [rowsByDay]);
 
   const filteredByDay = useMemo(() => {
     if (!gradeFilter) return rowsByDay;
-    const result: Record<ExamDay, PrintRow[]> = { 1: [], 2: [] };
-    for (const day of DAYS) {
-      result[day] = rowsByDay[day].filter((r) => r.grade === gradeFilter);
+    const result: Record<ExamDay, PrintRow[]> = {};
+    for (const day of days) {
+      result[day] = (rowsByDay[day] ?? []).filter((r) => r.grade === gradeFilter);
     }
     return result;
-  }, [rowsByDay, gradeFilter]);
+  }, [rowsByDay, gradeFilter, days]);
 
   function handlePrint() {
     window.print();
@@ -97,7 +102,7 @@ export default function Publish() {
     const examTitle = state.round?.name ?? "ตารางสอบ";
     const wb = XLSX.utils.book_new();
 
-    for (const day of DAYS) {
+    for (const day of days) {
       const slot = state.slots.find((s) => s.day === day);
       const sheetName = slot?.examDate
         ? new Date(slot.examDate).toLocaleDateString("th-TH", { day: "numeric", month: "short" })
@@ -180,7 +185,7 @@ export default function Publish() {
             <div className="pub-sheet-h2">{schoolName}</div>
           </div>
 
-          {DAYS.map((day) => (
+          {days.map((day) => (
             <div className="pub-day" key={day}>
               <div className="pub-day-title">{dayTitle(slotsByDay(day)?.examDate, day)}</div>
               <div className="pub-table">

@@ -6,7 +6,6 @@ import { GRADES, gradeLabel } from "../data/mockData";
 import "./Scheduler.css";
 
 const SESSIONS: ExamSession[] = ["morning", "afternoon"];
-const DAYS: ExamDay[] = [1, 2];
 
 function dayLabel(slot: ExamSlotMeta | undefined, day: ExamDay): string {
   if (!slot?.examDate) return `วันที่ ${day}`;
@@ -20,6 +19,10 @@ function subjectChipLabel(s: Submission): string {
 export default function Scheduler() {
   const { state, dispatch, isAdmin } = useStore();
   const submissions = useSubmissions();
+  const days = useMemo(
+    () => [...new Set(state.slots.map((s) => s.day))].sort((a, b) => a - b),
+    [state.slots],
+  );
   const pending = useMemo(
     () => submissions.filter((s) => s.status === "pending" && !s.selfScheduled).sort((a, b) => a.grade - b.grade),
     [submissions],
@@ -198,7 +201,7 @@ export default function Scheduler() {
               </div>
             ))}
 
-            {DAYS.flatMap((day) =>
+            {days.flatMap((day) =>
               SESSIONS.map((session) => {
                 const slot = state.slots.find((s) => s.day === day && s.session === session);
                 return (
@@ -220,7 +223,7 @@ export default function Scheduler() {
       {/* ---------- Mobile: tap-to-place ---------- */}
       <div className="sched-mobile">
         <div className="sched-mobile-pills">
-          {DAYS.flatMap((day) =>
+          {days.flatMap((day) =>
             SESSIONS.map((session) => {
               const active = mobileSlot.day === day && mobileSlot.session === session;
               const slot = state.slots.find((s) => s.day === day && s.session === session);

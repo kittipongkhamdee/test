@@ -2,7 +2,7 @@ export type Grade = 1 | 2 | 3 | 4 | 5 | 6;
 
 export type MorningPreference = "morning" | "afternoon-ok" | "none";
 
-export type ExamDay = 1 | 2;
+export type ExamDay = number;
 export type ExamSession = "morning" | "afternoon";
 
 export interface Slot {

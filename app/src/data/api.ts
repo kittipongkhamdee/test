@@ -420,3 +420,38 @@ export async function updateSlotExamDate(examRoundId: string, day: ExamDay, exam
     .eq("day_number", day);
   if (error) throw error;
 }
+
+export async function addExamDay(
+  examRoundId: string,
+  day: number,
+  morningStart: string,
+  morningEnd: string,
+  afternoonStart: string,
+  afternoonEnd: string,
+): Promise<ExamSlotMeta[]> {
+  const rows = [
+    { exam_round_id: examRoundId, day_number: day, session: "morning", start_time: morningStart + ":00", end_time: morningEnd + ":00", exam_date: null },
+    { exam_round_id: examRoundId, day_number: day, session: "afternoon", start_time: afternoonStart + ":00", end_time: afternoonEnd + ":00", exam_date: null },
+  ];
+  const { data, error } = await supabase
+    .from("exam_round_slots")
+    .insert(rows)
+    .select("day_number, session, exam_date, start_time, end_time");
+  if (error) throw error;
+  return (data ?? []).map((s) => ({
+    day: s.day_number as ExamDay,
+    session: s.session as ExamSession,
+    examDate: s.exam_date,
+    start: s.start_time.slice(0, 5),
+    end: s.end_time.slice(0, 5),
+  }));
+}
+
+export async function deleteExamDay(examRoundId: string, day: number): Promise<void> {
+  const { error } = await supabase
+    .from("exam_round_slots")
+    .delete()
+    .eq("exam_round_id", examRoundId)
+    .eq("day_number", day);
+  if (error) throw error;
+}
