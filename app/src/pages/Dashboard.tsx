@@ -102,7 +102,6 @@ export default function Dashboard() {
         <div className="card dash-stat">
           <div className="dash-stat-label">รอจัดลงตาราง</div>
           <div className="dash-stat-value warn">{stats.pending}</div>
-          <div className="dash-stat-note">{deadline ? `ต้องจัดก่อน ${deadline}` : "ยังไม่กำหนดกำหนดการ"}</div>
         </div>
       </div>
 
