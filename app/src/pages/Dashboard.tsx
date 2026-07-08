@@ -26,7 +26,7 @@ export default function Dashboard() {
 
   const perGrade = useMemo(() => {
     const counts = new Map<number, number>();
-    for (const s of submissions) {
+    for (const s of submissions.filter((s) => !s.selfScheduled)) {
       counts.set(s.grade, (counts.get(s.grade) ?? 0) + 1);
     }
     return [...counts.entries()]
@@ -38,7 +38,7 @@ export default function Dashboard() {
 
   const recent = useMemo(
     () =>
-      [...submissions]
+      [...submissions.filter((s) => !s.selfScheduled)]
         .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
         .slice(0, 5),
     [submissions],

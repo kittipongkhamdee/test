@@ -21,10 +21,10 @@ export default function Scheduler() {
   const { state, dispatch, isAdmin } = useStore();
   const submissions = useSubmissions();
   const pending = useMemo(
-    () => submissions.filter((s) => s.status === "pending").sort((a, b) => a.grade - b.grade),
+    () => submissions.filter((s) => s.status === "pending" && !s.selfScheduled).sort((a, b) => a.grade - b.grade),
     [submissions],
   );
-  const scheduledCount = submissions.length - pending.length;
+  const scheduledCount = submissions.filter((s) => s.status === "scheduled" && !s.selfScheduled).length;
 
   const [autoOpen, setAutoOpen] = useState(false);
   const [rules, setRules] = useState<AutoScheduleRules>({
