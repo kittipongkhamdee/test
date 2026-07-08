@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { HashRouter, Route, Routes } from "react-router-dom";
 import { StoreProvider } from "./data/store";
 import AppShell from "./components/AppShell";
 import Dashboard from "./pages/Dashboard";
@@ -11,7 +11,7 @@ import AdminSettings from "./pages/AdminSettings";
 export default function App() {
   return (
     <StoreProvider>
-      <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <HashRouter>
         <Routes>
           {/* Teacher-facing survey form stands alone, no admin sidebar */}
           <Route path="form" element={<TeacherForm />} />
@@ -23,7 +23,7 @@ export default function App() {
             <Route path="admin" element={<AdminSettings />} />
           </Route>
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </StoreProvider>
   );
 }
