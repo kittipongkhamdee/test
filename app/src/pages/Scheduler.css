@@ -323,6 +323,60 @@
   box-shadow: 0 8px 20px rgba(220, 38, 38, 0.35);
 }
 
+/* ---------- Clear confirm modal ---------- */
+.sched-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 28, 0.55);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sched-confirm-modal {
+  width: min(400px, 90vw);
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sched-confirm-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.sched-confirm-warn {
+  background: var(--red-100);
+  color: var(--red-700);
+  border: 1px solid var(--red-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.sched-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-soft);
+}
+.sched-confirm-btn {
+  background: var(--red-700);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.sched-confirm-btn:hover {
+  background: #b91c1c;
+}
+
 /* ---------- Mobile tap-to-place ---------- */
 .sched-mobile {
   display: none;
