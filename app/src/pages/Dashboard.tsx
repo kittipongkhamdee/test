@@ -175,9 +175,9 @@ export default function Dashboard() {
         <div className="card dash-not-submitted">
           <div className="dash-card-title">ครูที่ยังไม่ส่งข้อมูล <span className="dash-not-submitted-count">{notSubmittedTeachers.length} คน</span></div>
           <div className="dash-not-submitted-list">
-            {notSubmittedTeachers.map((name) => (
+            {notSubmittedTeachers.map((name, i) => (
               <div className="dash-not-submitted-row" key={name}>
-                <div className="dash-not-submitted-icon">{name.charAt(name.lastIndexOf(" ") + 1) || name.charAt(0)}</div>
+                <div className="dash-not-submitted-icon">{i + 1}</div>
                 <span>{name}</span>
               </div>
             ))}
@@ -189,9 +189,9 @@ export default function Dashboard() {
         <div className="card dash-self-sched">
           <div className="dash-card-title">ครูที่สอบนอกตาราง <span className="dash-self-sched-count">{selfScheduledTeachers.length} คน</span></div>
           <div className="dash-not-submitted-list">
-            {selfScheduledTeachers.map((name) => (
+            {selfScheduledTeachers.map((name, i) => (
               <div className="dash-not-submitted-row" key={name}>
-                <div className="dash-not-submitted-icon dash-self-sched-icon">{name.charAt(name.lastIndexOf(" ") + 1) || name.charAt(0)}</div>
+                <div className="dash-not-submitted-icon dash-self-sched-icon">{i + 1}</div>
                 <span>{name}</span>
               </div>
             ))}
