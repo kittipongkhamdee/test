@@ -98,20 +98,6 @@ export default function Dashboard() {
             )
           )}
         </div>
-        <div className="dash-hero-stats">
-          <div>
-            <div className="dash-hero-num">{stats.submittedCount}</div>
-            <div className="dash-hero-label">วิชาที่ส่งแล้ว</div>
-          </div>
-          <div>
-            <div className="dash-hero-num">{stats.scheduled}</div>
-            <div className="dash-hero-label">จัดลงตารางแล้ว</div>
-          </div>
-          <div>
-            <div className="dash-hero-num warn">{stats.pending}</div>
-            <div className="dash-hero-label">รอจัด</div>
-          </div>
-        </div>
       </div>
 
       <div className="dash-stat-grid">
