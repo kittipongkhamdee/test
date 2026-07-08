@@ -281,6 +281,16 @@
   outline-offset: -1px;
 }
 
+.tform-mysubs-inline {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .tform-mysubs {
   gap: 14px;
 }
