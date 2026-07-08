@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useStore, useSubmissions } from "../data/store";
 import { formatRelativeTime, formatThaiDate, formatThaiDateTime } from "../lib/time";
 import { gradeLabel } from "../data/mockData";
+import type { Grade } from "../data/types";
 import "./Dashboard.css";
 
 export default function Dashboard() {
@@ -20,6 +21,18 @@ export default function Dashboard() {
       teachersSubmitted: teacherIds.size,
     };
   }, [submissions]);
+
+  const perGrade = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const s of submissions) {
+      counts.set(s.grade, (counts.get(s.grade) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([grade, count]) => ({ grade, label: gradeLabel(grade as Grade), count }))
+      .sort((a, b) => a.grade - b.grade);
+  }, [submissions]);
+
+  const maxGradeCount = Math.max(1, ...perGrade.map((g) => g.count));
 
   const recent = useMemo(
     () =>
@@ -80,7 +93,6 @@ export default function Dashboard() {
         <div className="card dash-stat">
           <div className="dash-stat-label">ครูที่ส่งข้อมูลแล้ว</div>
           <div className="dash-stat-value">{stats.teachersSubmitted}</div>
-          <div className="dash-stat-note">จากครู {state.teachers.length} คน</div>
         </div>
         <div className="card dash-stat">
           <div className="dash-stat-label">จัดลงตารางแล้ว</div>
@@ -96,20 +108,31 @@ export default function Dashboard() {
 
       <div className="dash-lower">
         <div className="card dash-schedule-card">
-          <div className="dash-card-title">กำหนดการสอบ</div>
-          <div className="dash-schedule-list">
-            <div className="dash-schedule-row">
-              <span className="dash-schedule-day">วันที่ 1</span>
-              <span className={"dash-schedule-date" + (day1Date ? "" : " dash-schedule-unset")}>{formatThaiDate(day1Date)}</span>
+          <div className="dash-card-title">วิชาที่ส่งเข้ามา รายระดับชั้น</div>
+          {perGrade.length === 0 ? (
+            <div className="dash-grade-empty">ยังไม่มีข้อมูลส่งเข้ามา</div>
+          ) : (
+            <div className="dash-grade-bars">
+              {perGrade.map(({ grade, label, count }) => (
+                <div key={grade} className="dash-grade-row">
+                  <span className="dash-grade-label">{label}</span>
+                  <div className="dash-grade-bar-wrap">
+                    <div className="dash-grade-bar-fill" style={{ width: `${(count / maxGradeCount) * 100}%` }} />
+                  </div>
+                  <span className="dash-grade-count">{count}</span>
+                </div>
+              ))}
             </div>
-            <div className="dash-schedule-row">
-              <span className="dash-schedule-day">วันที่ 2</span>
-              <span className={"dash-schedule-date" + (day2Date ? "" : " dash-schedule-unset")}>{formatThaiDate(day2Date)}</span>
+          )}
+          <div className="dash-exam-dates-compact">
+            <div className="dash-exam-date-compact-row">
+              <span className="dash-exam-date-compact-label">วันที่ 1</span>
+              <span className={"dash-exam-date-compact-val" + (day1Date ? "" : " dash-schedule-unset")}>{formatThaiDate(day1Date)}</span>
             </div>
-          </div>
-          <div className="dash-schedule-submitted">
-            <span className="dash-schedule-submitted-num">{stats.submittedCount}</span>
-            <span className="dash-schedule-submitted-label">รายวิชาที่ส่งเข้ามาแล้ว</span>
+            <div className="dash-exam-date-compact-row">
+              <span className="dash-exam-date-compact-label">วันที่ 2</span>
+              <span className={"dash-exam-date-compact-val" + (day2Date ? "" : " dash-schedule-unset")}>{formatThaiDate(day2Date)}</span>
+            </div>
           </div>
         </div>
 
