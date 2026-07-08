@@ -60,7 +60,7 @@ export default function Dashboard() {
           <div className="page-subtitle">{examTitle}</div>
         </div>
         <Link to="/form" className="btn btn-primary">
-          + เปิดรอบสำรวจใหม่
+          แบบสำรวจการจัดสอบ
         </Link>
       </div>
 
