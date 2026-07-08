@@ -329,8 +329,8 @@ export default function Submissions() {
               <span>{s.subjectName}</span>
               <span>{s.teacherName}</span>
               <span>{s.selfScheduled ? "–" : gradeLabel(s.grade)}</span>
-              <span className="subs-muted">{formatRooms(s.rooms)}</span>
-              <span>{s.durationMinutes} นาที</span>
+              <span className="subs-muted">{s.selfScheduled ? "–" : formatRooms(s.rooms)}</span>
+              <span>{s.selfScheduled ? "–" : `${s.durationMinutes} นาที`}</span>
               <span>{statusBadge(s)}</span>
               {isAdmin && (
                 <span className="subs-row-actions">
