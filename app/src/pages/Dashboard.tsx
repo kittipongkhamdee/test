@@ -12,11 +12,12 @@ export default function Dashboard() {
   const submissions = useSubmissions();
 
   const stats = useMemo(() => {
-    const scheduled = submissions.filter((s) => s.status === "scheduled").length;
-    const pending = submissions.filter((s) => s.status === "pending").length;
-    const teacherIds = new Set(submissions.map((s) => s.teacherId));
+    const mainSubs = submissions.filter((s) => !s.selfScheduled);
+    const scheduled = mainSubs.filter((s) => s.status === "scheduled").length;
+    const pending = mainSubs.filter((s) => s.status === "pending").length;
+    const teacherIds = new Set(mainSubs.map((s) => s.teacherId));
     return {
-      submittedCount: submissions.length,
+      submittedCount: mainSubs.length,
       scheduled,
       pending,
       teachersSubmitted: teacherIds.size,
@@ -50,7 +51,7 @@ export default function Dashboard() {
 
   const totalTeachers = state.teachers.length;
   const submittedTeacherNames = useMemo(
-    () => new Set(submissions.map((s) => s.teacherName.trim().toLowerCase())),
+    () => new Set(submissions.filter((s) => !s.selfScheduled).map((s) => s.teacherName.trim().toLowerCase())),
     [submissions],
   );
   const notSubmittedTeachers = useMemo(
