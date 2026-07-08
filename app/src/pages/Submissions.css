@@ -304,14 +304,15 @@
   .subs-page {
     height: auto;
   }
+  /* 4 visible cols on mobile: รหัสวิชา, ชื่อวิชา, ระดับ, สถานะ */
   .subs-row,
   .subs-row-head {
-    grid-template-columns: 70px 1fr 90px;
+    grid-template-columns: 70px 1fr 56px 88px;
   }
   /* Override 8-column admin grid for mobile; reserve right edge for ⋮ button */
   .subs-row.admin,
   .subs-row-head.admin {
-    grid-template-columns: 70px 1fr 90px;
+    grid-template-columns: 70px 1fr 56px 88px;
     position: relative;
     padding-right: 44px;
   }
