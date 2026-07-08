@@ -134,10 +134,23 @@
 
 .shell-user-name {
   font-weight: 600;
+  color: #fff;
 }
 
 .shell-user-role {
-  color: var(--sidebar-faint);
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.shell-credits {
+  padding: 10px 20px 14px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.28);
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+}
+
+.shell-credits-label {
+  color: rgba(255, 255, 255, 0.2);
 }
 
 .shell-user-btn {
