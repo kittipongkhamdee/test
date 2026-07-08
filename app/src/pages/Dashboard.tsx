@@ -48,6 +48,17 @@ export default function Dashboard() {
   const deadline = formatThaiDateTime(state.round?.submissionClosesAt);
   const countdown = useCountdown(state.round?.submissionClosesAt);
 
+  const totalTeachers = state.teachers.length;
+  const submittedTeacherNames = useMemo(
+    () => new Set(submissions.map((s) => s.teacherName.trim().toLowerCase())),
+    [submissions],
+  );
+  const notSubmittedTeachers = useMemo(
+    () => state.teachers.filter((t) => !submittedTeacherNames.has(t.trim().toLowerCase())),
+    [state.teachers, submittedTeacherNames],
+  );
+  const teacherSubmittedPct = totalTeachers ? Math.round((stats.teachersSubmitted / totalTeachers) * 100) : 0;
+
   const day1Date = state.slots.find((s) => s.day === 1)?.examDate ?? null;
   const day2Date = state.slots.find((s) => s.day === 2)?.examDate ?? null;
 
@@ -107,7 +118,15 @@ export default function Dashboard() {
         </div>
         <div className="card dash-stat">
           <div className="dash-stat-label">ครูที่ส่งข้อมูลแล้ว</div>
-          <div className="dash-stat-value">{stats.teachersSubmitted}</div>
+          <div className="dash-stat-value">{stats.teachersSubmitted}{totalTeachers > 0 && <span className="dash-stat-total">/{totalTeachers}</span>}</div>
+          {totalTeachers > 0 && (
+            <div className="dash-teacher-progress">
+              <div className="dash-teacher-progress-bar">
+                <div className="dash-teacher-progress-fill" style={{ width: `${teacherSubmittedPct}%` }} />
+              </div>
+              <span className="dash-stat-note good">{teacherSubmittedPct}%</span>
+            </div>
+          )}
         </div>
         <div className="card dash-stat">
           <div className="dash-stat-label">จัดลงตารางแล้ว</div>
@@ -119,6 +138,20 @@ export default function Dashboard() {
           <div className="dash-stat-value warn">{stats.pending}</div>
         </div>
       </div>
+
+      {totalTeachers > 0 && notSubmittedTeachers.length > 0 && (
+        <div className="card dash-not-submitted">
+          <div className="dash-card-title">ครูที่ยังไม่ส่งข้อมูล <span className="dash-not-submitted-count">{notSubmittedTeachers.length} คน</span></div>
+          <div className="dash-not-submitted-list">
+            {notSubmittedTeachers.map((name) => (
+              <div className="dash-not-submitted-row" key={name}>
+                <div className="dash-not-submitted-icon">{name.charAt(name.lastIndexOf(" ") + 1) || name.charAt(0)}</div>
+                <span>{name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="dash-lower">
         <div className="card dash-schedule-card">
