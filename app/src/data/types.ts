@@ -10,22 +10,6 @@ export interface Slot {
   session: ExamSession;
 }
 
-export const SLOT_TIME: Record<ExamSession, { start: string; end: string }> = {
-  morning: { start: "08:30", end: "11:30" },
-  afternoon: { start: "12:30", end: "15:30" },
-};
-
-export const EXAM_DAYS: { day: ExamDay; label: string; date: string }[] = [
-  { day: 1, label: "พุธ", date: "4 มี.ค. 69" },
-  { day: 2, label: "พฤหัสฯ", date: "5 มี.ค. 69" },
-];
-
-export interface Teacher {
-  id: string;
-  name: string;
-  department: string;
-}
-
 export type SubmissionStatus = "draft" | "pending" | "scheduled";
 
 export interface Submission {
@@ -42,4 +26,26 @@ export interface Submission {
   slot?: Slot;
   manualStartMinutes?: number; // admin-forced start time override, minutes-from-midnight
   submittedAt: string; // ISO
+}
+
+export interface ExamRoundMeta {
+  id: string;
+  name: string;
+  academicYear: string;
+  semester: number;
+  submissionDeadline: string | null; // ISO date
+  publishDate: string | null; // ISO date
+}
+
+export interface ExamSlotMeta {
+  day: ExamDay;
+  session: ExamSession;
+  examDate: string | null; // ISO date, null until the admin sets the real calendar date
+  start: string; // "HH:MM"
+  end: string; // "HH:MM"
+}
+
+export interface SchoolMeta {
+  schoolName: string;
+  headAcademicName: string;
 }

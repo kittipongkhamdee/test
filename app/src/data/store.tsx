@@ -1,25 +1,46 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from "react";
-import type { ExamDay, ExamSession, Submission } from "./types";
-import { buildInitialCellOrder, cellKey, INITIAL_SUBMISSIONS } from "./mockData";
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type ReactNode } from "react";
+import type { ExamDay, ExamRoundMeta, ExamSession, ExamSlotMeta, Grade, MorningPreference, SchoolMeta, Submission } from "./types";
+import { cellKey } from "./mockData";
 import { timeToMinutes } from "./scheduling";
+import {
+  bulkUpdatePlacements,
+  fetchActiveRoundBundle,
+  submitSubmission,
+  updateManualStart,
+  type PlacementPatch,
+} from "./api";
 
-const STORAGE_KEY = "exam-scheduler-state-v1";
-
-interface State {
-  submissions: Record<string, Submission>;
+interface DataState {
+  loading: boolean;
+  error: string | null;
+  round: ExamRoundMeta | null;
+  slots: ExamSlotMeta[];
+  teachers: string[];
+  school: SchoolMeta | null;
+  submissions: Record<string, Submission>; // includes not-yet-confirmed "draft" catalog rows
   cellOrder: Record<string, string[]>;
 }
 
-function loadInitialState(): State {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as State;
-  } catch {
-    // fall through to fresh mock state
+const initialState: DataState = {
+  loading: true,
+  error: null,
+  round: null,
+  slots: [],
+  teachers: [],
+  school: null,
+  submissions: {},
+  cellOrder: {},
+};
+
+function buildCellOrder(submissions: Submission[]): Record<string, string[]> {
+  const order: Record<string, string[]> = {};
+  for (const s of submissions) {
+    if (s.status === "scheduled" && s.slot) {
+      const key = cellKey(s.grade, s.slot.day, s.slot.session);
+      (order[key] ??= []).push(s.id);
+    }
   }
-  const submissions: Record<string, Submission> = {};
-  for (const s of INITIAL_SUBMISSIONS) submissions[s.id] = s;
-  return { submissions, cellOrder: buildInitialCellOrder(INITIAL_SUBMISSIONS) };
+  return order;
 }
 
 export interface AutoScheduleRules {
@@ -29,14 +50,14 @@ export interface AutoScheduleRules {
 }
 
 type Action =
-  | { type: "SUBMIT"; submission: Submission }
-  | { type: "UPDATE_SUBMISSION"; id: string; patch: Partial<Submission> }
+  | { type: "LOADED"; submissions: Submission[]; round: ExamRoundMeta; slots: ExamSlotMeta[]; teachers: string[]; school: SchoolMeta }
+  | { type: "LOAD_ERROR"; message: string }
+  | { type: "UPSERT_SUBMISSION"; submission: Submission }
   | { type: "PLACE"; id: string; day: ExamDay; session: ExamSession; index?: number }
   | { type: "UNPLACE"; id: string }
   | { type: "SET_MANUAL_START"; id: string; minutes: number | null }
   | { type: "AUTO_SCHEDULE"; rules: AutoScheduleRules }
-  | { type: "CLEAR_SCHEDULE" }
-  | { type: "RESET_DEMO" };
+  | { type: "CLEAR_SCHEDULE" };
 
 function removeFromAllCells(cellOrder: Record<string, string[]>, id: string): Record<string, string[]> {
   const next: Record<string, string[]> = {};
@@ -54,22 +75,24 @@ const ALL_CELLS: { day: ExamDay; session: ExamSession }[] = [
   { day: 2, session: "afternoon" },
 ];
 
-function reducer(state: State, action: Action): State {
+function reducer(state: DataState, action: Action): DataState {
   switch (action.type) {
-    case "SUBMIT": {
+    case "LOADED":
       return {
         ...state,
-        submissions: { ...state.submissions, [action.submission.id]: action.submission },
+        loading: false,
+        error: null,
+        round: action.round,
+        slots: action.slots,
+        teachers: action.teachers,
+        school: action.school,
+        submissions: Object.fromEntries(action.submissions.map((s) => [s.id, s])),
+        cellOrder: buildCellOrder(action.submissions),
       };
-    }
-    case "UPDATE_SUBMISSION": {
-      const existing = state.submissions[action.id];
-      if (!existing) return state;
-      return {
-        ...state,
-        submissions: { ...state.submissions, [action.id]: { ...existing, ...action.patch } },
-      };
-    }
+    case "LOAD_ERROR":
+      return { ...state, loading: false, error: action.message };
+    case "UPSERT_SUBMISSION":
+      return { ...state, submissions: { ...state.submissions, [action.submission.id]: action.submission } };
     case "PLACE": {
       const existing = state.submissions[action.id];
       if (!existing) return state;
@@ -80,6 +103,7 @@ function reducer(state: State, action: Action): State {
       targetList.splice(insertAt, 0, action.id);
       const sameCell = existing.slot?.day === action.day && existing.slot?.session === action.session;
       return {
+        ...state,
         submissions: {
           ...state.submissions,
           [action.id]: {
@@ -96,6 +120,7 @@ function reducer(state: State, action: Action): State {
       const existing = state.submissions[action.id];
       if (!existing) return state;
       return {
+        ...state,
         submissions: {
           ...state.submissions,
           [action.id]: { ...existing, status: "pending", slot: undefined, manualStartMinutes: undefined },
@@ -120,7 +145,7 @@ function reducer(state: State, action: Action): State {
         submissions[id] =
           s.status === "scheduled" ? { ...s, status: "pending", slot: undefined, manualStartMinutes: undefined } : s;
       }
-      return { submissions, cellOrder: {} };
+      return { ...state, submissions, cellOrder: {} };
     }
     case "AUTO_SCHEDULE": {
       const { rules } = action;
@@ -139,10 +164,8 @@ function reducer(state: State, action: Action): State {
 
       const cellOrder: Record<string, string[]> = { ...state.cellOrder };
       const loadMinutes = new Map<string, number>();
-      const heavyDayUsed = new Map<string, Set<ExamDay>>(); // per grade: days that already have a heavy subject
-
+      const heavyDayUsed = new Map<string, Set<ExamDay>>();
       const loadOf = (key: string) => loadMinutes.get(key) ?? 0;
-
       const submissions = { ...state.submissions };
 
       for (const item of sorted) {
@@ -182,12 +205,7 @@ function reducer(state: State, action: Action): State {
         };
       }
 
-      return { submissions, cellOrder };
-    }
-    case "RESET_DEMO": {
-      const submissions: Record<string, Submission> = {};
-      for (const s of INITIAL_SUBMISSIONS) submissions[s.id] = s;
-      return { submissions, cellOrder: buildInitialCellOrder(INITIAL_SUBMISSIONS) };
+      return { ...state, submissions, cellOrder };
     }
     default:
       return state;
@@ -195,25 +213,132 @@ function reducer(state: State, action: Action): State {
 }
 
 interface StoreContextValue {
-  state: State;
-  dispatch: React.Dispatch<Action>;
+  state: DataState;
+  dispatch: (action: Action) => void;
+  submit: (input: {
+    code: string;
+    subjectName: string;
+    teacherName: string;
+    grade: Grade;
+    rooms: number[];
+    durationMinutes: number;
+    morningPreference: MorningPreference;
+  }) => Promise<Submission>;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
 
+function persistSortOrder(cellOrder: Record<string, string[]>, key: string, submissions: Record<string, Submission>) {
+  const ids = cellOrder[key] ?? [];
+  return ids.map((id, index) => {
+    const s = submissions[id];
+    const patch: PlacementPatch = {
+      status: "scheduled",
+      slot_day: s.slot!.day,
+      slot_session: s.slot!.session,
+      manual_start_minutes: s.manualStartMinutes ?? null,
+      sort_order: index,
+    };
+    return { id, patch };
+  });
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, loadInitialState);
+  const [state, dispatchRaw] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      // storage unavailable — ignore, in-memory state still works
-    }
-  }, [state]);
+    let cancelled = false;
+    fetchActiveRoundBundle()
+      .then((bundle) => {
+        if (cancelled) return;
+        dispatchRaw({
+          type: "LOADED",
+          submissions: bundle.submissions,
+          round: bundle.round,
+          slots: bundle.slots,
+          teachers: bundle.teachers,
+          school: bundle.school,
+        });
+      })
+      .catch((err: Error) => {
+        if (cancelled) return;
+        dispatchRaw({ type: "LOAD_ERROR", message: err.message });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const value = useMemo(() => ({ state, dispatch }), [state]);
+  const dispatch = useCallback(
+    (action: Action) => {
+      // Compute the next state with the same pure reducer the useReducer hook
+      // uses, so persistence always matches exactly what the UI just applied.
+      const next = reducer(state, action);
+      dispatchRaw(action);
+
+      switch (action.type) {
+        case "PLACE": {
+          const existing = state.submissions[action.id];
+          if (!existing) break;
+          const key = cellKey(existing.grade, action.day, action.session);
+          const updates = persistSortOrder(next.cellOrder, key, next.submissions);
+          bulkUpdatePlacements(updates).catch((err) => console.error("PLACE persist failed", err));
+          break;
+        }
+        case "UNPLACE": {
+          updateSubmissionUnplace(action.id).catch((err) => console.error("UNPLACE persist failed", err));
+          break;
+        }
+        case "SET_MANUAL_START": {
+          updateManualStart(action.id, action.minutes).catch((err) => console.error("SET_MANUAL_START persist failed", err));
+          break;
+        }
+        case "CLEAR_SCHEDULE": {
+          const updates = Object.values(state.submissions)
+            .filter((s) => s.status === "scheduled")
+            .map((s) => ({
+              id: s.id,
+              patch: { status: "pending" as const, slot_day: null, slot_session: null, manual_start_minutes: null },
+            }));
+          bulkUpdatePlacements(updates).catch((err) => console.error("CLEAR_SCHEDULE persist failed", err));
+          break;
+        }
+        case "AUTO_SCHEDULE": {
+          const updates = Object.keys(next.cellOrder).flatMap((key) => persistSortOrder(next.cellOrder, key, next.submissions));
+          bulkUpdatePlacements(updates).catch((err) => console.error("AUTO_SCHEDULE persist failed", err));
+          break;
+        }
+      }
+    },
+    [state],
+  );
+
+  const submit = useCallback(
+    async (input: {
+      code: string;
+      subjectName: string;
+      teacherName: string;
+      grade: Grade;
+      rooms: number[];
+      durationMinutes: number;
+      morningPreference: MorningPreference;
+    }) => {
+      if (!state.round) throw new Error("ยังไม่มีรอบสอบที่เปิดใช้งาน");
+      const saved = await submitSubmission({ examRoundId: state.round.id, ...input });
+      dispatchRaw({ type: "UPSERT_SUBMISSION", submission: saved });
+      return saved;
+    },
+    [state.round],
+  );
+
+  const value = useMemo(() => ({ state, dispatch, submit }), [state, dispatch, submit]);
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+}
+
+async function updateSubmissionUnplace(id: string) {
+  await bulkUpdatePlacements([
+    { id, patch: { status: "pending", slot_day: null, slot_session: null, manual_start_minutes: null } },
+  ]);
 }
 
 export function useStore() {
@@ -222,14 +347,22 @@ export function useStore() {
   return ctx;
 }
 
+// Confirmed submissions only — the pre-loaded subject catalog ("draft" rows,
+// not yet confirmed by a teacher through the survey) is excluded here.
 export function useSubmissions(): Submission[] {
+  const { state } = useStore();
+  return useMemo(() => Object.values(state.submissions).filter((s) => s.status !== "draft"), [state.submissions]);
+}
+
+// All catalog rows regardless of status — used for "expected total" counts.
+export function useCatalog(): Submission[] {
   const { state } = useStore();
   return useMemo(() => Object.values(state.submissions), [state.submissions]);
 }
 
 export function useCellItems(grade: number, day: ExamDay, session: ExamSession): Submission[] {
   const { state } = useStore();
-  const key = cellKey(grade as 1 | 2 | 3 | 4 | 5 | 6, day, session);
+  const key = cellKey(grade as Grade, day, session);
   return useMemo(() => {
     const ids = state.cellOrder[key] ?? [];
     return ids.map((id) => state.submissions[id]).filter(Boolean);
