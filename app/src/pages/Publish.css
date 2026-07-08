@@ -156,27 +156,16 @@
 
 @media (max-width: 899px) {
   .pub-sheet {
-    padding: 24px 18px;
+    padding: 24px 12px;
+  }
+  /* ให้ตารางเลื่อนซ้าย-ขวาได้ แทนการซ่อน column */
+  .pub-day {
+    overflow-x: auto;
   }
   .pub-table-head,
   .pub-table-row {
-    grid-template-columns: 80px 60px 1fr;
-  }
-  .pub-table-head span:nth-child(4),
-  .pub-table-head span:nth-child(5),
-  .pub-table-head span:nth-child(6),
-  .pub-table-row span:nth-child(4),
-  .pub-table-row span:nth-child(5),
-  .pub-table-row span:nth-child(6) {
-    display: none;
-  }
-  .pub-table-head.pub-table-head-self,
-  .pub-table-row.pub-table-row-self {
-    grid-template-columns: 70px 1fr 60px;
-  }
-  .pub-table-head.pub-table-head-self span:nth-child(n+4),
-  .pub-table-row.pub-table-row-self span:nth-child(n+4) {
-    display: none;
+    min-width: 560px;
+    grid-template-columns: 100px 75px 1fr 75px 110px 120px;
   }
 }
 
@@ -192,5 +181,15 @@
     border: none;
     max-width: none;
     padding: 0;
+  }
+  /* บังคับ full layout ตอนพิมพ์ */
+  .pub-table-head,
+  .pub-table-row {
+    grid-template-columns: 110px 80px 1fr 80px 110px 130px !important;
+    min-width: 0 !important;
+  }
+  .pub-table-head span,
+  .pub-table-row span {
+    display: block !important;
   }
 }
