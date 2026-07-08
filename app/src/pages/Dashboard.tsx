@@ -199,20 +199,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {selfScheduledTeachers.length > 0 && (
-        <div className="card dash-self-sched">
-          <div className="dash-card-title">ครูที่สอบนอกตาราง <span className="dash-self-sched-count">{selfScheduledTeachers.length} คน</span></div>
-          <div className="dash-not-submitted-list">
-            {selfScheduledTeachers.map((name) => (
-              <div className="dash-not-submitted-row" key={name}>
-                <div className="dash-not-submitted-icon dash-self-sched-icon">{name.charAt(name.lastIndexOf(" ") + 1) || name.charAt(0)}</div>
-                <span>{name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="dash-lower">
         <div className="card dash-schedule-card">
           <div className="dash-card-title">วิชาที่ส่งเข้ามา รายระดับชั้น</div>
