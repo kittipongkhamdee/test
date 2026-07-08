@@ -122,6 +122,16 @@
   flex-shrink: 0;
 }
 
+.tform-deadline-countdown {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+.tform-deadline-countdown.urgent {
+  color: #b91c1c;
+  opacity: 1;
+  font-weight: 700;
+}
+
 /* ---------- Confirm modal ---------- */
 .tform-confirm-overlay {
   position: fixed;

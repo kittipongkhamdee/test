@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useStore, useSubmissions } from "../data/store";
 import { formatRelativeTime, formatThaiDate, formatThaiDateTime } from "../lib/time";
 import { gradeLabel } from "../data/mockData";
+import { useCountdown } from "../lib/useCountdown";
 import type { Grade } from "../data/types";
 import "./Dashboard.css";
 
@@ -45,6 +46,7 @@ export default function Dashboard() {
   const scheduledPct = stats.submittedCount ? Math.round((stats.scheduled / stats.submittedCount) * 100) : 0;
   const examTitle = state.round?.name ?? "";
   const deadline = formatThaiDateTime(state.round?.submissionClosesAt);
+  const countdown = useCountdown(state.round?.submissionClosesAt);
 
   const day1Date = state.slots.find((s) => s.day === 1)?.examDate ?? null;
   const day2Date = state.slots.find((s) => s.day === 2)?.examDate ?? null;
@@ -68,6 +70,33 @@ export default function Dashboard() {
         <div>
           <div className="dash-hero-title">{examTitle}</div>
           <div className="dash-hero-sub">{deadline ? `ปิดรับข้อมูล ${deadline}` : "ยังไม่กำหนดวันปิดรับข้อมูล"}</div>
+          {countdown && (
+            countdown.expired ? (
+              <div className="dash-countdown-expired">หมดเวลาส่งข้อมูลแล้ว</div>
+            ) : (
+              <div className={"dash-countdown" + (countdown.urgent ? " urgent" : "")}>
+                <div className="dash-countdown-block">
+                  <span className="dash-countdown-num">{String(countdown.days).padStart(2, "0")}</span>
+                  <span className="dash-countdown-unit">วัน</span>
+                </div>
+                <span className="dash-countdown-colon">:</span>
+                <div className="dash-countdown-block">
+                  <span className="dash-countdown-num">{String(countdown.hours).padStart(2, "0")}</span>
+                  <span className="dash-countdown-unit">ชม.</span>
+                </div>
+                <span className="dash-countdown-colon">:</span>
+                <div className="dash-countdown-block">
+                  <span className="dash-countdown-num">{String(countdown.minutes).padStart(2, "0")}</span>
+                  <span className="dash-countdown-unit">นาที</span>
+                </div>
+                <span className="dash-countdown-colon">:</span>
+                <div className="dash-countdown-block">
+                  <span className="dash-countdown-num">{String(countdown.seconds).padStart(2, "0")}</span>
+                  <span className="dash-countdown-unit">วิ</span>
+                </div>
+              </div>
+            )
+          )}
         </div>
         <div className="dash-hero-stats">
           <div>
