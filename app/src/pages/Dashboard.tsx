@@ -83,6 +83,14 @@ export default function Dashboard() {
   );
   const teacherSubmittedPct = totalTeachers ? Math.round((stats.teachersSubmitted / totalTeachers) * 100) : 0;
 
+  const selfScheduledTeachers = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const s of submissions) {
+      if (s.selfScheduled) seen.set(s.teacherId, s.teacherName);
+    }
+    return [...seen.values()];
+  }, [submissions]);
+
   const day1Date = state.slots.find((s) => s.day === 1)?.examDate ?? null;
   const day2Date = state.slots.find((s) => s.day === 2)?.examDate ?? null;
 
@@ -170,6 +178,20 @@ export default function Dashboard() {
             {notSubmittedTeachers.map((name) => (
               <div className="dash-not-submitted-row" key={name}>
                 <div className="dash-not-submitted-icon">{name.charAt(name.lastIndexOf(" ") + 1) || name.charAt(0)}</div>
+                <span>{name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selfScheduledTeachers.length > 0 && (
+        <div className="card dash-self-sched">
+          <div className="dash-card-title">ครูที่สอบนอกตาราง <span className="dash-self-sched-count">{selfScheduledTeachers.length} คน</span></div>
+          <div className="dash-not-submitted-list">
+            {selfScheduledTeachers.map((name) => (
+              <div className="dash-not-submitted-row" key={name}>
+                <div className="dash-not-submitted-icon dash-self-sched-icon">{name.charAt(name.lastIndexOf(" ") + 1) || name.charAt(0)}</div>
                 <span>{name}</span>
               </div>
             ))}
