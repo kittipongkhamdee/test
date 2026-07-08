@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useStore, useSubmissions } from "../data/store";
 import { formatRelativeTime, formatThaiDate, formatThaiDateTime } from "../lib/time";
@@ -6,6 +6,24 @@ import { gradeLabel } from "../data/mockData";
 import { useCountdown } from "../lib/useCountdown";
 import type { Grade } from "../data/types";
 import "./Dashboard.css";
+
+function useCountUp(target: number, duration = 750): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (target === 0) { setCount(0); return; }
+    const start = performance.now();
+    let frame: number;
+    const tick = (now: number) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.round(eased * target));
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target, duration]);
+  return count;
+}
 
 export default function Dashboard() {
   const { state } = useStore();
@@ -43,6 +61,11 @@ export default function Dashboard() {
         .slice(0, 5),
     [submissions],
   );
+
+  const countSubmitted = useCountUp(stats.submittedCount);
+  const countTeachers = useCountUp(stats.teachersSubmitted);
+  const countScheduled = useCountUp(stats.scheduled);
+  const countPending = useCountUp(stats.pending);
 
   const scheduledPct = stats.submittedCount ? Math.round((stats.scheduled / stats.submittedCount) * 100) : 0;
   const examTitle = state.round?.name ?? "";
@@ -88,22 +111,22 @@ export default function Dashboard() {
             ) : (
               <div className={"dash-countdown" + (countdown.urgent ? " urgent" : "")}>
                 <div className="dash-countdown-block">
-                  <span className="dash-countdown-num">{String(countdown.days).padStart(2, "0")}</span>
+                  <span className="dash-countdown-num" key={`d${countdown.days}`}>{String(countdown.days).padStart(2, "0")}</span>
                   <span className="dash-countdown-unit">วัน</span>
                 </div>
                 <span className="dash-countdown-colon">:</span>
                 <div className="dash-countdown-block">
-                  <span className="dash-countdown-num">{String(countdown.hours).padStart(2, "0")}</span>
+                  <span className="dash-countdown-num" key={`h${countdown.hours}`}>{String(countdown.hours).padStart(2, "0")}</span>
                   <span className="dash-countdown-unit">ชม.</span>
                 </div>
                 <span className="dash-countdown-colon">:</span>
                 <div className="dash-countdown-block">
-                  <span className="dash-countdown-num">{String(countdown.minutes).padStart(2, "0")}</span>
+                  <span className="dash-countdown-num" key={`m${countdown.minutes}`}>{String(countdown.minutes).padStart(2, "0")}</span>
                   <span className="dash-countdown-unit">นาที</span>
                 </div>
                 <span className="dash-countdown-colon">:</span>
                 <div className="dash-countdown-block">
-                  <span className="dash-countdown-num">{String(countdown.seconds).padStart(2, "0")}</span>
+                  <span className="dash-countdown-num" key={`s${countdown.seconds}`}>{String(countdown.seconds).padStart(2, "0")}</span>
                   <span className="dash-countdown-unit">วิ</span>
                 </div>
               </div>
@@ -115,11 +138,11 @@ export default function Dashboard() {
       <div className="dash-stat-grid">
         <div className="card dash-stat">
           <div className="dash-stat-label">รายวิชาที่ส่งเข้ามา</div>
-          <div className="dash-stat-value">{stats.submittedCount}</div>
+          <div className="dash-stat-value">{countSubmitted}</div>
         </div>
         <div className="card dash-stat">
           <div className="dash-stat-label">ครูที่ส่งข้อมูลแล้ว</div>
-          <div className="dash-stat-value">{stats.teachersSubmitted}{totalTeachers > 0 && <span className="dash-stat-total">/{totalTeachers}</span>}</div>
+          <div className="dash-stat-value">{countTeachers}{totalTeachers > 0 && <span className="dash-stat-total">/{totalTeachers}</span>}</div>
           {totalTeachers > 0 && (
             <div className="dash-teacher-progress">
               <div className="dash-teacher-progress-bar">
@@ -131,12 +154,12 @@ export default function Dashboard() {
         </div>
         <div className="card dash-stat">
           <div className="dash-stat-label">จัดลงตารางแล้ว</div>
-          <div className="dash-stat-value">{stats.scheduled}</div>
+          <div className="dash-stat-value">{countScheduled}</div>
           <div className="dash-stat-note good">คิดเป็น {scheduledPct}%</div>
         </div>
         <div className="card dash-stat">
           <div className="dash-stat-label">รอจัดลงตาราง</div>
-          <div className="dash-stat-value warn">{stats.pending}</div>
+          <div className="dash-stat-value warn">{countPending}</div>
         </div>
       </div>
 
