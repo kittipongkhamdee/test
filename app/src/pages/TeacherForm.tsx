@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { useStore } from "../data/store";
+import { useMemo, useState } from "react";
+import { useCatalog, useStore } from "../data/store";
 import { ROOMS_PER_GRADE, gradeLabel } from "../data/mockData";
-import type { Grade, MorningPreference } from "../data/types";
+import type { Grade, MorningPreference, Submission } from "../data/types";
 import "./TeacherForm.css";
 
 const GRADE_OPTIONS: Grade[] = [1, 2, 3, 4, 5, 6];
@@ -14,8 +14,19 @@ const PREFERENCE_OPTIONS: { value: MorningPreference; label: string; icon: strin
   { value: "none", label: "ไม่ระบุ", icon: "" },
 ];
 
+// One suggestion per distinct subject_code+grade already known in the catalog.
+function dedupeCatalog(catalog: Submission[]): Submission[] {
+  const seen = new Map<string, Submission>();
+  for (const s of catalog) {
+    seen.set(`${s.code}_${s.grade}`, s);
+  }
+  return [...seen.values()];
+}
+
 export default function TeacherForm() {
   const { state, submit } = useStore();
+  const catalog = useCatalog();
+  const knownSubjects = useMemo(() => dedupeCatalog(catalog), [catalog]);
   const [teacherName, setTeacherName] = useState("");
   const [code, setCode] = useState("");
   const [subjectName, setSubjectName] = useState("");
@@ -27,6 +38,24 @@ export default function TeacherForm() {
   const [submittedMsg, setSubmittedMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [activeSuggestField, setActiveSuggestField] = useState<"code" | "subjectName" | null>(null);
+
+  const suggestions = useMemo(() => {
+    if (!activeSuggestField) return [];
+    const query = (activeSuggestField === "code" ? code : subjectName).trim().toLowerCase();
+    if (!query) return [];
+    return knownSubjects
+      .filter((s) => s.code.toLowerCase().includes(query) || s.subjectName.toLowerCase().includes(query))
+      .slice(0, 6);
+  }, [activeSuggestField, code, subjectName, knownSubjects]);
+
+  function applySuggestion(s: Submission) {
+    setCode(s.code);
+    setSubjectName(s.subjectName);
+    setGrade(s.grade);
+    if (!teacherName.trim()) setTeacherName(s.teacherName);
+    setActiveSuggestField(null);
+  }
 
   function toggleRoom(room: number) {
     setRooms((prev) => (prev.includes(room) ? prev.filter((r) => r !== room) : [...prev, room].sort((a, b) => a - b)));
@@ -112,10 +141,32 @@ export default function TeacherForm() {
             </datalist>
           </label>
 
-          <div className="tform-row-2">
+          <div className="tform-row-2 tform-row-suggest">
             <label className="tform-field">
               <span className="tform-label">รหัสวิชา</span>
-              <input className="tform-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="อ23101" />
+              <input
+                className="tform-input"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                onFocus={() => setActiveSuggestField("code")}
+                onBlur={() => setTimeout(() => setActiveSuggestField(null), 150)}
+                placeholder="อ23101"
+                autoComplete="off"
+              />
+              {activeSuggestField === "code" && suggestions.length > 0 && (
+                <ul className="tform-suggest-list">
+                  {suggestions.map((s) => (
+                    <li key={`${s.code}_${s.grade}`}>
+                      <button type="button" onMouseDown={() => applySuggestion(s)} className="tform-suggest-item">
+                        <span className="tform-suggest-code">{s.code}</span>
+                        <span className="tform-suggest-name">
+                          {s.subjectName} · {gradeLabel(s.grade)}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </label>
             <label className="tform-field">
               <span className="tform-label">ชื่อวิชา</span>
@@ -123,8 +174,25 @@ export default function TeacherForm() {
                 className="tform-input"
                 value={subjectName}
                 onChange={(e) => setSubjectName(e.target.value)}
+                onFocus={() => setActiveSuggestField("subjectName")}
+                onBlur={() => setTimeout(() => setActiveSuggestField(null), 150)}
                 placeholder="ภาษาอังกฤษ 5"
+                autoComplete="off"
               />
+              {activeSuggestField === "subjectName" && suggestions.length > 0 && (
+                <ul className="tform-suggest-list">
+                  {suggestions.map((s) => (
+                    <li key={`${s.code}_${s.grade}`}>
+                      <button type="button" onMouseDown={() => applySuggestion(s)} className="tform-suggest-item">
+                        <span className="tform-suggest-code">{s.code}</span>
+                        <span className="tform-suggest-name">
+                          {s.subjectName} · {gradeLabel(s.grade)}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </label>
           </div>
 
