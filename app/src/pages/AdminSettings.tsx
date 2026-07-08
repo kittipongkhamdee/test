@@ -79,32 +79,42 @@ function OptionRow({
   }
 
   return (
-    <div className="admin-opt-row">
-      <input type="checkbox" checked={option.isActive} onChange={toggleActive} disabled={busy} title="เปิด/ปิดการใช้งาน" />
-      <input
-        className="tform-input admin-opt-label"
-        value={label}
-        onChange={(e) => setLabel(e.target.value)}
-        onBlur={saveLabel}
-        disabled={busy}
-      />
-      {withIcon && (
+    <div className={"admin-opt-row" + (option.isActive ? "" : " inactive")}>
+      <span
+        className={"admin-toggle" + (option.isActive ? " on" : "")}
+        role="switch"
+        aria-checked={option.isActive}
+        aria-label="เปิด/ปิดการใช้งาน"
+        onClick={() => !busy && toggleActive()}
+      >
+        <span className="admin-toggle-knob" />
+      </span>
+      <div className="admin-opt-fields">
         <input
-          className="tform-input admin-opt-icon"
-          value={icon}
-          onChange={(e) => setIcon(e.target.value)}
+          className="tform-input admin-opt-label"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
           onBlur={saveLabel}
           disabled={busy}
-          placeholder="ไอคอน"
         />
-      )}
+        {withIcon && (
+          <input
+            className="tform-input admin-opt-icon"
+            value={icon}
+            onChange={(e) => setIcon(e.target.value)}
+            onBlur={saveLabel}
+            disabled={busy}
+            placeholder="ไอคอน"
+          />
+        )}
+      </div>
       <div className="admin-opt-actions">
-        <button type="button" className="admin-opt-btn" onClick={() => move(-1)} disabled={busy || index === 0} title="ย้ายขึ้น">
+        <button type="button" className="admin-opt-move" onClick={() => move(-1)} disabled={busy || index === 0} title="ย้ายขึ้น">
           ↑
         </button>
         <button
           type="button"
-          className="admin-opt-btn"
+          className="admin-opt-move"
           onClick={() => move(1)}
           disabled={busy || index === siblings.length - 1}
           title="ย้ายลง"
@@ -112,7 +122,7 @@ function OptionRow({
           ↓
         </button>
         {allowDelete && (
-          <button type="button" className="admin-opt-btn danger" onClick={handleDelete} disabled={busy} title="ลบตัวเลือก">
+          <button type="button" className="admin-opt-delete" onClick={handleDelete} disabled={busy} title="ลบตัวเลือก">
             ลบ
           </button>
         )}
@@ -158,14 +168,34 @@ function AddOptionForm({ category, nextSortOrder, withIcon }: { category: FormOp
 
   return (
     <form className="admin-opt-add" onSubmit={handleAdd}>
-      <input className="tform-input" placeholder="ค่า (value)" value={value} onChange={(e) => setValue(e.target.value)} disabled={busy} />
-      <input className="tform-input" placeholder="ป้ายชื่อที่แสดง" value={label} onChange={(e) => setLabel(e.target.value)} disabled={busy} />
-      {withIcon && (
-        <input className="tform-input admin-opt-icon" placeholder="ไอคอน" value={icon} onChange={(e) => setIcon(e.target.value)} disabled={busy} />
-      )}
-      <button type="submit" className="btn btn-ghost" disabled={busy}>
-        + เพิ่ม
-      </button>
+      <div className="admin-opt-add-fields">
+        <input
+          className="tform-input"
+          placeholder="ค่า (value)"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          disabled={busy}
+        />
+        <input
+          className="tform-input admin-opt-add-label"
+          placeholder="ป้ายชื่อที่แสดง"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          disabled={busy}
+        />
+        {withIcon && (
+          <input
+            className="tform-input admin-opt-icon"
+            placeholder="ไอคอน"
+            value={icon}
+            onChange={(e) => setIcon(e.target.value)}
+            disabled={busy}
+          />
+        )}
+        <button type="submit" className="btn btn-ghost admin-opt-add-btn" disabled={busy}>
+          + เพิ่มตัวเลือก
+        </button>
+      </div>
       {error && <div className="tform-error">{error}</div>}
     </form>
   );
@@ -189,8 +219,10 @@ function OptionCategorySection({
 
   return (
     <div className="card admin-opt-card">
-      <div className="admin-opt-title">{title}</div>
-      <div className="admin-opt-hint">{hint}</div>
+      <div className="admin-opt-header">
+        <div className="admin-opt-title">{title}</div>
+        <div className="admin-opt-hint">{hint}</div>
+      </div>
       <div className="admin-opt-list">
         {options.map((opt) => (
           <OptionRow key={opt.id} option={opt} siblings={options} allowDelete={allowAddRemove} withIcon={withIcon} />
@@ -322,36 +354,41 @@ export default function AdminSettings() {
         </div>
       </form>
 
-      <div className="admin-opt-section-title">ตัวเลือกในฟอร์มสำรวจ</div>
+      <div className="admin-opt-section">
+        <div className="admin-opt-section-title">ตัวเลือกในฟอร์มสำรวจ</div>
+        <div className="admin-opt-section-sub">กำหนดว่าครูจะเลือกอะไรได้บ้างในแบบสำรวจการจัดสอบ</div>
+      </div>
 
-      <OptionCategorySection
-        category="grade"
-        title="ระดับชั้น"
-        hint="เปิด/ปิด แก้ไขป้ายชื่อ และจัดลำดับได้ — ไม่รองรับเพิ่ม/ลบ เพราะผูกกับโครงตารางจัดสอบทั้งระบบ"
-        allowAddRemove={false}
-        withIcon={false}
-      />
-      <OptionCategorySection
-        category="room"
-        title="ห้องที่จัดสอบ"
-        hint="เปิด/ปิด เพิ่ม ลบ แก้ไข และจัดลำดับห้องที่ให้เลือกในฟอร์มได้อย่างอิสระ"
-        allowAddRemove={true}
-        withIcon={false}
-      />
-      <OptionCategorySection
-        category="duration"
-        title="เวลาที่ใช้สอบ"
-        hint="เปิด/ปิด เพิ่ม ลบ แก้ไข ตัวเลือกเวลาสอบ (นาที) — ครูยังกำหนดเวลาเองนอกเหนือจากนี้ได้เสมอ"
-        allowAddRemove={true}
-        withIcon={false}
-      />
-      <OptionCategorySection
-        category="preference"
-        title="ช่วงเวลาที่เหมาะสมในการสอบ"
-        hint="เปิด/ปิด แก้ไขป้ายชื่อ/ไอคอน และจัดลำดับได้ — ไม่รองรับเพิ่ม/ลบ เพราะระบบจัดอัตโนมัติผูกความหมายกับ 3 ตัวเลือกนี้โดยตรง"
-        allowAddRemove={false}
-        withIcon={true}
-      />
+      <div className="admin-opt-grid">
+        <OptionCategorySection
+          category="grade"
+          title="ระดับชั้น"
+          hint="เปิด/ปิด แก้ไขป้ายชื่อ และจัดลำดับได้ — ไม่รองรับเพิ่ม/ลบ เพราะผูกกับโครงตารางจัดสอบทั้งระบบ"
+          allowAddRemove={false}
+          withIcon={false}
+        />
+        <OptionCategorySection
+          category="room"
+          title="ห้องที่จัดสอบ"
+          hint="เปิด/ปิด เพิ่ม ลบ แก้ไข และจัดลำดับห้องที่ให้เลือกในฟอร์มได้อย่างอิสระ"
+          allowAddRemove={true}
+          withIcon={false}
+        />
+        <OptionCategorySection
+          category="duration"
+          title="เวลาที่ใช้สอบ"
+          hint="เปิด/ปิด เพิ่ม ลบ แก้ไข ตัวเลือกเวลาสอบ (นาที) — ครูยังกำหนดเวลาเองนอกเหนือจากนี้ได้เสมอ"
+          allowAddRemove={true}
+          withIcon={false}
+        />
+        <OptionCategorySection
+          category="preference"
+          title="ช่วงเวลาที่เหมาะสมในการสอบ"
+          hint="เปิด/ปิด แก้ไขป้ายชื่อ/ไอคอน และจัดลำดับได้ — ไม่รองรับเพิ่ม/ลบ เพราะระบบจัดอัตโนมัติผูกความหมายกับ 3 ตัวเลือกนี้โดยตรง"
+          allowAddRemove={false}
+          withIcon={true}
+        />
+      </div>
     </div>
   );
 }

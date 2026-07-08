@@ -1,12 +1,13 @@
 .admin-page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
+  max-width: var(--shell-max-width);
 }
 
 .admin-unlock-card,
 .admin-settings-card {
-  max-width: 480px;
+  max-width: 640px;
   padding: 28px 32px;
   display: flex;
   flex-direction: column;
@@ -19,44 +20,89 @@
   color: var(--text-strong);
 }
 
+/* ---------- Section header ---------- */
+.admin-opt-section {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .admin-opt-section-title {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--text-strong);
-  margin-top: 8px;
+}
+.admin-opt-section-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ---------- Category grid ---------- */
+.admin-opt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 16px;
+  align-items: start;
 }
 
 .admin-opt-card {
-  max-width: 640px;
-  padding: 20px 24px;
+  padding: 20px 22px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
+.admin-opt-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 .admin-opt-title {
   font-size: 14px;
   font-weight: 700;
   color: var(--text-strong);
 }
-
 .admin-opt-hint {
   font-size: 12px;
   color: var(--text-muted);
-  margin-top: -8px;
+  line-height: 1.5;
 }
 
+/* ---------- Option rows ---------- */
 .admin-opt-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
 .admin-opt-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding: 8px 6px;
+  border-radius: var(--radius-sm);
+  border-bottom: 1px solid var(--border-soft);
+  transition: background 0.12s ease;
 }
+.admin-opt-row:last-child {
+  border-bottom: none;
+}
+.admin-opt-row:hover {
+  background: var(--bg-subtle);
+}
+
+.admin-opt-fields {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  transition: opacity 0.12s ease;
+}
+.admin-opt-row.inactive .admin-opt-fields {
+  opacity: 0.45;
+}
+
 .admin-opt-row .tform-input {
   padding: 7px 10px;
   font-size: 13px;
@@ -64,45 +110,110 @@
 
 .admin-opt-label {
   flex: 1;
+  min-width: 0;
 }
 
 .admin-opt-icon {
-  width: 64px;
+  width: 56px;
   flex-shrink: 0;
+  text-align: center;
 }
 
 .admin-opt-actions {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
-.admin-opt-btn {
+.admin-opt-move,
+.admin-opt-delete {
   border: 1px solid var(--border-input);
   background: #fff;
   border-radius: var(--radius-sm);
-  padding: 5px 9px;
   font-size: 12px;
-  color: var(--blue-600);
   cursor: pointer;
   font-family: inherit;
+  color: var(--text-muted);
 }
-.admin-opt-btn.danger {
+.admin-opt-move {
+  width: 28px;
+  height: 28px;
+  line-height: 1;
+  color: var(--blue-600);
+}
+.admin-opt-move:hover:not(:disabled) {
+  background: var(--blue-100);
+  border-color: var(--blue-200);
+}
+.admin-opt-delete {
+  padding: 0 10px;
+  height: 28px;
   color: var(--red-700);
 }
-.admin-opt-btn:disabled {
-  opacity: 0.4;
+.admin-opt-delete:hover:not(:disabled) {
+  background: var(--red-100);
+  border-color: var(--red-border);
+}
+.admin-opt-move:disabled,
+.admin-opt-delete:disabled {
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
+/* ---------- Toggle switch (enable/disable) ---------- */
+.admin-toggle {
+  width: 38px;
+  height: 21px;
+  background: var(--border-input);
+  border-radius: 999px;
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: inline-block;
+  transition: background 0.15s ease;
+}
+.admin-toggle.on {
+  background: var(--blue-600);
+}
+.admin-toggle-knob {
+  width: 17px;
+  height: 17px;
+  background: #fff;
+  border-radius: 999px;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: left 0.15s ease;
+  box-shadow: 0 1px 2px rgba(10, 15, 28, 0.25);
+}
+.admin-toggle.on .admin-toggle-knob {
+  left: 19px;
+}
+
+/* ---------- Add new option ---------- */
 .admin-opt-add {
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-input);
+}
+.admin-opt-add-fields {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  align-items: flex-start;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-soft);
 }
 .admin-opt-add .tform-input {
   padding: 7px 10px;
   font-size: 13px;
+  width: 110px;
+}
+.admin-opt-add .tform-input.admin-opt-icon {
+  width: 56px;
+}
+.admin-opt-add .tform-input.admin-opt-add-label {
+  flex: 1;
+  min-width: 140px;
+  width: auto;
+}
+.admin-opt-add-btn {
+  flex-shrink: 0;
 }
