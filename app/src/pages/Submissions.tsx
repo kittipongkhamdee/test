@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useSubmissions } from "../data/store";
+import { useStore, useSubmissions } from "../data/store";
 import { GRADES, ROOMS_PER_GRADE, gradeLabel } from "../data/mockData";
-import type { Submission, SubmissionStatus } from "../data/types";
+import type { Grade, MorningPreference, Submission, SubmissionStatus } from "../data/types";
 import "./Submissions.css";
 
 type StatusFilter = "all" | "scheduled" | "pending";
@@ -38,11 +38,141 @@ function toCsv(rows: Submission[]): string {
   return lines.join("\n");
 }
 
+const PREFERENCE_OPTIONS: { value: MorningPreference; label: string }[] = [
+  { value: "morning", label: "☀ ควรสอบเช้า" },
+  { value: "afternoon-ok", label: "🌤 บ่ายก็ได้" },
+  { value: "none", label: "ไม่ระบุ" },
+];
+
+function EditSubmissionModal({ submission, onClose }: { submission: Submission; onClose: () => void }) {
+  const { editSubmission } = useStore();
+  const [code, setCode] = useState(submission.code);
+  const [subjectName, setSubjectName] = useState(submission.subjectName);
+  const [teacherName, setTeacherName] = useState(submission.teacherName);
+  const [grade, setGrade] = useState<Grade>(submission.grade);
+  const [rooms, setRooms] = useState<number[]>(submission.rooms);
+  const [durationMinutes, setDurationMinutes] = useState(submission.durationMinutes);
+  const [preference, setPreference] = useState<MorningPreference>(submission.morningPreference);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function toggleRoom(room: number) {
+    setRooms((prev) => (prev.includes(room) ? prev.filter((r) => r !== room) : [...prev, room].sort((a, b) => a - b)));
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      await editSubmission(submission.id, { code, subjectName, teacherName, grade, rooms, durationMinutes, morningPreference: preference });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "บันทึกไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="subs-modal-overlay" onClick={onClose}>
+      <form className="card subs-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSave}>
+        <div className="subs-modal-title">แก้ไขข้อมูลรายวิชา</div>
+        {error && <div className="tform-error">{error}</div>}
+
+        <div className="tform-row-2">
+          <label className="tform-field">
+            <span className="tform-label">รหัสวิชา</span>
+            <input className="tform-input" value={code} onChange={(e) => setCode(e.target.value)} />
+          </label>
+          <label className="tform-field">
+            <span className="tform-label">ชื่อวิชา</span>
+            <input className="tform-input" value={subjectName} onChange={(e) => setSubjectName(e.target.value)} />
+          </label>
+        </div>
+
+        <label className="tform-field">
+          <span className="tform-label">ครูผู้สอน</span>
+          <input className="tform-input" value={teacherName} onChange={(e) => setTeacherName(e.target.value)} />
+        </label>
+
+        <div className="tform-field">
+          <span className="tform-label">ระดับชั้น</span>
+          <div className="tform-chip-row">
+            {GRADES.map((g) => (
+              <button
+                type="button"
+                key={g}
+                className={"tform-chip" + (grade === g ? " selected" : "")}
+                onClick={() => setGrade(g)}
+              >
+                {gradeLabel(g)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="tform-field">
+          <span className="tform-label">ห้องที่จัดสอบ (ไม่เลือก = ทุกห้อง)</span>
+          <div className="tform-chip-row">
+            {Array.from({ length: ROOMS_PER_GRADE }, (_, i) => i + 1).map((r) => (
+              <button
+                type="button"
+                key={r}
+                className={"tform-chip" + (rooms.includes(r) ? " selected" : "")}
+                onClick={() => toggleRoom(r)}
+              >
+                ห้อง {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="tform-row-2">
+          <label className="tform-field">
+            <span className="tform-label">เวลาที่ใช้สอบ (นาที)</span>
+            <input
+              className="tform-input"
+              type="number"
+              min={5}
+              step={5}
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(Number(e.target.value))}
+            />
+          </label>
+          <label className="tform-field">
+            <span className="tform-label">ช่วงเวลาที่เหมาะสม</span>
+            <select className="tform-input" value={preference} onChange={(e) => setPreference(e.target.value as MorningPreference)}>
+              {PREFERENCE_OPTIONS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="tform-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            ยกเลิก
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? "กำลังบันทึก…" : "บันทึก"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function Submissions() {
+  const { isAdmin, removeSubmission } = useStore();
   const submissions = useSubmissions();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [gradeFilter, setGradeFilter] = useState<number | "all">("all");
+  const [editing, setEditing] = useState<Submission | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -73,6 +203,18 @@ export default function Submissions() {
     a.download = "ข้อมูลรายวิชาสอบ.csv";
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function handleDelete(s: Submission) {
+    if (!window.confirm(`ลบข้อมูลวิชา ${s.code} ${s.subjectName} ใช่หรือไม่? การลบนี้ไม่สามารถย้อนกลับได้`)) return;
+    setDeletingId(s.id);
+    try {
+      await removeSubmission(s.id);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "ลบไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -134,7 +276,7 @@ export default function Submissions() {
       </div>
 
       <div className="card subs-table-card">
-        <div className="subs-row subs-row-head">
+        <div className={"subs-row subs-row-head" + (isAdmin ? " admin" : "")}>
           <span>รหัสวิชา</span>
           <span>ชื่อวิชา</span>
           <span>ครูผู้สอน</span>
@@ -142,10 +284,11 @@ export default function Submissions() {
           <span>ห้อง</span>
           <span>เวลาสอบ</span>
           <span>สถานะ</span>
+          {isAdmin && <span>จัดการ</span>}
         </div>
         <div className="subs-table-body">
           {filtered.map((s) => (
-            <div className="subs-row" key={s.id}>
+            <div className={"subs-row" + (isAdmin ? " admin" : "")} key={s.id}>
               <span className="subs-code">{s.code}</span>
               <span>{s.subjectName}</span>
               <span>{s.teacherName}</span>
@@ -153,11 +296,28 @@ export default function Submissions() {
               <span className="subs-muted">{formatRooms(s.rooms)}</span>
               <span>{s.durationMinutes} นาที</span>
               <span>{statusBadge(s.status)}</span>
+              {isAdmin && (
+                <span className="subs-row-actions">
+                  <button type="button" className="subs-action-btn" onClick={() => setEditing(s)}>
+                    แก้ไข
+                  </button>
+                  <button
+                    type="button"
+                    className="subs-action-btn danger"
+                    onClick={() => handleDelete(s)}
+                    disabled={deletingId === s.id}
+                  >
+                    ลบ
+                  </button>
+                </span>
+              )}
             </div>
           ))}
           {filtered.length === 0 && <div className="subs-empty">ไม่พบรายการที่ตรงกับเงื่อนไข</div>}
         </div>
       </div>
+
+      {editing && <EditSubmissionModal submission={editing} onClose={() => setEditing(null)} />}
     </div>
   );
 }

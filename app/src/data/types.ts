@@ -33,7 +33,8 @@ export interface ExamRoundMeta {
   name: string;
   academicYear: string;
   semester: number;
-  submissionDeadline: string | null; // ISO date
+  submissionOpensAt: string | null; // ISO datetime
+  submissionClosesAt: string | null; // ISO datetime
   publishDate: string | null; // ISO date
 }
 

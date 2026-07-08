@@ -133,6 +133,48 @@
   color: var(--sidebar-faint);
 }
 
+.shell-user-btn {
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.shell-user-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.shell-admin-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 28, 0.55);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shell-admin-modal {
+  width: min(360px, 90vw);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.shell-admin-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.shell-admin-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 /* ---------- Main content ---------- */
 .shell-main {
   flex: 1;
