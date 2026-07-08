@@ -333,4 +333,7 @@
   .admin-settings-card {
     padding: 20px 18px;
   }
+  .admin-opt-grid {
+    grid-template-columns: 1fr;
+  }
 }
