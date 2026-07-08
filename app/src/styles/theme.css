@@ -79,6 +79,7 @@ a:hover {
   gap: 6px;
   line-height: 1.2;
   white-space: nowrap;
+  text-decoration: none;
 }
 .btn:disabled {
   opacity: 0.5;

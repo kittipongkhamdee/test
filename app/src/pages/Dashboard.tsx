@@ -59,7 +59,7 @@ export default function Dashboard() {
           <h1>แดชบอร์ด</h1>
           <div className="page-subtitle">{examTitle}</div>
         </div>
-        <Link to="/form" className="btn btn-primary">
+        <Link to="/form" className="btn btn-primary dash-survey-btn">
           แบบสำรวจการจัดสอบ
         </Link>
       </div>

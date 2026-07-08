@@ -4,6 +4,13 @@
   gap: 24px;
 }
 
+.dash-survey-btn {
+  font-size: 15px;
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px rgba(26, 86, 219, 0.25);
+}
+
 .dash-hero {
   background: var(--navy-800);
   border-radius: var(--radius-lg);
