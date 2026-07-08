@@ -127,6 +127,10 @@ a:hover {
   background: var(--amber-100);
   color: var(--amber-ink);
 }
+.badge-purple {
+  background: #ede9fe;
+  color: #6d28d9;
+}
 
 .card {
   background: var(--bg-card);

@@ -62,6 +62,8 @@ export default function TeacherForm() {
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [activeSuggestField, setActiveSuggestField] = useState<"code" | "subjectName" | null>(null);
+  const [selfScheduled, setSelfScheduled] = useState(false);
+  const [selfScheduledNote, setSelfScheduledNote] = useState("");
 
   useEffect(() => {
     if (!submittedMsg) return;
@@ -111,6 +113,8 @@ export default function TeacherForm() {
     setDuration(null);
     setCustomDuration("");
     setPreference(null);
+    setSelfScheduled(false);
+    setSelfScheduledNote("");
   }
 
   const finalDuration = duration ?? Number(customDuration);
@@ -122,7 +126,7 @@ export default function TeacherForm() {
     !!grade &&
     isRoomsValid &&
     finalDuration > 0 &&
-    !!preference;
+    (selfScheduled || !!preference);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -140,7 +144,7 @@ export default function TeacherForm() {
   }
 
   async function doSubmit() {
-    if (!grade || !preference) return;
+    if (!grade) return;
     setShowConfirm(false);
     setSubmitting(true);
     try {
@@ -151,7 +155,9 @@ export default function TeacherForm() {
         grade,
         rooms: roomsSelection === "all" ? [] : (roomsSelection ?? []),
         durationMinutes: finalDuration,
-        morningPreference: preference,
+        morningPreference: preference ?? "none",
+        selfScheduled,
+        selfScheduledNote: selfScheduledNote.trim(),
       });
       setSubmittedMsg(`ส่งข้อมูลวิชา ${code.trim()} ${subjectName.trim()} เรียบร้อยแล้ว`);
       resetForm();
@@ -406,6 +412,29 @@ export default function TeacherForm() {
             <div className="tform-hint">เลือก "ควรสอบเช้า" สำหรับวิชาที่ต้องใช้สมาธิสูง เช่น คณิตศาสตร์ วิทยาศาสตร์</div>
           </div>
 
+          <div className="tform-self-sched">
+            <label className="tform-self-sched-toggle">
+              <input
+                type="checkbox"
+                checked={selfScheduled}
+                onChange={(e) => setSelfScheduled(e.target.checked)}
+              />
+              <span className="tform-self-sched-label">ขอจัดสอบนอกตาราง (ครูจัดสอบเอง)</span>
+            </label>
+            {selfScheduled && (
+              <div className="tform-self-sched-body">
+                <div className="tform-self-sched-hint">เช่น สัปดาห์ที่ 2 ของภาคเรียน, ในห้องปฏิบัติการ ฯลฯ</div>
+                <textarea
+                  className="tform-input tform-self-sched-note"
+                  rows={2}
+                  placeholder="ระบุเหตุผลหรือช่วงเวลาที่ต้องการจัดสอบเอง…"
+                  value={selfScheduledNote}
+                  onChange={(e) => setSelfScheduledNote(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+
           <div className="tform-actions">
             <button
               type="button"
@@ -469,6 +498,12 @@ export default function TeacherForm() {
                   <span className="tform-confirm-label">เวลาสอบ</span>
                   <span>{finalDuration} นาที</span>
                 </div>
+                {selfScheduled && (
+                  <div className="tform-confirm-row">
+                    <span className="tform-confirm-label">หมายเหตุ</span>
+                    <span className="tform-self-sched-badge">นอกตาราง{selfScheduledNote ? ` · ${selfScheduledNote}` : ""}</span>
+                  </div>
+                )}
               </div>
               <div className="tform-confirm-actions">
                 <button type="button" className="btn btn-ghost" onClick={() => setShowConfirm(false)}>
