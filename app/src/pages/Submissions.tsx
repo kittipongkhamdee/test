@@ -314,8 +314,7 @@ export default function Submissions() {
       <div className="card subs-table-card">
         <div className={"subs-row subs-row-head" + (isAdmin ? " admin" : "")}>
           <span>รหัสวิชา</span>
-          <span>ชื่อวิชา</span>
-          <span>ครูผู้สอน</span>
+          <span>ชื่อวิชา · ครูผู้สอน</span>
           <span>ระดับ</span>
           <span>ห้อง</span>
           <span>เวลาสอบ</span>
@@ -326,8 +325,7 @@ export default function Submissions() {
           {filtered.map((s) => (
             <div className={"subs-row" + (isAdmin ? " admin" : "")} key={s.id}>
               <span className="subs-code">{s.code}</span>
-              <span>{s.subjectName}</span>
-              <span>{s.teacherName}</span>
+              <span className="subs-name-teacher">{s.subjectName}<span className="subs-teacher-inline"> · {s.teacherName}</span></span>
               <span>{s.selfScheduled ? "–" : gradeLabel(s.grade)}</span>
               <span className="subs-muted">{s.selfScheduled ? "–" : formatRooms(s.rooms)}</span>
               <span>{s.selfScheduled ? "–" : `${s.durationMinutes} นาที`}</span>

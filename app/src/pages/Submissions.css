@@ -67,7 +67,7 @@
 
 .subs-row {
   display: grid;
-  grid-template-columns: 90px 1.4fr 1.2fr 70px 130px 90px 100px;
+  grid-template-columns: 90px 2fr 70px 120px 90px 100px;
   gap: 12px;
   padding: 13px 20px;
   font-size: 13px;
@@ -76,7 +76,7 @@
   border-bottom: 1px solid var(--border-soft);
 }
 .subs-row.admin {
-  grid-template-columns: 90px 1.4fr 1.2fr 70px 130px 90px 100px 140px;
+  grid-template-columns: 90px 2fr 70px 120px 90px 100px 140px;
 }
 .subs-row:last-child {
   border-bottom: none;
@@ -292,6 +292,15 @@
 .subs-muted {
   color: var(--text-muted);
 }
+.subs-name-teacher {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.subs-teacher-inline {
+  color: var(--text-muted);
+  font-size: 12px;
+}
 
 .subs-empty {
   padding: 40px 20px;
@@ -310,11 +319,11 @@
   }
   .subs-row,
   .subs-row-head {
-    min-width: 680px;
+    min-width: 580px;
   }
   .subs-row.admin,
   .subs-row-head.admin {
-    min-width: 820px;
+    min-width: 720px;
   }
   /* Desktop action buttons hidden on mobile; show ⋮ instead */
   .subs-action-desktop {
