@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { useCatalog, useStore, useSubmissions } from "../data/store";
-import { ROOMS_PER_GRADE, gradeLabel } from "../data/mockData";
+import { useActiveFormOptions, useCatalog, useStore, useSubmissions } from "../data/store";
+import { gradeLabel } from "../data/mockData";
 import type { Grade, MorningPreference, Submission, SubmissionStatus } from "../data/types";
 import { formatRelativeTime, formatThaiDateTime } from "../lib/time";
 import "./TeacherForm.css";
@@ -10,15 +10,7 @@ function statusLabel(status: SubmissionStatus): { text: string; className: strin
   return { text: "รอจัดตาราง", className: "badge-orange" };
 }
 
-const GRADE_OPTIONS: Grade[] = [1, 2, 3, 4, 5, 6];
-const DURATION_OPTIONS = [30, 45, 60, 90, 120];
-const ROOM_OPTIONS = Array.from({ length: ROOMS_PER_GRADE }, (_, i) => i + 1);
-
-const PREFERENCE_OPTIONS: { value: MorningPreference; label: string; icon: string }[] = [
-  { value: "morning", label: "ควรสอบเช้า", icon: "☀" },
-  { value: "afternoon-ok", label: "บ่ายก็ได้", icon: "🌤" },
-  { value: "none", label: "ไม่ระบุ", icon: "" },
-];
+type RoomsSelection = number[] | "all" | null;
 
 // One suggestion per distinct subject_code+grade already known in the catalog.
 function dedupeCatalog(catalog: Submission[]): Submission[] {
@@ -33,6 +25,10 @@ export default function TeacherForm() {
   const { state, submit } = useStore();
   const catalog = useCatalog();
   const submissions = useSubmissions();
+  const gradeOptions = useActiveFormOptions("grade");
+  const roomOptions = useActiveFormOptions("room");
+  const durationOptions = useActiveFormOptions("duration");
+  const preferenceOptions = useActiveFormOptions("preference");
   const knownSubjects = useMemo(() => dedupeCatalog(catalog), [catalog]);
 
   const examTitle = state.round?.name ?? "";
@@ -53,10 +49,10 @@ export default function TeacherForm() {
   const [code, setCode] = useState("");
   const [subjectName, setSubjectName] = useState("");
   const [grade, setGrade] = useState<Grade | null>(null);
-  const [rooms, setRooms] = useState<number[]>([]);
+  const [roomsSelection, setRoomsSelection] = useState<RoomsSelection>(null);
   const [duration, setDuration] = useState<number | null>(null);
   const [customDuration, setCustomDuration] = useState("");
-  const [preference, setPreference] = useState<MorningPreference>("none");
+  const [preference, setPreference] = useState<MorningPreference | null>(null);
   const [submittedMsg, setSubmittedMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -88,7 +84,11 @@ export default function TeacherForm() {
   }
 
   function toggleRoom(room: number) {
-    setRooms((prev) => (prev.includes(room) ? prev.filter((r) => r !== room) : [...prev, room].sort((a, b) => a - b)));
+    setRoomsSelection((prev) => {
+      const current = Array.isArray(prev) ? prev : [];
+      const next = current.includes(room) ? current.filter((r) => r !== room) : [...current, room].sort((a, b) => a - b);
+      return next;
+    });
   }
 
   function resetForm() {
@@ -96,11 +96,22 @@ export default function TeacherForm() {
     setCode("");
     setSubjectName("");
     setGrade(null);
-    setRooms([]);
+    setRoomsSelection(null);
     setDuration(null);
     setCustomDuration("");
-    setPreference("none");
+    setPreference(null);
   }
+
+  const finalDuration = duration ?? Number(customDuration);
+  const isRoomsValid = roomsSelection === "all" || (Array.isArray(roomsSelection) && roomsSelection.length > 0);
+  const isComplete =
+    !!teacherName.trim() &&
+    !!code.trim() &&
+    !!subjectName.trim() &&
+    !!grade &&
+    isRoomsValid &&
+    finalDuration > 0 &&
+    !!preference;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -108,9 +119,8 @@ export default function TeacherForm() {
       setError(windowMessage);
       return;
     }
-    const finalDuration = duration ?? Number(customDuration);
-    if (!teacherName.trim() || !code.trim() || !subjectName.trim() || !grade || !finalDuration) {
-      setError("กรุณากรอกข้อมูลให้ครบทุกช่องที่จำเป็น");
+    if (!isComplete || !grade || !preference) {
+      setError("กรุณากรอกข้อมูลให้ครบทุกช่องก่อนส่งข้อมูล");
       setSubmittedMsg(null);
       return;
     }
@@ -122,7 +132,7 @@ export default function TeacherForm() {
         subjectName: subjectName.trim(),
         teacherName: teacherName.trim(),
         grade,
-        rooms,
+        rooms: roomsSelection === "all" ? [] : roomsSelection,
         durationMinutes: finalDuration,
         morningPreference: preference,
       });
@@ -148,7 +158,8 @@ export default function TeacherForm() {
           <div>
             <div className="tform-title">กรอกข้อมูลรายวิชาที่จัดสอบ</div>
             <div className="tform-subtitle">
-              กรอก 1 ฟอร์มต่อ 1 รายวิชา{deadline ? ` · ส่งได้ถึงวันที่ ${deadline}` : ""}
+              กรอก 1 ฟอร์มต่อ 1 รายวิชา ต้องกรอกครบทุกช่องจึงจะส่งข้อมูลได้
+              {deadline ? ` · ส่งได้ถึงวันที่ ${deadline}` : ""}
             </div>
           </div>
 
@@ -230,53 +241,70 @@ export default function TeacherForm() {
           <div className="tform-field">
             <span className="tform-label">ระดับชั้น</span>
             <div className="tform-chip-row">
-              {GRADE_OPTIONS.map((g) => (
-                <button
-                  type="button"
-                  key={g}
-                  className={"tform-chip" + (grade === g ? " selected" : "")}
-                  onClick={() => setGrade(g)}
-                >
-                  {gradeLabel(g)}
-                </button>
-              ))}
+              {gradeOptions.map((opt) => {
+                const g = Number(opt.value) as Grade;
+                return (
+                  <button
+                    type="button"
+                    key={opt.id}
+                    className={"tform-chip" + (grade === g ? " selected" : "")}
+                    onClick={() => setGrade(g)}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <div className="tform-field">
             <span className="tform-label">
-              ห้องที่จัดสอบ <span className="tform-label-note">(เลือกได้หลายห้อง ไม่เลือก = ทุกห้อง)</span>
+              ห้องที่จัดสอบ <span className="tform-label-note">(เลือกได้หลายห้อง หรือเลือก "ทุกห้อง")</span>
             </span>
             <div className="tform-chip-row">
-              {ROOM_OPTIONS.map((r) => (
-                <button
-                  type="button"
-                  key={r}
-                  className={"tform-chip" + (rooms.includes(r) ? " selected" : "")}
-                  onClick={() => toggleRoom(r)}
-                >
-                  ห้อง {r}
-                </button>
-              ))}
+              <button
+                type="button"
+                className={"tform-chip" + (roomsSelection === "all" ? " selected" : "")}
+                onClick={() => setRoomsSelection("all")}
+              >
+                ทุกห้อง
+              </button>
+              {roomOptions.map((opt) => {
+                const r = Number(opt.value);
+                const selected = Array.isArray(roomsSelection) && roomsSelection.includes(r);
+                return (
+                  <button
+                    type="button"
+                    key={opt.id}
+                    className={"tform-chip" + (selected ? " selected" : "")}
+                    onClick={() => toggleRoom(r)}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <div className="tform-field">
             <span className="tform-label">เวลาที่ใช้สอบ</span>
             <div className="tform-chip-row">
-              {DURATION_OPTIONS.map((d) => (
-                <button
-                  type="button"
-                  key={d}
-                  className={"tform-chip" + (duration === d ? " selected" : "")}
-                  onClick={() => {
-                    setDuration(d);
-                    setCustomDuration("");
-                  }}
-                >
-                  {d} นาที
-                </button>
-              ))}
+              {durationOptions.map((opt) => {
+                const d = Number(opt.value);
+                return (
+                  <button
+                    type="button"
+                    key={opt.id}
+                    className={"tform-chip" + (duration === d ? " selected" : "")}
+                    onClick={() => {
+                      setDuration(d);
+                      setCustomDuration("");
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
               <input
                 className="tform-custom-duration"
                 type="number"
@@ -297,14 +325,15 @@ export default function TeacherForm() {
               ช่วงเวลาที่เหมาะสมในการสอบ <span className="tform-label-note">(ใช้จัดตารางอัตโนมัติ)</span>
             </span>
             <div className="tform-chip-row">
-              {PREFERENCE_OPTIONS.map((p) => (
+              {preferenceOptions.map((opt) => (
                 <button
                   type="button"
-                  key={p.value}
-                  className={"tform-chip" + (preference === p.value ? " selected" : "")}
-                  onClick={() => setPreference(p.value)}
+                  key={opt.id}
+                  className={"tform-chip" + (preference === opt.value ? " selected" : "")}
+                  onClick={() => setPreference(opt.value as MorningPreference)}
                 >
-                  {p.icon} {p.label}
+                  {opt.icon ? `${opt.icon} ` : ""}
+                  {opt.label}
                 </button>
               ))}
             </div>
@@ -322,7 +351,7 @@ export default function TeacherForm() {
             >
               บันทึกร่าง
             </button>
-            <button type="submit" className="btn btn-primary" disabled={submitting || windowClosed}>
+            <button type="submit" className="btn btn-primary" disabled={submitting || windowClosed || !isComplete}>
               {submitting ? "กำลังส่ง…" : "ส่งข้อมูล"}
             </button>
           </div>

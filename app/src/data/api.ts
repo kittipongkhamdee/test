@@ -4,12 +4,36 @@ import type {
   ExamRoundMeta,
   ExamSession,
   ExamSlotMeta,
+  FormOption,
+  FormOptionCategory,
   Grade,
   MorningPreference,
   SchoolMeta,
   Submission,
   SubmissionStatus,
 } from "./types";
+
+interface FormOptionRow {
+  id: string;
+  category: FormOptionCategory;
+  value: string;
+  label: string;
+  icon: string | null;
+  sort_order: number;
+  is_active: boolean;
+}
+
+function rowToFormOption(row: FormOptionRow): FormOption {
+  return {
+    id: row.id,
+    category: row.category,
+    value: row.value,
+    label: row.label,
+    icon: row.icon,
+    sortOrder: row.sort_order,
+    isActive: row.is_active,
+  };
+}
 
 interface SubmissionRow {
   id: string;
@@ -52,6 +76,7 @@ export interface RoundBundle {
   teachers: string[];
   school: SchoolMeta;
   submissions: Submission[];
+  formOptions: FormOption[];
 }
 
 export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
@@ -63,27 +88,34 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
     .single();
   if (roundError) throw roundError;
 
-  const [{ data: slotRows, error: slotError }, { data: teacherRows, error: teacherError }, { data: subRows, error: subError }, { data: configRows, error: configError }] =
-    await Promise.all([
-      supabase
-        .from("exam_round_slots")
-        .select("day_number, session, exam_date, start_time, end_time")
-        .eq("exam_round_id", round.id)
-        .order("day_number")
-        .order("session"),
-      supabase.from("exam_teachers").select("full_name").order("full_name"),
-      supabase
-        .from("exam_submissions")
-        .select(
-          "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at",
-        )
-        .eq("exam_round_id", round.id),
-      supabase.from("config").select("key, value").in("key", ["school_name", "head_academic"]),
-    ]);
+  const [
+    { data: slotRows, error: slotError },
+    { data: teacherRows, error: teacherError },
+    { data: subRows, error: subError },
+    { data: configRows, error: configError },
+    { data: formOptionRows, error: formOptionError },
+  ] = await Promise.all([
+    supabase
+      .from("exam_round_slots")
+      .select("day_number, session, exam_date, start_time, end_time")
+      .eq("exam_round_id", round.id)
+      .order("day_number")
+      .order("session"),
+    supabase.from("exam_teachers").select("full_name").order("full_name"),
+    supabase
+      .from("exam_submissions")
+      .select(
+        "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at",
+      )
+      .eq("exam_round_id", round.id),
+    supabase.from("config").select("key, value").in("key", ["school_name", "head_academic"]),
+    supabase.from("exam_form_options").select("id, category, value, label, icon, sort_order, is_active").order("sort_order"),
+  ]);
   if (slotError) throw slotError;
   if (teacherError) throw teacherError;
   if (subError) throw subError;
   if (configError) throw configError;
+  if (formOptionError) throw formOptionError;
 
   const configMap = new Map((configRows ?? []).map((r) => [r.key, r.value]));
 
@@ -110,6 +142,7 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
       headAcademicName: configMap.get("head_academic") ?? "",
     },
     submissions: (subRows ?? []).map(rowToSubmission),
+    formOptions: (formOptionRows ?? []).map(rowToFormOption),
   };
 }
 
@@ -254,4 +287,55 @@ export async function updateSubmissionDetails(id: string, input: SubmissionEditI
     .single();
   if (error) throw error;
   return rowToSubmission(data);
+}
+
+export interface FormOptionInput {
+  category: FormOptionCategory;
+  value: string;
+  label: string;
+  icon: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export async function createFormOption(input: FormOptionInput): Promise<FormOption> {
+  const { data, error } = await supabase
+    .from("exam_form_options")
+    .insert({
+      category: input.category,
+      value: input.value,
+      label: input.label,
+      icon: input.icon,
+      sort_order: input.sortOrder,
+      is_active: input.isActive,
+    })
+    .select("id, category, value, label, icon, sort_order, is_active")
+    .single();
+  if (error) throw error;
+  return rowToFormOption(data);
+}
+
+export async function updateFormOption(
+  id: string,
+  patch: Partial<Pick<FormOptionInput, "label" | "icon" | "sortOrder" | "isActive">>,
+): Promise<FormOption> {
+  const dbPatch: Record<string, unknown> = {};
+  if (patch.label !== undefined) dbPatch.label = patch.label;
+  if (patch.icon !== undefined) dbPatch.icon = patch.icon;
+  if (patch.sortOrder !== undefined) dbPatch.sort_order = patch.sortOrder;
+  if (patch.isActive !== undefined) dbPatch.is_active = patch.isActive;
+
+  const { data, error } = await supabase
+    .from("exam_form_options")
+    .update(dbPatch)
+    .eq("id", id)
+    .select("id, category, value, label, icon, sort_order, is_active")
+    .single();
+  if (error) throw error;
+  return rowToFormOption(data);
+}
+
+export async function deleteFormOption(id: string): Promise<void> {
+  const { error } = await supabase.from("exam_form_options").delete().eq("id", id);
+  if (error) throw error;
 }

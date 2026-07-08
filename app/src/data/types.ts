@@ -50,3 +50,15 @@ export interface SchoolMeta {
   schoolName: string;
   headAcademicName: string;
 }
+
+export type FormOptionCategory = "grade" | "room" | "duration" | "preference";
+
+export interface FormOption {
+  id: string;
+  category: FormOptionCategory;
+  value: string;
+  label: string;
+  icon: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
