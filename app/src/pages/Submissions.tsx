@@ -175,6 +175,8 @@ export default function Submissions() {
   const [gradeFilter, setGradeFilter] = useState<number | "all">("all");
   const [editing, setEditing] = useState<Submission | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [menuSubmission, setMenuSubmission] = useState<Submission | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number } | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -205,6 +207,17 @@ export default function Submissions() {
     a.download = "ข้อมูลรายวิชาสอบ.csv";
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function openMenu(e: React.MouseEvent, s: Submission) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setMenuSubmission(s);
+    setMenuAnchor({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+  }
+
+  function closeMenu() {
+    setMenuSubmission(null);
+    setMenuAnchor(null);
   }
 
   async function handleDelete(s: Submission) {
@@ -300,16 +313,24 @@ export default function Submissions() {
               <span>{statusBadge(s.status)}</span>
               {isAdmin && (
                 <span className="subs-row-actions">
-                  <button type="button" className="subs-action-btn" onClick={() => setEditing(s)}>
+                  <button type="button" className="subs-action-btn subs-action-desktop" onClick={() => setEditing(s)}>
                     แก้ไข
                   </button>
                   <button
                     type="button"
-                    className="subs-action-btn danger"
+                    className="subs-action-btn danger subs-action-desktop"
                     onClick={() => handleDelete(s)}
                     disabled={deletingId === s.id}
                   >
                     ลบ
+                  </button>
+                  <button
+                    type="button"
+                    className="subs-action-btn subs-action-mobile"
+                    aria-label="จัดการ"
+                    onClick={(e) => openMenu(e, s)}
+                  >
+                    ⋮
                   </button>
                 </span>
               )}
@@ -320,6 +341,32 @@ export default function Submissions() {
       </div>
 
       {editing && <EditSubmissionModal submission={editing} onClose={() => setEditing(null)} />}
+
+      {menuSubmission && menuAnchor &&
+        createPortal(
+          <div className="subs-kebab-overlay" onClick={closeMenu}>
+            <div
+              className="subs-kebab-menu"
+              style={{ top: menuAnchor.top, right: menuAnchor.right }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="subs-kebab-item"
+                onClick={() => { setEditing(menuSubmission); closeMenu(); }}
+              >
+                ✏ แก้ไข
+              </button>
+              <button
+                className="subs-kebab-item danger"
+                onClick={() => { handleDelete(menuSubmission); closeMenu(); }}
+                disabled={deletingId === menuSubmission.id}
+              >
+                🗑 ลบ
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
