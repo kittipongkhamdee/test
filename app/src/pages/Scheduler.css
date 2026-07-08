@@ -332,6 +332,9 @@
   .sched-page {
     height: auto;
   }
+  .sched-header-actions {
+    flex-wrap: wrap;
+  }
   .sched-desktop {
     display: none;
   }
