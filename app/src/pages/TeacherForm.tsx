@@ -141,7 +141,7 @@ export default function TeacherForm() {
         subjectName: subjectName.trim(),
         teacherName: teacherName.trim(),
         grade,
-        rooms: roomsSelection === "all" ? [] : roomsSelection,
+        rooms: roomsSelection === "all" ? [] : (roomsSelection ?? []),
         durationMinutes: finalDuration,
         morningPreference: preference,
       });
