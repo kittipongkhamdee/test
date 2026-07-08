@@ -15,14 +15,6 @@
 .dash-not-submitted { animation: dash-fadein 0.4s  ease both 0.28s; }
 .dash-lower         { animation: dash-fadein 0.4s  ease both 0.35s; }
 
-/* ---------- Countdown digit flip ---------- */
-@keyframes dash-digit-flip {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.dash-countdown-num {
-  animation: dash-digit-flip 0.18s ease;
-}
 
 .dash-survey-btn {
   font-size: 15px;

@@ -111,22 +111,22 @@ export default function Dashboard() {
             ) : (
               <div className={"dash-countdown" + (countdown.urgent ? " urgent" : "")}>
                 <div className="dash-countdown-block">
-                  <span className="dash-countdown-num" key={`d${countdown.days}`}>{String(countdown.days).padStart(2, "0")}</span>
+                  <span className="dash-countdown-num">{String(countdown.days).padStart(2, "0")}</span>
                   <span className="dash-countdown-unit">วัน</span>
                 </div>
                 <span className="dash-countdown-colon">:</span>
                 <div className="dash-countdown-block">
-                  <span className="dash-countdown-num" key={`h${countdown.hours}`}>{String(countdown.hours).padStart(2, "0")}</span>
+                  <span className="dash-countdown-num">{String(countdown.hours).padStart(2, "0")}</span>
                   <span className="dash-countdown-unit">ชม.</span>
                 </div>
                 <span className="dash-countdown-colon">:</span>
                 <div className="dash-countdown-block">
-                  <span className="dash-countdown-num" key={`m${countdown.minutes}`}>{String(countdown.minutes).padStart(2, "0")}</span>
+                  <span className="dash-countdown-num">{String(countdown.minutes).padStart(2, "0")}</span>
                   <span className="dash-countdown-unit">นาที</span>
                 </div>
                 <span className="dash-countdown-colon">:</span>
                 <div className="dash-countdown-block">
-                  <span className="dash-countdown-num" key={`s${countdown.seconds}`}>{String(countdown.seconds).padStart(2, "0")}</span>
+                  <span className="dash-countdown-num">{String(countdown.seconds).padStart(2, "0")}</span>
                   <span className="dash-countdown-unit">วิ</span>
                 </div>
               </div>
