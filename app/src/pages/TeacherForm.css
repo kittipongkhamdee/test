@@ -24,7 +24,9 @@
 .tform-wrap {
   padding: 40px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
 }
 
 .tform-card {
@@ -143,6 +145,61 @@
 .tform-input:focus {
   outline: 2px solid var(--blue-600);
   outline-offset: -1px;
+}
+
+.tform-mysubs {
+  gap: 14px;
+}
+.tform-mysubs-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.tform-mysubs-count {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.tform-mysubs-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.tform-mysubs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tform-mysubs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.tform-mysubs-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-strong);
+}
+.tform-mysubs-code {
+  font-weight: 700;
+  color: var(--blue-600);
+}
+.tform-mysubs-grade {
+  color: var(--text-muted);
+}
+.tform-mysubs-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tform-mysubs-time {
+  font-size: 12px;
+  color: var(--text-faint);
 }
 
 .tform-chip-row {
