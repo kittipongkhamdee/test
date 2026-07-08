@@ -272,13 +272,19 @@ export default function AdminSettings() {
 
   // New round modal
   const [showNewRound, setShowNewRound] = useState(false);
-  const [newRoundName, setNewRoundName] = useState("");
   const [newRoundYear, setNewRoundYear] = useState(state.round?.academicYear ?? "");
   const [newRoundSemester, setNewRoundSemester] = useState<1 | 2>(1);
+  const [newRoundType, setNewRoundType] = useState<"mid" | "final">("mid");
+  const [newRoundNameOverride, setNewRoundNameOverride] = useState("");
   const [newRoundOpensAt, setNewRoundOpensAt] = useState("");
   const [newRoundClosesAt, setNewRoundClosesAt] = useState("");
   const [newRoundSaving, setNewRoundSaving] = useState(false);
   const [newRoundError, setNewRoundError] = useState<string | null>(null);
+
+  const newRoundAutoName = newRoundYear.trim()
+    ? `สอบ${newRoundType === "mid" ? "กลางภาค" : "ปลายภาค"}เรียนที่ ${newRoundSemester}/${newRoundYear.trim()}`
+    : "";
+  const newRoundFinalName = newRoundNameOverride.trim() || newRoundAutoName;
 
   // School settings
   const [schoolName, setSchoolName] = useState(state.school?.schoolName ?? "");
@@ -289,8 +295,8 @@ export default function AdminSettings() {
 
   async function handleCreateRound(e: React.FormEvent) {
     e.preventDefault();
-    if (!newRoundName.trim() || !newRoundYear.trim()) {
-      setNewRoundError("กรุณากรอกชื่อการจัดสอบและปีการศึกษา");
+    if (!newRoundYear.trim()) {
+      setNewRoundError("กรุณากรอกปีการศึกษา");
       return;
     }
     if (!state.round?.id) return;
@@ -298,7 +304,7 @@ export default function AdminSettings() {
     setNewRoundError(null);
     try {
       await createNewExamRound(state.round.id, {
-        name: newRoundName.trim(),
+        name: newRoundFinalName,
         academicYear: newRoundYear.trim(),
         semester: newRoundSemester,
         submissionOpensAt: newRoundOpensAt ? new Date(newRoundOpensAt).toISOString() : null,
@@ -420,17 +426,7 @@ export default function AdminSettings() {
               รอบสอบปัจจุบัน "<strong>{state.round?.name}</strong>" จะถูกปิด — ข้อมูลเดิมยังคงอยู่ในฐานข้อมูล
             </div>
             {newRoundError && <div className="tform-error">{newRoundError}</div>}
-            <label className="tform-field">
-              <span className="tform-label">ชื่อการจัดสอบ</span>
-              <input
-                className="tform-input"
-                value={newRoundName}
-                onChange={(e) => setNewRoundName(e.target.value)}
-                placeholder="เช่น กลางภาคเรียนที่ 1/2569"
-                disabled={newRoundSaving}
-                autoFocus
-              />
-            </label>
+
             <div className="tform-row-2">
               <label className="tform-field">
                 <span className="tform-label">ปีการศึกษา</span>
@@ -440,25 +436,56 @@ export default function AdminSettings() {
                   onChange={(e) => setNewRoundYear(e.target.value)}
                   placeholder="2569"
                   disabled={newRoundSaving}
+                  autoFocus
                 />
               </label>
               <div className="tform-field">
                 <span className="tform-label">ภาคเรียนที่</span>
                 <div className="tform-chip-row">
                   {([1, 2] as const).map((s) => (
-                    <button
-                      key={s}
-                      type="button"
+                    <button key={s} type="button"
                       className={"tform-chip" + (newRoundSemester === s ? " selected" : "")}
-                      onClick={() => setNewRoundSemester(s)}
-                      disabled={newRoundSaving}
-                    >
+                      onClick={() => setNewRoundSemester(s)} disabled={newRoundSaving}>
                       ภาคเรียนที่ {s}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
+
+            <div className="tform-field">
+              <span className="tform-label">ประเภทการสอบ</span>
+              <div className="tform-chip-row">
+                <button type="button"
+                  className={"tform-chip" + (newRoundType === "mid" ? " selected" : "")}
+                  onClick={() => setNewRoundType("mid")} disabled={newRoundSaving}>
+                  กลางภาค
+                </button>
+                <button type="button"
+                  className={"tform-chip" + (newRoundType === "final" ? " selected" : "")}
+                  onClick={() => setNewRoundType("final")} disabled={newRoundSaving}>
+                  ปลายภาค
+                </button>
+              </div>
+            </div>
+
+            {newRoundAutoName && (
+              <div className="admin-modal-name-preview">
+                ชื่อที่จะใช้: <strong>{newRoundFinalName}</strong>
+              </div>
+            )}
+
+            <label className="tform-field">
+              <span className="tform-label">ชื่อการจัดสอบ <span className="tform-label-note">(เว้นว่างเพื่อใช้ชื่ออัตโนมัติ)</span></span>
+              <input
+                className="tform-input"
+                value={newRoundNameOverride}
+                onChange={(e) => setNewRoundNameOverride(e.target.value)}
+                placeholder={newRoundAutoName}
+                disabled={newRoundSaving}
+              />
+            </label>
+
             <div className="tform-row-2">
               <label className="tform-field">
                 <span className="tform-label">เปิดรับข้อมูลตั้งแต่ <span className="tform-label-note">(ถ้ามี)</span></span>
@@ -469,9 +496,10 @@ export default function AdminSettings() {
                 <input className="tform-input" type="datetime-local" value={newRoundClosesAt} onChange={(e) => setNewRoundClosesAt(e.target.value)} disabled={newRoundSaving} />
               </label>
             </div>
+
             <div className="admin-modal-actions">
               <button type="button" className="btn btn-ghost" onClick={() => setShowNewRound(false)} disabled={newRoundSaving}>ยกเลิก</button>
-              <button type="submit" className="btn btn-primary" disabled={newRoundSaving || !newRoundName.trim()}>
+              <button type="submit" className="btn btn-primary" disabled={newRoundSaving || !newRoundYear.trim()}>
                 {newRoundSaving ? "กำลังสร้าง…" : "สร้างรอบสอบใหม่"}
               </button>
             </div>
