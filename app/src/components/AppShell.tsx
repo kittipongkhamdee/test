@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { NavLink, Outlet } from "react-router-dom";
 import { useStore } from "../data/store";
 import "./AppShell.css";
@@ -64,33 +65,35 @@ function AdminStatus() {
           <div className="shell-user-role">ฝ่ายวิชาการ</div>
         </div>
       </button>
-      {open && (
-        <div className="shell-admin-overlay" onClick={() => setOpen(false)}>
-          <form className="shell-admin-modal card" onClick={(e) => e.stopPropagation()} onSubmit={handleUnlock}>
-            <div className="shell-admin-title">เข้าสู่โหมดผู้ดูแลระบบ</div>
-            <input
-              className="tform-input"
-              type="password"
-              autoFocus
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setError(null);
-              }}
-              placeholder="รหัสผ่านผู้ดูแลระบบ"
-            />
-            {error && <div className="tform-error">{error}</div>}
-            <div className="shell-admin-actions">
-              <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
-                ยกเลิก
-              </button>
-              <button type="submit" className="btn btn-primary">
-                เข้าสู่ระบบ
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {open &&
+        createPortal(
+          <div className="shell-admin-overlay" onClick={() => setOpen(false)}>
+            <form className="shell-admin-modal card" onClick={(e) => e.stopPropagation()} onSubmit={handleUnlock}>
+              <div className="shell-admin-title">เข้าสู่โหมดผู้ดูแลระบบ</div>
+              <input
+                className="tform-input"
+                type="password"
+                autoFocus
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError(null);
+                }}
+                placeholder="รหัสผ่านผู้ดูแลระบบ"
+              />
+              {error && <div className="tform-error">{error}</div>}
+              <div className="shell-admin-actions">
+                <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
+                  ยกเลิก
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  เข้าสู่ระบบ
+                </button>
+              </div>
+            </form>
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
