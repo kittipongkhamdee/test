@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useActiveFormOptions, useCatalog, useStore, useSubmissions } from "../data/store";
@@ -60,6 +60,12 @@ export default function TeacherForm() {
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [activeSuggestField, setActiveSuggestField] = useState<"code" | "subjectName" | null>(null);
+
+  useEffect(() => {
+    if (!submittedMsg) return;
+    const t = setTimeout(() => setSubmittedMsg(null), 4000);
+    return () => clearTimeout(t);
+  }, [submittedMsg]);
 
   const mySubmissions = useMemo(() => {
     const q = teacherName.trim().toLowerCase();
@@ -183,7 +189,6 @@ export default function TeacherForm() {
           </div>
 
           {windowMessage && <div className="tform-error">{windowMessage}</div>}
-          {submittedMsg && <div className="tform-success">✓ {submittedMsg}</div>}
           {error && <div className="tform-error">{error}</div>}
 
           <label className="tform-field">
@@ -375,6 +380,14 @@ export default function TeacherForm() {
             </button>
           </div>
         </form>
+
+        {submittedMsg && createPortal(
+          <div className="tform-toast" onClick={() => setSubmittedMsg(null)}>
+            <span className="tform-toast-check">✓</span>
+            {submittedMsg}
+          </div>,
+          document.body
+        )}
 
         {showConfirm && createPortal(
           <div className="tform-confirm-overlay" onClick={() => setShowConfirm(false)}>
