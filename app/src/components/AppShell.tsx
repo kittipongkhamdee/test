@@ -136,6 +136,10 @@ export default function AppShell() {
           ))}
         </nav>
         <AdminStatus />
+        <div className="shell-credits">
+          <span className="shell-credits-label">พัฒนาโดย</span><br />
+          นายกิตติพงษ์ คำดี
+        </div>
       </aside>
 
       <div className="shell-mobile-topbar">
@@ -180,6 +184,10 @@ export default function AppShell() {
               ))}
             </nav>
             <AdminStatus />
+            <div className="shell-credits">
+              <span className="shell-credits-label">พัฒนาโดย</span><br />
+              นายกิตติพงษ์ คำดี
+            </div>
           </div>
         </div>
       )}
