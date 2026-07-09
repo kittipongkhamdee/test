@@ -96,16 +96,22 @@ export default function ExamUpload() {
     // simulate progress fill while uploading
     const timer = setInterval(() => {
       setProgress((p) => (p < 85 ? p + 5 : p));
-    }, 120);
+    }, 150);
 
     try {
-      const path = `${Date.now()}-${file.name.replace(/[^\w.-]/g, "_")}`;
-      const { data: storageData, error: storageErr } = await supabase.storage
-        .from("exam-pdfs")
-        .upload(path, file, { contentType: "application/pdf", upsert: false });
-      if (storageErr) throw storageErr;
-
-      const { data: urlData } = supabase.storage.from("exam-pdfs").getPublicUrl(storageData.path);
+      // Upload to Google Drive via Supabase Edge Function
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-to-drive`,
+        {
+          method: "POST",
+          headers: { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
+          body: formData,
+        },
+      );
+      const driveData = await res.json();
+      if (!res.ok) throw new Error(driveData.error ?? "อัพโหลดไปยัง Google Drive ไม่สำเร็จ");
 
       const roomStr = selectedSub.rooms.length > 0 ? selectedSub.rooms.map((r) => `ห้อง ${r}`).join(", ") : "ทุกห้อง";
 
@@ -115,8 +121,8 @@ export default function ExamUpload() {
         subject_name: selectedSub.subjectName,
         grade: selectedSub.grade,
         rooms: roomStr,
-        file_name: file.name,
-        file_url: urlData.publicUrl,
+        file_name: driveData.fileName ?? file.name,
+        file_url: driveData.webViewLink,
         file_size: file.size,
         status: "pending",
         copy_status: null,
