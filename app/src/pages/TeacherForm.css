@@ -44,13 +44,111 @@
   gap: 24px;
 }
 
-.tform-card {
+/* ---------- Sidebar layout ---------- */
+.tform-layout {
+  display: flex;
+  align-items: stretch;
   width: 100%;
-  max-width: 720px;
+  max-width: 900px;
+  overflow: hidden;
+}
+
+.tform-sidebar {
+  background: var(--navy-800);
+  min-width: 190px;
+  padding: 32px 0 32px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.tform-sidebar-header {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sidebar-faint);
+  padding: 0 20px 16px;
+}
+
+.tform-sidebar-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  font-size: 14px;
+  color: var(--sidebar-inactive);
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: default;
+  width: 100%;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tform-sidebar-step.done {
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+}
+
+.tform-sidebar-step.done:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+.tform-sidebar-step.active {
+  background: var(--blue-600);
+  color: #fff;
+  font-weight: 600;
+  cursor: default;
+}
+
+.tform-sidebar-step-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.tform-sidebar-step.active .tform-sidebar-step-circle,
+.tform-sidebar-step.done .tform-sidebar-step-circle {
+  opacity: 1;
+}
+
+.tform-sidebar-step.active .tform-sidebar-step-circle {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.tform-sidebar-connector {
+  width: 2px;
+  min-height: 20px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 0 0 0 33px;
+  transition: background 0.18s;
+}
+
+.tform-sidebar-connector.done {
+  background: var(--blue-600);
+}
+
+/* ---------- Form content area ---------- */
+.tform-content {
+  flex: 1;
   padding: 36px 40px;
   display: flex;
   flex-direction: column;
   gap: 24px;
+  min-width: 0;
 }
 
 .tform-title {
@@ -458,72 +556,6 @@
   font-weight: 600;
 }
 
-/* ---------- Step progress bar ---------- */
-.tform-step-bar {
-  display: flex;
-  align-items: flex-start;
-  padding: 4px 0 8px;
-}
-
-.tform-step-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.tform-step-circle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid var(--border-input);
-  background: #fff;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
-  transition: background 0.18s, border-color 0.18s, color 0.18s;
-}
-
-.tform-step-item.active .tform-step-circle {
-  border-color: var(--blue-600);
-  background: var(--blue-600);
-  color: #fff;
-}
-
-.tform-step-item.done .tform-step-circle {
-  border-color: var(--blue-600);
-  background: var(--blue-100);
-  color: var(--blue-600);
-}
-
-.tform-step-label-text {
-  font-size: 12px;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.tform-step-item.active .tform-step-label-text {
-  color: var(--blue-600);
-  font-weight: 600;
-}
-
-.tform-step-conn {
-  flex: 1;
-  height: 2px;
-  background: var(--border-soft);
-  margin: 0 8px;
-  margin-top: 15px;
-  transition: background 0.18s;
-}
-
-.tform-step-conn.done {
-  background: var(--blue-600);
-}
-
 /* ---------- Actions ---------- */
 .tform-actions {
   display: flex;
@@ -539,9 +571,43 @@
 
 @media (max-width: 899px) {
   .tform-wrap {
-    padding: 18px;
+    padding: 12px;
   }
-  .tform-card {
+  .tform-layout {
+    flex-direction: column;
+  }
+  .tform-sidebar {
+    flex-direction: row;
+    padding: 14px 16px;
+    min-width: unset;
+    gap: 0;
+    overflow-x: auto;
+    align-items: center;
+  }
+  .tform-sidebar-header {
+    display: none;
+  }
+  .tform-sidebar-step {
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 14px;
+    font-size: 12px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .tform-sidebar-step-circle {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+  .tform-sidebar-connector {
+    width: 24px;
+    height: 2px;
+    min-height: unset;
+    margin: 0;
+    margin-bottom: 18px;
+  }
+  .tform-content {
     padding: 22px 20px;
   }
   .tform-row-2 {
