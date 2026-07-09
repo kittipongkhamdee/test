@@ -42,6 +42,10 @@ export default function ExamUpload() {
   const [rows, setRows] = useState<ExamUploadRow[]>([]);
   const [loadingList, setLoadingList] = useState(true);
 
+  // ---- delete confirm modal ----
+  const [confirmRow, setConfirmRow] = useState<ExamUploadRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   // ---- derived ----
   const uniqueTeachers = useMemo(() => {
     const seen = new Map<string, string>();
@@ -185,12 +189,19 @@ export default function ExamUpload() {
   // ---- delete file (admin only) ----
   async function handleDelete(row: ExamUploadRow) {
     if (!isAdmin) return;
-    if (!window.confirm(`ลบไฟล์ "${row.file_name}" ออกจากระบบใช่หรือไม่?\nไฟล์จะถูกลบออกจาก Storage ด้วย`)) return;
-    if (row.storage_path) {
-      await supabase.storage.from("exam-pdfs").remove([row.storage_path]);
+    setConfirmRow(row);
+  }
+
+  async function confirmDelete() {
+    if (!confirmRow) return;
+    setDeleting(true);
+    if (confirmRow.storage_path) {
+      await supabase.storage.from("exam-pdfs").remove([confirmRow.storage_path]);
     }
-    await supabase.from("exam_uploads").delete().eq("id", row.id);
-    setRows((prev) => prev.filter((r) => r.id !== row.id));
+    await supabase.from("exam_uploads").delete().eq("id", confirmRow.id);
+    setRows((prev) => prev.filter((r) => r.id !== confirmRow.id));
+    setDeleting(false);
+    setConfirmRow(null);
   }
 
   // ---- status update (admin only) ----
@@ -351,6 +362,40 @@ export default function ExamUpload() {
           </button>
         </div>
       </div>
+
+      {/* ---- Delete confirm modal ---- */}
+      {confirmRow && (
+        <div className="exup-modal-backdrop" onClick={() => !deleting && setConfirmRow(null)}>
+          <div className="exup-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="exup-modal-icon">🗑️</div>
+            <div className="exup-modal-title">ยืนยันการลบ</div>
+            <div className="exup-modal-body">
+              คุณต้องการลบไฟล์
+              <span className="exup-modal-filename"> "{confirmRow.file_name}" </span>
+              ออกจากระบบใช่หรือไม่?
+              <div className="exup-modal-warn">ไฟล์จะถูกลบออกจาก Storage ถาวร ไม่สามารถกู้คืนได้</div>
+            </div>
+            <div className="exup-modal-actions">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setConfirmRow(null)}
+                disabled={deleting}
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                className="exup-modal-confirm-btn"
+                onClick={confirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? "กำลังลบ…" : "ลบไฟล์"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ---- Uploaded list ---- */}
       <div className="card exup-list-card">

@@ -411,6 +411,120 @@
   border-color: var(--red-700);
 }
 
+/* ---------- Delete confirm modal ---------- */
+.exup-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: exup-fade-in 0.15s ease;
+}
+
+@keyframes exup-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.exup-modal {
+  background: #fff;
+  border-radius: var(--radius-lg, 14px);
+  padding: 32px 28px 24px;
+  width: min(420px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  animation: exup-modal-in 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes exup-modal-in {
+  from { opacity: 0; transform: scale(0.88) translateY(12px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
+@media (prefers-color-scheme: dark) {
+  .exup-modal { background: var(--bg-card, #1e1e2e); }
+}
+
+.exup-modal-icon {
+  font-size: 40px;
+  line-height: 1;
+  background: var(--red-100, #fee2e2);
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.exup-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.exup-modal-body {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.exup-modal-filename {
+  font-weight: 600;
+  color: var(--text-strong);
+  word-break: break-all;
+}
+
+.exup-modal-warn {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--red-700, #b91c1c);
+  background: var(--red-100, #fee2e2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 500;
+}
+
+.exup-modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.exup-modal-actions .btn {
+  flex: 1;
+}
+
+.exup-modal-confirm-btn {
+  flex: 1;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: var(--red-600, #dc2626);
+  color: #fff;
+  transition: background 0.12s;
+}
+.exup-modal-confirm-btn:hover:not(:disabled) {
+  background: var(--red-700, #b91c1c);
+}
+.exup-modal-confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 899px) {
   .exup-form-grid {
