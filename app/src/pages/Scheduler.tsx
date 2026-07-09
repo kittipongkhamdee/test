@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCellItems, useSubmissions, useStore, type AutoScheduleRules } from "../data/store";
-import { computeCellTimes } from "../data/scheduling";
+import { computeCellTimes, timeToMinutes, minutesToTime } from "../data/scheduling";
 import type { ExamDay, ExamSession, ExamSlotMeta, Grade, Submission } from "../data/types";
 import { GRADES, cellKey, gradeLabel } from "../data/mockData";
 import "./Scheduler.css";
@@ -317,24 +317,17 @@ export default function Scheduler() {
         </div>
 
         <div className="card sched-grid-wrap">
-          <div className="sched-grid" style={{ gridTemplateColumns: `96px repeat(${GRADES.length}, 1fr)` }}>
-            <div className="sched-grid-corner" />
-            {GRADES.map((g) => (
-              <div className="sched-grid-colhead" key={g}>
-                {gradeLabel(g)}
-              </div>
-            ))}
-
+          <div className="sched-timeline-panels">
             {days.flatMap((day) =>
               SESSIONS.map((session) => {
                 const slot = state.slots.find((s) => s.day === day && s.session === session);
                 return (
-                  <RowCells
+                  <TimelinePanel
                     key={`${day}-${session}`}
                     day={day}
-                    dateLabel={dayLabel(slot, day)}
-                    slot={slot}
                     session={session}
+                    slot={slot}
+                    dateLabel={dayLabel(slot, day)}
                     onDropCell={handleDropOnCell}
                   />
                 );
@@ -514,99 +507,174 @@ function RuleToggle({
   );
 }
 
-function RowCells({
+function getHourMarks(startMin: number, endMin: number): number[] {
+  const marks: number[] = [startMin];
+  let cursor = Math.ceil(startMin / 60) * 60;
+  if (cursor === startMin) cursor += 60;
+  while (cursor < endMin) {
+    marks.push(cursor);
+    cursor += 60;
+  }
+  if (endMin > startMin) marks.push(endMin);
+  return marks;
+}
+
+function TimelinePanel({
   day,
-  dateLabel,
   session,
   slot,
+  dateLabel,
   onDropCell,
 }: {
   day: ExamDay;
-  dateLabel: string;
   session: ExamSession;
   slot: ExamSlotMeta | undefined;
+  dateLabel: string;
   onDropCell: (e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession) => void;
 }) {
+  const sessionStart = slot?.start ?? (session === "morning" ? "08:30" : "13:00");
+  const sessionEnd = slot?.end ?? (session === "morning" ? "11:30" : "16:00");
+  const startMin = timeToMinutes(sessionStart);
+  const endMin = timeToMinutes(sessionEnd);
+  const durationMin = Math.max(endMin - startMin, 60);
+  const hourMarks = getHourMarks(startMin, endMin);
+
   return (
-    <>
-      <div className="sched-grid-rowhead">
-        <span className="sched-grid-rowhead-day">{dateLabel}</span>
-        <span className="sched-grid-rowhead-time">
-          {session === "morning" ? "เช้า" : "บ่าย"} {slot ? `${slot.start.replace(":", ".")}–${slot.end.replace(":", ".")}` : ""}
-        </span>
+    <div className="sched-tl-panel">
+      <div className="sched-tl-panel-header">
+        <span className="sched-tl-panel-date">{dateLabel}</span>
+        <span className="sched-tl-panel-session">{session === "morning" ? "เช้า" : "บ่าย"}</span>
+        {slot && (
+          <span className="sched-tl-panel-time">
+            {slot.start.replace(":", ".")} – {slot.end.replace(":", ".")} น.
+          </span>
+        )}
       </div>
-      {GRADES.map((g) => (
-        <GridCell key={g} grade={g} day={day} session={session} onDropCell={onDropCell} />
-      ))}
-    </>
+      <div className="sched-tl-body">
+        <div className="sched-tl-ruler-row">
+          <div className="sched-tl-grade-spacer" />
+          <div className="sched-tl-ruler">
+            {hourMarks.map((m, idx) => {
+              const pct = ((m - startMin) / durationMin) * 100;
+              const isFirst = idx === 0;
+              const isLast = idx === hourMarks.length - 1;
+              return (
+                <div
+                  key={m}
+                  className="sched-tl-hour-mark"
+                  style={{
+                    left: `${pct}%`,
+                    transform: isFirst ? "none" : isLast ? "translateX(-100%)" : "translateX(-50%)",
+                  }}
+                >
+                  <span className="sched-tl-hour-label">{minutesToTime(m).replace(":", ".")}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {GRADES.map((g) => (
+          <TimelineLane
+            key={g}
+            grade={g}
+            day={day}
+            session={session}
+            slot={slot}
+            startMin={startMin}
+            durationMin={durationMin}
+            hourMarks={hourMarks}
+            onDropCell={onDropCell}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
-function GridCell({
+function TimelineLane({
   grade,
   day,
   session,
+  slot,
+  startMin,
+  durationMin,
+  hourMarks,
   onDropCell,
 }: {
   grade: Grade;
   day: ExamDay;
   session: ExamSession;
+  slot: ExamSlotMeta | undefined;
+  startMin: number;
+  durationMin: number;
+  hourMarks: number[];
   onDropCell: (e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession) => void;
 }) {
   const { dispatch, state, isAdmin, pushUndoSnapshot } = useStore();
   const items = useCellItems(grade, day, session);
-  const slotStart = state.slots.find((s) => s.day === day && s.session === session)?.start ?? "08:30";
+  const slotStart = slot?.start ?? (session === "morning" ? "08:30" : "13:00");
   const gapMinutes = state.round?.gapMinutes ?? 15;
-  const times = useMemo(() => computeCellTimes(items, slotStart, gapMinutes), [items, slotStart, gapMinutes]);
+  const times = useMemo(
+    () => computeCellTimes(items, slotStart, gapMinutes),
+    [items, slotStart, gapMinutes],
+  );
   const [dragOver, setDragOver] = useState(false);
 
   return (
-    <div
-      className={"sched-cell" + (dragOver ? " drag-over" : "") + (items.length === 0 ? " empty" : "")}
-      data-grade={grade}
-      data-day={day}
-      data-session={session}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragOver(true);
-      }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => {
-        setDragOver(false);
-        onDropCell(e, grade, day, session);
-      }}
-    >
-      {items.length === 0 && <span className="sched-cell-placeholder">วางที่นี่</span>}
-      {items.map((item, i) => {
-        const t = times[i];
-        return (
+    <div className="sched-tl-grade-row">
+      <div className="sched-tl-grade-name">{gradeLabel(grade)}</div>
+      <div
+        className={"sched-tl-lane" + (dragOver ? " drag-over" : "")}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => { setDragOver(false); onDropCell(e, grade, day, session); }}
+      >
+        {hourMarks.slice(1, -1).map((m) => (
           <div
-            key={item.id}
-            className={"sched-chip" + (t?.conflict ? " conflict" : "")}
-            draggable={isAdmin}
-            onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
-          >
-            <div className="sched-chip-top">
-              <span className="sched-chip-time">
-                {t?.start.replace(":", ".")}–{t?.end.replace(":", ".")} · {item.code}
-              </span>
+            key={m}
+            className="sched-tl-vline"
+            style={{ left: `${((m - startMin) / durationMin) * 100}%` }}
+          />
+        ))}
+        {items.length === 0 && (
+          <div className="sched-tl-lane-empty">วางที่นี่</div>
+        )}
+        {items.map((item, i) => {
+          const t = times[i];
+          if (!t) return null;
+          const tStartMin = timeToMinutes(t.start);
+          const tEndMin = timeToMinutes(t.end);
+          const leftPct = Math.max(0, ((tStartMin - startMin) / durationMin) * 100);
+          const widthPct = Math.max(1, ((tEndMin - tStartMin) / durationMin) * 100);
+          return (
+            <div
+              key={item.id}
+              className={"sched-tl-block" + (t.conflict ? " conflict" : "")}
+              style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+              draggable={isAdmin}
+              onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
+              title={`${item.code} · ${item.subjectName} · ${t.start}–${t.end}`}
+            >
+              <div className="sched-tl-block-time">{t.start.replace(":", ".")}–{t.end.replace(":", ".")}</div>
+              <div className="sched-tl-block-code">{item.code}</div>
+              <div className="sched-tl-block-name">{item.subjectName}</div>
               {isAdmin && (
                 <button
-                  className="sched-chip-remove"
+                  className="sched-tl-block-remove"
                   title="ย้ายกลับไปรอจัด"
-                  onClick={() => { pushUndoSnapshot(); dispatch({ type: "UNPLACE", id: item.id }); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    pushUndoSnapshot();
+                    dispatch({ type: "UNPLACE", id: item.id });
+                  }}
                 >
                   ×
                 </button>
               )}
             </div>
-            <div className="sched-chip-name">{item.subjectName}</div>
-            {t?.conflict && (
-              <div className="sched-conflict-msg">⚠ เวลาซ้อนกับ {t.conflictWith.join(", ")}</div>
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
