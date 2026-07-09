@@ -54,6 +54,7 @@ export default function Scheduler() {
   }, [state.cellOrder, state.submissions, state.slots, days]);
 
   const [traySearch, setTraySearch] = useState("");
+  const [trayGrade, setTrayGrade] = useState<number | null>(null);
   const [autoOpen, setAutoOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [rules, setRules] = useState<AutoScheduleRules>({
@@ -69,10 +70,12 @@ export default function Scheduler() {
   });
 
   const filteredPending = useMemo(() => {
+    let list = pending;
+    if (trayGrade !== null) list = list.filter((s) => s.grade === trayGrade);
     const q = traySearch.trim().toLowerCase();
-    if (!q) return pending;
-    return pending.filter((s) => s.code.toLowerCase().includes(q) || s.subjectName.toLowerCase().includes(q));
-  }, [pending, traySearch]);
+    if (q) list = list.filter((s) => s.code.toLowerCase().includes(q) || s.subjectName.toLowerCase().includes(q));
+    return list;
+  }, [pending, traySearch, trayGrade]);
 
   const morningPrefCount = pending.filter((p) => p.morningPreference === "morning").length;
 
@@ -263,6 +266,28 @@ export default function Scheduler() {
               value={traySearch}
               onChange={(e) => setTraySearch(e.target.value)}
             />
+          </div>
+          <div className="sched-tray-grade-filter">
+            <button
+              className={"sched-tray-grade-chip" + (trayGrade === null ? " active" : "")}
+              onClick={() => setTrayGrade(null)}
+            >
+              ทั้งหมด
+            </button>
+            {GRADES.map((g) => {
+              const count = pending.filter((s) => s.grade === g).length;
+              if (count === 0) return null;
+              return (
+                <button
+                  key={g}
+                  className={"sched-tray-grade-chip" + (trayGrade === g ? " active" : "")}
+                  onClick={() => setTrayGrade(trayGrade === g ? null : g)}
+                >
+                  {gradeLabel(g)}
+                  <span className="sched-tray-grade-count">{count}</span>
+                </button>
+              );
+            })}
           </div>
           <div className="sched-tray-list">
             {filteredPending.map((s) => (

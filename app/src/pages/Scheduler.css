@@ -219,6 +219,52 @@
   background: #fff;
 }
 
+/* ---------- Grade filter chips ---------- */
+.sched-tray-grade-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 12px 8px;
+}
+
+.sched-tray-grade-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-input);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+.sched-tray-grade-chip:hover {
+  background: var(--blue-100);
+  border-color: var(--blue-200);
+  color: var(--blue-700);
+}
+.sched-tray-grade-chip.active {
+  background: var(--blue-600);
+  border-color: var(--blue-600);
+  color: #fff;
+}
+
+.sched-tray-grade-count {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  padding: 0 5px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.sched-tray-grade-chip:not(.active) .sched-tray-grade-count {
+  background: var(--border-input);
+  color: var(--text-muted);
+}
+
 /* ---------- Print view (hidden on screen) ---------- */
 .sched-print-view {
   display: none;
