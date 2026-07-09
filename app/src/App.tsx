@@ -14,10 +14,9 @@ export default function App() {
     <StoreProvider>
       <HashRouter>
         <Routes>
-          {/* Teacher-facing survey form stands alone, no admin sidebar */}
-          <Route path="form" element={<TeacherForm />} />
           <Route element={<AppShell />}>
             <Route index element={<Dashboard />} />
+            <Route path="form" element={<TeacherForm />} />
             <Route path="submissions" element={<Submissions />} />
             <Route path="scheduler" element={<Scheduler />} />
             <Route path="publish" element={<Publish />} />
