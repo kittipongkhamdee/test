@@ -27,6 +27,7 @@ import {
   updateRoundSettings as apiUpdateRoundSettings,
   updateSchoolSettings as apiUpdateSchoolSettings,
   updateSlotExamDate as apiUpdateSlotExamDate,
+  updateSlotTimes as apiUpdateSlotTimes,
   updateSubmissionDetails,
   type FormOptionInput,
   type PlacementPatch,
@@ -101,8 +102,11 @@ type Action =
   | { type: "CLEAR_SCHEDULE" }
   | { type: "UPDATE_SCHOOL"; school: SchoolMeta }
   | { type: "UPDATE_SLOT_DATE"; day: ExamDay; examDate: string | null }
+  | { type: "UPDATE_SLOT_TIMES"; day: ExamDay; session: ExamSession; start: string; end: string }
+  | { type: "UPDATE_GAP_MINUTES"; gapMinutes: number }
   | { type: "ADD_SLOTS"; slots: ExamSlotMeta[] }
-  | { type: "REMOVE_DAY"; day: ExamDay };
+  | { type: "REMOVE_DAY"; day: ExamDay }
+  | { type: "RESTORE_SCHEDULE"; submissions: Record<string, Submission>; cellOrder: Record<string, string[]> };
 
 function removeFromAllCells(cellOrder: Record<string, string[]>, id: string): Record<string, string[]> {
   const next: Record<string, string[]> = {};
@@ -203,6 +207,17 @@ function reducer(state: DataState, action: Action): DataState {
         ...state,
         slots: state.slots.map((s) => (s.day === action.day ? { ...s, examDate: action.examDate } : s)),
       };
+    case "UPDATE_SLOT_TIMES":
+      return {
+        ...state,
+        slots: state.slots.map((s) =>
+          s.day === action.day && s.session === action.session
+            ? { ...s, start: action.start, end: action.end }
+            : s,
+        ),
+      };
+    case "UPDATE_GAP_MINUTES":
+      return { ...state, round: state.round ? { ...state.round, gapMinutes: action.gapMinutes } : state.round };
     case "CLEAR_SCHEDULE": {
       const submissions: Record<string, Submission> = {};
       for (const [id, s] of Object.entries(state.submissions)) {
@@ -213,6 +228,8 @@ function reducer(state: DataState, action: Action): DataState {
     }
     case "ADD_SLOTS":
       return { ...state, slots: [...state.slots, ...action.slots] };
+    case "RESTORE_SCHEDULE":
+      return { ...state, submissions: action.submissions, cellOrder: action.cellOrder };
     case "REMOVE_DAY": {
       const submissions: Record<string, Submission> = {};
       for (const [id, s] of Object.entries(state.submissions)) {
@@ -326,6 +343,10 @@ interface StoreContextValue {
   updateSlotDate: (day: ExamDay, examDate: string | null) => Promise<void>;
   addExamDay: (morningStart: string, morningEnd: string, afternoonStart: string, afternoonEnd: string) => Promise<void>;
   removeExamDay: (day: ExamDay) => Promise<void>;
+  updateSlotTimes: (day: ExamDay, session: ExamSession, start: string, end: string) => Promise<void>;
+  pushUndoSnapshot: () => void;
+  undoSchedule: () => void;
+  canUndo: boolean;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -411,6 +432,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           bulkUpdatePlacements(updates).catch((err) => console.error("AUTO_SCHEDULE persist failed", err));
           break;
         }
+        case "RESTORE_SCHEDULE": {
+          const updates: { id: string; patch: PlacementPatch }[] = [];
+          for (const sub of Object.values(state.submissions)) {
+            if (sub.status === "scheduled" && action.submissions[sub.id]?.status !== "scheduled") {
+              updates.push({ id: sub.id, patch: { status: "pending", slot_day: null, slot_session: null, manual_start_minutes: null } });
+            }
+          }
+          for (const [, ids] of Object.entries(action.cellOrder)) {
+            ids.forEach((id, i) => {
+              const sub = action.submissions[id];
+              if (!sub?.slot) return;
+              updates.push({ id, patch: { status: "scheduled", slot_day: sub.slot.day, slot_session: sub.slot.session, manual_start_minutes: sub.manualStartMinutes ?? null, sort_order: i } });
+            });
+          }
+          if (updates.length) bulkUpdatePlacements(updates).catch((err) => console.error("RESTORE_SCHEDULE persist failed", err));
+          break;
+        }
       }
     },
     [state],
@@ -435,6 +473,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     [state.round],
   );
+
+  const [undoStack, setUndoStack] = useState<{ submissions: Record<string, Submission>; cellOrder: Record<string, string[]> }[]>([]);
+
+  const pushUndoSnapshot = useCallback(() => {
+    setUndoStack((prev) => [...prev.slice(-9), { submissions: state.submissions, cellOrder: state.cellOrder }]);
+  }, [state.submissions, state.cellOrder]);
+
+  const undoSchedule = useCallback(() => {
+    setUndoStack((prev) => {
+      if (prev.length === 0) return prev;
+      const snap = prev[prev.length - 1];
+      dispatch({ type: "RESTORE_SCHEDULE", submissions: snap.submissions, cellOrder: snap.cellOrder });
+      return prev.slice(0, -1);
+    });
+  }, [dispatch]);
+
+  const canUndo = undoStack.length > 0;
 
   const [isAdmin, setIsAdmin] = useState(() => {
     try {
@@ -504,6 +559,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           name: input.name,
           submissionOpensAt: input.submissionOpensAt,
           submissionClosesAt: input.submissionClosesAt,
+          gapMinutes: input.gapMinutes,
         },
       });
     },
@@ -570,6 +626,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [state.round],
   );
 
+  const updateSlotTimes = useCallback(
+    async (day: ExamDay, session: ExamSession, start: string, end: string) => {
+      if (!state.round) throw new Error("ยังไม่มีรอบสอบที่เปิดใช้งาน");
+      await apiUpdateSlotTimes(state.round.id, day, session, start, end);
+      dispatchRaw({ type: "UPDATE_SLOT_TIMES", day, session, start, end });
+    },
+    [state.round],
+  );
+
   const value = useMemo(
     () => ({
       state,
@@ -590,6 +655,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateSlotDate,
       addExamDay,
       removeExamDay,
+      updateSlotTimes,
+      pushUndoSnapshot,
+      undoSchedule,
+      canUndo,
     }),
     [
       state,
@@ -610,6 +679,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateSlotDate,
       addExamDay,
       removeExamDay,
+      updateSlotTimes,
+      pushUndoSnapshot,
+      undoSchedule,
+      canUndo,
     ],
   );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

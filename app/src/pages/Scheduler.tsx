@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCellItems, useSubmissions, useStore, type AutoScheduleRules } from "../data/store";
 import { computeCellTimes } from "../data/scheduling";
 import type { ExamDay, ExamSession, ExamSlotMeta, Grade, Submission } from "../data/types";
-import { GRADES, gradeLabel } from "../data/mockData";
+import { GRADES, cellKey, gradeLabel } from "../data/mockData";
 import "./Scheduler.css";
 
 const SESSIONS: ExamSession[] = ["morning", "afternoon"];
@@ -18,7 +18,7 @@ function subjectChipLabel(s: Submission): string {
 }
 
 export default function Scheduler() {
-  const { state, dispatch, isAdmin } = useStore();
+  const { state, dispatch, isAdmin, pushUndoSnapshot, undoSchedule, canUndo } = useStore();
   const submissions = useSubmissions();
   const days = useMemo(
     () => [...new Set(state.slots.map((s) => s.day))].sort((a, b) => a - b),
@@ -28,8 +28,32 @@ export default function Scheduler() {
     () => submissions.filter((s) => s.status === "pending" && !s.selfScheduled).sort((a, b) => a.grade - b.grade),
     [submissions],
   );
-  const scheduledCount = submissions.filter((s) => s.status === "scheduled" && !s.selfScheduled).length;
+  const scheduledCount = useMemo(
+    () => submissions.filter((s) => s.status === "scheduled" && !s.selfScheduled).length,
+    [submissions],
+  );
+  const totalSchedulable = useMemo(
+    () => submissions.filter((s) => !s.selfScheduled).length,
+    [submissions],
+  );
+  const conflictCount = useMemo(() => {
+    let n = 0;
+    for (const day of days) {
+      for (const session of (["morning", "afternoon"] as ExamSession[])) {
+        for (const grade of GRADES) {
+          const ids = state.cellOrder[cellKey(grade, day, session)] ?? [];
+          if (ids.length < 2) continue;
+          const items = ids.map((id) => state.submissions[id]).filter(Boolean);
+          const slot = state.slots.find((s) => s.day === day && s.session === session);
+          const times = computeCellTimes(items, slot?.start ?? "08:30", state.round?.gapMinutes ?? 15);
+          n += times.filter((t) => t.conflict).length;
+        }
+      }
+    }
+    return n;
+  }, [state.cellOrder, state.submissions, state.slots, days]);
 
+  const [traySearch, setTraySearch] = useState("");
   const [autoOpen, setAutoOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [rules, setRules] = useState<AutoScheduleRules>({
@@ -44,7 +68,24 @@ export default function Scheduler() {
     session: "morning",
   });
 
+  const filteredPending = useMemo(() => {
+    const q = traySearch.trim().toLowerCase();
+    if (!q) return pending;
+    return pending.filter((s) => s.code.toLowerCase().includes(q) || s.subjectName.toLowerCase().includes(q));
+  }, [pending, traySearch]);
+
   const morningPrefCount = pending.filter((p) => p.morningPreference === "morning").length;
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        if (canUndo) undoSchedule();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [canUndo, undoSchedule]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -61,6 +102,7 @@ export default function Scheduler() {
 
   function handleAutoSchedule() {
     if (!requireAdmin()) return;
+    pushUndoSnapshot();
     dispatch({ type: "AUTO_SCHEDULE", rules });
     setAutoOpen(false);
     showToast("จัดตารางอัตโนมัติเรียบร้อยแล้ว — ยังลาก/แก้ไขได้ทุกช่อง");
@@ -73,6 +115,7 @@ export default function Scheduler() {
   }
 
   function handleConfirmClear() {
+    pushUndoSnapshot();
     dispatch({ type: "CLEAR_SCHEDULE" });
     setConfirmClear(false);
     showToast("ล้างตารางแล้ว");
@@ -88,6 +131,7 @@ export default function Scheduler() {
     const id = e.dataTransfer.getData("text/plain");
     const sub = state.submissions[id];
     if (!sub || sub.grade !== grade) return;
+    pushUndoSnapshot();
     dispatch({ type: "PLACE", id, day, session });
   }
 
@@ -100,6 +144,7 @@ export default function Scheduler() {
       showToast(`วางได้เฉพาะช่อง ${gradeLabel(sub.grade)} เท่านั้น`);
       return;
     }
+    pushUndoSnapshot();
     dispatch({ type: "PLACE", id: selectedPendingId, day: mobileSlot.day, session: mobileSlot.session });
     setSelectedPendingId(null);
   }
@@ -114,6 +159,17 @@ export default function Scheduler() {
         <div className="sched-header-actions">
           <button className="btn btn-ghost" onClick={handleClear} disabled={!isAdmin}>
             ล้างตาราง
+          </button>
+          <button
+            className="btn btn-ghost sched-undo-btn"
+            onClick={undoSchedule}
+            disabled={!canUndo}
+            title="ย้อนกลับ (Ctrl+Z)"
+          >
+            ↩ ย้อนกลับ
+          </button>
+          <button className="btn btn-ghost" onClick={() => window.print()} title="พิมพ์ตารางสอบ">
+            🖨 พิมพ์
           </button>
           <div className="sched-auto-wrap">
             <button className="btn btn-success" onClick={() => (requireAdmin() ? setAutoOpen((v) => !v) : undefined)}>
@@ -167,6 +223,31 @@ export default function Scheduler() {
 
       {toast && <div className="sched-toast">{toast}</div>}
 
+      {/* ---------- Progress summary ---------- */}
+      <div className="sched-summary">
+        <div className="sched-summary-left">
+          <span className="sched-summary-label">จัดแล้ว</span>
+          <span className="sched-summary-fraction">{scheduledCount}/{totalSchedulable} วิชา</span>
+          <div className="sched-summary-bar">
+            <div
+              className="sched-summary-fill"
+              style={{ width: totalSchedulable > 0 ? `${(scheduledCount / totalSchedulable) * 100}%` : "0%" }}
+            />
+          </div>
+        </div>
+        <div className="sched-summary-right">
+          {conflictCount > 0 && (
+            <span className="sched-summary-badge conflict">⚠ {conflictCount} ข้อขัดแย้ง</span>
+          )}
+          {scheduledCount === totalSchedulable && totalSchedulable > 0 && (
+            <span className="sched-summary-badge done">✓ จัดครบทุกวิชาแล้ว</span>
+          )}
+          {scheduledCount < totalSchedulable && (
+            <span className="sched-summary-badge pending">รอจัดอีก {totalSchedulable - scheduledCount} วิชา</span>
+          )}
+        </div>
+      </div>
+
       {/* ---------- Desktop: drag & drop grid ---------- */}
       <div className="sched-desktop">
         <div className="card sched-tray">
@@ -174,8 +255,17 @@ export default function Scheduler() {
             <span>รอจัดลงตาราง</span>
             <span className="sched-tray-count">{pending.length}</span>
           </div>
+          <div className="sched-tray-search-wrap">
+            <input
+              className="sched-tray-search"
+              type="text"
+              placeholder="ค้นหารหัส/ชื่อวิชา…"
+              value={traySearch}
+              onChange={(e) => setTraySearch(e.target.value)}
+            />
+          </div>
           <div className="sched-tray-list">
-            {pending.map((s) => (
+            {filteredPending.map((s) => (
               <div
                 key={s.id}
                 className="sched-tray-item"
@@ -194,6 +284,9 @@ export default function Scheduler() {
                 </div>
               </div>
             ))}
+            {filteredPending.length === 0 && pending.length > 0 && (
+              <div className="sched-tray-empty">ไม่พบวิชาที่ค้นหา</div>
+            )}
             {pending.length === 0 && <div className="sched-tray-empty">จัดครบทุกวิชาแล้ว 🎉</div>}
           </div>
         </div>
@@ -295,6 +388,60 @@ export default function Scheduler() {
         </div>
       </div>
 
+      {/* ---------- Print view ---------- */}
+      <div className="sched-print-view">
+        <div className="sched-print-header">
+          <div className="sched-print-title">{state.school?.schoolName ?? "ตารางสอบ"}</div>
+          <div className="sched-print-sub">{state.round?.name ?? ""}</div>
+        </div>
+        <table className="sched-print-table">
+          <thead>
+            <tr>
+              <th>วัน / เวลา</th>
+              {GRADES.map((g) => <th key={g}>{gradeLabel(g)}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {days.flatMap((day) =>
+              (["morning", "afternoon"] as ExamSession[]).map((session) => {
+                const slot = state.slots.find((s) => s.day === day && s.session === session);
+                return (
+                  <tr key={`${day}-${session}`}>
+                    <td className="sched-print-rowhead">
+                      <div>{dayLabel(slot, day)}</div>
+                      <div className="sched-print-time">
+                        {session === "morning" ? "เช้า" : "บ่าย"}{" "}
+                        {slot ? `${slot.start.replace(":", ".")}–${slot.end.replace(":", ".")}` : ""}
+                      </div>
+                    </td>
+                    {GRADES.map((g) => {
+                      const ids = state.cellOrder[cellKey(g, day, session)] ?? [];
+                      const items = ids.map((id) => state.submissions[id]).filter(Boolean);
+                      const times = computeCellTimes(items, slot?.start ?? "08:30", state.round?.gapMinutes ?? 15);
+                      return (
+                        <td key={g} className="sched-print-cell">
+                          {items.map((item, i) => (
+                            <div key={item.id} className="sched-print-chip">
+                              <b>{item.code}</b>
+                              <span>{item.subjectName}</span>
+                              {times[i] && (
+                                <span className="sched-print-chip-time">
+                                  {times[i].start.replace(":", ".")}–{times[i].end.replace(":", ".")}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              }),
+            )}
+          </tbody>
+        </table>
+      </div>
+
       {confirmClear && createPortal(
         <div className="sched-confirm-overlay" onClick={() => setConfirmClear(false)}>
           <div className="sched-confirm-modal card" onClick={(e) => e.stopPropagation()}>
@@ -381,10 +528,11 @@ function GridCell({
   session: ExamSession;
   onDropCell: (e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession) => void;
 }) {
-  const { dispatch, state, isAdmin } = useStore();
+  const { dispatch, state, isAdmin, pushUndoSnapshot } = useStore();
   const items = useCellItems(grade, day, session);
   const slotStart = state.slots.find((s) => s.day === day && s.session === session)?.start ?? "08:30";
-  const times = useMemo(() => computeCellTimes(items, slotStart), [items, slotStart]);
+  const gapMinutes = state.round?.gapMinutes ?? 15;
+  const times = useMemo(() => computeCellTimes(items, slotStart, gapMinutes), [items, slotStart, gapMinutes]);
   const [dragOver, setDragOver] = useState(false);
 
   return (
@@ -421,7 +569,7 @@ function GridCell({
                 <button
                   className="sched-chip-remove"
                   title="ย้ายกลับไปรอจัด"
-                  onClick={() => dispatch({ type: "UNPLACE", id: item.id })}
+                  onClick={() => { pushUndoSnapshot(); dispatch({ type: "UNPLACE", id: item.id }); }}
                 >
                   ×
                 </button>
@@ -454,7 +602,8 @@ function MobileGradeRow({
   const { state } = useStore();
   const items = useCellItems(grade, day, session);
   const slotStart = state.slots.find((s) => s.day === day && s.session === session)?.start ?? "08:30";
-  const times = useMemo(() => computeCellTimes(items, slotStart), [items, slotStart]);
+  const gapMinutes = state.round?.gapMinutes ?? 15;
+  const times = useMemo(() => computeCellTimes(items, slotStart, gapMinutes), [items, slotStart, gapMinutes]);
   const selectedSub = selectedPendingId ? state.submissions[selectedPendingId] : null;
   const isValidTarget = !!selectedSub && selectedSub.grade === grade;
 
