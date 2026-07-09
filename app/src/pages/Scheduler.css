@@ -115,6 +115,115 @@
   font-size: 13px;
 }
 
+/* ---------- Undo button ---------- */
+.sched-undo-btn:disabled {
+  opacity: 0.35;
+}
+
+/* ---------- Progress summary ---------- */
+.sched-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  flex-wrap: wrap;
+}
+
+.sched-summary-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 180px;
+}
+
+.sched-summary-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.sched-summary-fraction {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+
+.sched-summary-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--blue-100);
+  border-radius: 999px;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.sched-summary-fill {
+  height: 100%;
+  background: var(--blue-600);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.sched-summary-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sched-summary-badge {
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sched-summary-badge.conflict {
+  background: var(--red-100);
+  color: var(--red-700);
+}
+.sched-summary-badge.done {
+  background: var(--green-100);
+  color: var(--green-700);
+}
+.sched-summary-badge.pending {
+  background: var(--orange-100);
+  color: var(--orange-700);
+}
+
+/* ---------- Tray search ---------- */
+.sched-tray-search-wrap {
+  padding: 10px 12px 4px;
+}
+
+.sched-tray-search {
+  width: 100%;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-strong);
+  background: var(--bg-subtle);
+  box-sizing: border-box;
+}
+.sched-tray-search:focus {
+  outline: 2px solid var(--blue-600);
+  outline-offset: -1px;
+  background: #fff;
+}
+
+/* ---------- Print view (hidden on screen) ---------- */
+.sched-print-view {
+  display: none;
+}
+
 /* ---------- Desktop grid ---------- */
 .sched-desktop {
   flex: 1;
@@ -554,5 +663,89 @@
     font-size: 12px;
     color: var(--orange-700);
     margin-top: 10px;
+  }
+}
+
+/* ---------- Print styles ---------- */
+@media print {
+  @page { size: A4 landscape; margin: 12mm; }
+
+  body * { visibility: hidden; }
+  .sched-print-view,
+  .sched-print-view * { visibility: visible; }
+
+  .sched-print-view {
+    display: block !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+
+  .sched-print-header {
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .sched-print-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #000;
+  }
+  .sched-print-sub {
+    font-size: 13px;
+    color: #555;
+    margin-top: 2px;
+  }
+
+  .sched-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    font-family: 'Sarabun', sans-serif;
+  }
+  .sched-print-table th,
+  .sched-print-table td {
+    border: 1px solid #ccc;
+    padding: 6px 8px;
+    vertical-align: top;
+  }
+  .sched-print-table thead th {
+    background: #e8eef8;
+    font-weight: 700;
+    text-align: center;
+    font-size: 12px;
+  }
+  .sched-print-rowhead {
+    background: #f5f7fc;
+    font-weight: 700;
+    white-space: nowrap;
+    min-width: 80px;
+  }
+  .sched-print-time {
+    font-weight: 400;
+    font-size: 10px;
+    color: #666;
+    margin-top: 2px;
+  }
+  .sched-print-cell {
+    min-width: 90px;
+  }
+  .sched-print-chip {
+    background: #eef3ff;
+    border-radius: 4px;
+    padding: 4px 6px;
+    margin-bottom: 4px;
+    font-size: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .sched-print-chip b {
+    font-size: 11px;
+    color: #1a3a6b;
+  }
+  .sched-print-chip-time {
+    color: #555;
+    font-size: 10px;
   }
 }
