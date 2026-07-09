@@ -204,6 +204,32 @@
 }
 
 /* ---------- Form actions ---------- */
+/* ---------- Notes textarea ---------- */
+.exup-label-optional {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.exup-notes-input {
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text-strong);
+  font-family: inherit;
+  resize: vertical;
+  line-height: 1.6;
+  transition: border-color 0.15s;
+}
+.exup-notes-input:focus {
+  outline: 2px solid var(--blue-600);
+  outline-offset: -1px;
+}
+.exup-notes-input::placeholder {
+  color: var(--text-faint);
+}
+
+/* ---------- Form actions ---------- */
 .exup-form-actions {
   display: flex;
   justify-content: flex-end;
@@ -250,14 +276,22 @@
 
 .exup-row {
   display: grid;
-  grid-template-columns: 36px 130px 90px minmax(130px, 1fr) 60px 100px minmax(140px, 1fr) 110px 130px;
+  grid-template-columns: 36px 120px 80px minmax(110px, 1fr) 55px 90px minmax(110px, 1fr) minmax(130px, 1fr) 110px 120px;
   align-items: center;
   gap: 0;
   border-bottom: 1px solid var(--border-soft);
 }
 
 .exup-table-admin .exup-row {
-  grid-template-columns: 36px 130px 90px minmax(130px, 1fr) 60px 100px minmax(140px, 1fr) 110px 130px 48px;
+  grid-template-columns: 36px 120px 80px minmax(110px, 1fr) 55px 90px minmax(110px, 1fr) minmax(130px, 1fr) 110px 120px 48px;
+}
+
+.exup-cell-notes {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: default;
 }
 
 .exup-row:last-child {

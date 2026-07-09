@@ -18,6 +18,7 @@ interface ExamUploadRow {
   file_size: number | null;
   status: "pending" | "approved" | "rejected";
   copy_status: "waiting_copy" | "copied" | null;
+  notes: string | null;
   created_at: string;
 }
 
@@ -34,6 +35,7 @@ export default function ExamUpload() {
   const [progress, setProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [notes, setNotes] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ---- list state ----
@@ -123,6 +125,7 @@ export default function ExamUpload() {
         file_size: file.size,
         status: "pending",
         copy_status: null,
+        notes: notes.trim() || null,
       });
       if (dbErr) throw dbErr;
 
@@ -132,6 +135,7 @@ export default function ExamUpload() {
       setFile(null);
       setTeacherName("");
       setSubmissionId("");
+      setNotes("");
       if (fileInputRef.current) fileInputRef.current.value = "";
       await loadList();
     } catch (err) {
@@ -149,7 +153,7 @@ export default function ExamUpload() {
       s === "pending" ? "รออนุมัติ" : s === "approved" ? "อนุมัติ" : "ไม่อนุมัติ";
     const copyLabel = (c: string | null) =>
       c === "copied" ? "สำเนาเรียบร้อย" : c === "waiting_copy" ? "รอสำเนา" : "—";
-    const headers = ["ลำดับ", "ชื่อครู", "รหัสวิชา", "ชื่อวิชา", "ชั้น", "ห้อง", "ชื่อไฟล์", "ลิงก์ไฟล์", "สถานะ", "หมายเหตุสำเนา", "วันที่อัพโหลด"];
+    const headers = ["ลำดับ", "ชื่อครู", "รหัสวิชา", "ชื่อวิชา", "ชั้น", "ห้อง", "ชื่อไฟล์", "ลิงก์ไฟล์", "บันทึกถึงเจ้าหน้าที่", "สถานะ", "หมายเหตุสำเนา", "วันที่อัพโหลด"];
     const csvRows = [
       headers.join(","),
       ...rows.map((r, i) =>
@@ -162,6 +166,7 @@ export default function ExamUpload() {
           `"${r.rooms ?? "—"}"`,
           `"${r.file_name}"`,
           r.file_url,
+          `"${r.notes ?? ""}"`,
           statusLabel(r.status),
           copyLabel(r.copy_status),
           `"${new Date(r.created_at).toLocaleDateString("th-TH")}"`,
@@ -270,6 +275,18 @@ export default function ExamUpload() {
           </div>
         )}
 
+        {/* notes for copy staff */}
+        <div className="exup-field">
+          <label className="exup-label">บันทึกถึงเจ้าหน้าที่สำเนา <span className="exup-label-optional">(ไม่บังคับ)</span></label>
+          <textarea
+            className="exup-notes-input"
+            rows={3}
+            placeholder="เช่น สำเนา 35 ชุด, ใส่กระดาษ A4 หน้าเดียว, แนบแบบเฉลยด้วย ฯลฯ"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </div>
+
         {/* drop zone */}
         <div
           className={"exup-dropzone" + (dragging ? " drag-over" : "") + (file ? " has-file" : "")}
@@ -359,6 +376,7 @@ export default function ExamUpload() {
                 <span>ชั้น</span>
                 <span>ห้อง</span>
                 <span>ไฟล์ข้อสอบ</span>
+                <span>บันทึกถึงเจ้าหน้าที่</span>
                 <span>สถานะ</span>
                 <span>หมายเหตุ</span>
                 {isAdmin && <span>ลบ</span>}
@@ -375,6 +393,9 @@ export default function ExamUpload() {
                     <a className="exup-file-link" href={row.file_url} target="_blank" rel="noreferrer">
                       📄 {row.file_name}
                     </a>
+                  </span>
+                  <span className="exup-cell-notes" title={row.notes ?? ""}>
+                    {row.notes ?? <span className="exup-copy-na">—</span>}
                   </span>
                   <span>
                     {isAdmin ? (
