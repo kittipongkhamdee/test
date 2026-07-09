@@ -436,10 +436,10 @@
 
 @media (max-width: 899px) {
   .tform-wrap {
-    padding: 18px;
+    padding: 0;
   }
   .tform-card {
-    padding: 22px 20px;
+    padding: 20px 16px;
   }
   .tform-row-2 {
     grid-template-columns: 1fr;
