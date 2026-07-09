@@ -507,15 +507,31 @@ function RuleToggle({
   );
 }
 
-function getHourMarks(startMin: number, endMin: number): number[] {
-  const marks: number[] = [startMin];
-  let cursor = Math.ceil(startMin / 60) * 60;
-  if (cursor === startMin) cursor += 60;
+const SUBJECT_COLORS: Record<string, { bg: string; border: string; text: string; sub: string }> = {
+  ท: { bg: "#fef9c3", border: "#fde047", text: "#713f12", sub: "#a16207" },
+  ค: { bg: "#dbeafe", border: "#93c5fd", text: "#1e3a8a", sub: "#1d4ed8" },
+  ว: { bg: "#d1fae5", border: "#6ee7b7", text: "#064e3b", sub: "#047857" },
+  ส: { bg: "#ede9fe", border: "#c4b5fd", text: "#3b0764", sub: "#6d28d9" },
+  อ: { bg: "#fee2e2", border: "#fca5a5", text: "#7f1d1d", sub: "#b91c1c" },
+  พ: { bg: "#ffedd5", border: "#fdba74", text: "#431407", sub: "#c2410c" },
+  ศ: { bg: "#fce7f3", border: "#f9a8d4", text: "#500724", sub: "#be185d" },
+  ง: { bg: "#cffafe", border: "#67e8f9", text: "#083344", sub: "#0e7490" },
+};
+const DEFAULT_SUBJECT_COLOR = { bg: "#f1f5f9", border: "#cbd5e1", text: "#1e293b", sub: "#64748b" };
+function subjectColor(code: string) {
+  return SUBJECT_COLORS[code.charAt(0)] ?? DEFAULT_SUBJECT_COLOR;
+}
+
+function getTimeMarks(startMin: number, endMin: number): Array<{ min: number; isHour: boolean }> {
+  const marks: Array<{ min: number; isHour: boolean }> = [];
+  marks.push({ min: startMin, isHour: startMin % 60 === 0 });
+  let cursor = Math.ceil(startMin / 30) * 30;
+  if (cursor === startMin) cursor += 30;
   while (cursor < endMin) {
-    marks.push(cursor);
-    cursor += 60;
+    marks.push({ min: cursor, isHour: cursor % 60 === 0 });
+    cursor += 30;
   }
-  if (endMin > startMin) marks.push(endMin);
+  if (endMin > startMin) marks.push({ min: endMin, isHour: endMin % 60 === 0 });
   return marks;
 }
 
@@ -537,7 +553,7 @@ function TimelinePanel({
   const startMin = timeToMinutes(sessionStart);
   const endMin = timeToMinutes(sessionEnd);
   const durationMin = Math.max(endMin - startMin, 60);
-  const hourMarks = getHourMarks(startMin, endMin);
+  const timeMarks = getTimeMarks(startMin, endMin);
 
   return (
     <div className="sched-tl-panel">
@@ -554,20 +570,20 @@ function TimelinePanel({
         <div className="sched-tl-ruler-row">
           <div className="sched-tl-grade-spacer" />
           <div className="sched-tl-ruler">
-            {hourMarks.map((m, idx) => {
-              const pct = ((m - startMin) / durationMin) * 100;
+            {timeMarks.map(({ min, isHour }, idx) => {
+              const pct = ((min - startMin) / durationMin) * 100;
               const isFirst = idx === 0;
-              const isLast = idx === hourMarks.length - 1;
+              const isLast = idx === timeMarks.length - 1;
               return (
                 <div
-                  key={m}
-                  className="sched-tl-hour-mark"
+                  key={min}
+                  className={"sched-tl-hour-mark" + (isHour ? " full-hour" : "")}
                   style={{
                     left: `${pct}%`,
                     transform: isFirst ? "none" : isLast ? "translateX(-100%)" : "translateX(-50%)",
                   }}
                 >
-                  <span className="sched-tl-hour-label">{minutesToTime(m).replace(":", ".")}</span>
+                  <span className="sched-tl-hour-label">{minutesToTime(min).replace(":", ".")}</span>
                 </div>
               );
             })}
@@ -582,7 +598,7 @@ function TimelinePanel({
             slot={slot}
             startMin={startMin}
             durationMin={durationMin}
-            hourMarks={hourMarks}
+            timeMarks={timeMarks}
             onDropCell={onDropCell}
           />
         ))}
@@ -598,7 +614,7 @@ function TimelineLane({
   slot,
   startMin,
   durationMin,
-  hourMarks,
+  timeMarks,
   onDropCell,
 }: {
   grade: Grade;
@@ -607,7 +623,7 @@ function TimelineLane({
   slot: ExamSlotMeta | undefined;
   startMin: number;
   durationMin: number;
-  hourMarks: number[];
+  timeMarks: Array<{ min: number; isHour: boolean }>;
   onDropCell: (e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession) => void;
 }) {
   const { dispatch, state, isAdmin, pushUndoSnapshot } = useStore();
@@ -629,11 +645,11 @@ function TimelineLane({
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => { setDragOver(false); onDropCell(e, grade, day, session); }}
       >
-        {hourMarks.slice(1, -1).map((m) => (
+        {timeMarks.slice(1, -1).map(({ min, isHour }) => (
           <div
-            key={m}
-            className="sched-tl-vline"
-            style={{ left: `${((m - startMin) / durationMin) * 100}%` }}
+            key={min}
+            className={"sched-tl-vline" + (isHour ? " full-hour" : "")}
+            style={{ left: `${((min - startMin) / durationMin) * 100}%` }}
           />
         ))}
         {items.length === 0 && (
@@ -646,18 +662,29 @@ function TimelineLane({
           const tEndMin = timeToMinutes(t.end);
           const leftPct = Math.max(0, ((tStartMin - startMin) / durationMin) * 100);
           const widthPct = Math.max(1, ((tEndMin - tStartMin) / durationMin) * 100);
+          const c = subjectColor(item.code);
           return (
             <div
               key={item.id}
               className={"sched-tl-block" + (t.conflict ? " conflict" : "")}
-              style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+              style={{
+                left: `${leftPct}%`,
+                width: `${widthPct}%`,
+                ...(t.conflict ? {} : { background: c.bg, borderColor: c.border }),
+              }}
               draggable={isAdmin}
               onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
               title={`${item.code} · ${item.subjectName} · ${t.start}–${t.end}`}
             >
-              <div className="sched-tl-block-time">{t.start.replace(":", ".")}–{t.end.replace(":", ".")}</div>
-              <div className="sched-tl-block-code">{item.code}</div>
-              <div className="sched-tl-block-name">{item.subjectName}</div>
+              <div className="sched-tl-block-time" style={t.conflict ? {} : { color: c.text }}>
+                {t.start.replace(":", ".")}–{t.end.replace(":", ".")}
+              </div>
+              <div className="sched-tl-block-code" style={t.conflict ? {} : { color: c.text }}>
+                {item.code}
+              </div>
+              <div className="sched-tl-block-name" style={t.conflict ? {} : { color: c.sub }}>
+                {item.subjectName}
+              </div>
               {isAdmin && (
                 <button
                   className="sched-tl-block-remove"
