@@ -14,6 +14,7 @@ interface ExamUploadRow {
   rooms: string | null;
   file_name: string;
   file_url: string;
+  storage_path: string | null;
   file_size: number | null;
   status: "pending" | "approved" | "rejected";
   copy_status: "waiting_copy" | "copied" | null;
@@ -86,32 +87,27 @@ export default function ExamUpload() {
     handleFileChange(e.dataTransfer.files[0] ?? null);
   }
 
-  // ---- upload ----
+  // ---- upload to Supabase Storage ----
   async function handleUpload() {
     if (!teacherName || !submissionId || !selectedSub || !file) return;
     setUploading(true);
     setProgress(0);
     setUploadError(null);
 
-    // simulate progress fill while uploading
     const timer = setInterval(() => {
       setProgress((p) => (p < 85 ? p + 5 : p));
     }, 150);
 
     try {
-      // Upload to Google Drive via Supabase Edge Function
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-to-drive`,
-        {
-          method: "POST",
-          headers: { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
-          body: formData,
-        },
-      );
-      const driveData = await res.json();
-      if (!res.ok) throw new Error(driveData.error ?? "อัพโหลดไปยัง Google Drive ไม่สำเร็จ");
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const storagePath = `${Date.now()}_${safeName}`;
+
+      const { error: storageErr } = await supabase.storage
+        .from("exam-pdfs")
+        .upload(storagePath, file, { contentType: "application/pdf", upsert: false });
+      if (storageErr) throw storageErr;
+
+      const { data: urlData } = supabase.storage.from("exam-pdfs").getPublicUrl(storagePath);
 
       const roomStr = selectedSub.rooms.length > 0 ? selectedSub.rooms.map((r) => `ห้อง ${r}`).join(", ") : "ทุกห้อง";
 
@@ -121,8 +117,9 @@ export default function ExamUpload() {
         subject_name: selectedSub.subjectName,
         grade: selectedSub.grade,
         rooms: roomStr,
-        file_name: driveData.fileName ?? file.name,
-        file_url: driveData.webViewLink,
+        file_name: file.name,
+        file_url: urlData.publicUrl,
+        storage_path: storagePath,
         file_size: file.size,
         status: "pending",
         copy_status: null,
@@ -144,6 +141,51 @@ export default function ExamUpload() {
       setUploading(false);
       setTimeout(() => setProgress(0), 800);
     }
+  }
+
+  // ---- export CSV ----
+  function handleExport() {
+    const statusLabel = (s: string) =>
+      s === "pending" ? "รออนุมัติ" : s === "approved" ? "อนุมัติ" : "ไม่อนุมัติ";
+    const copyLabel = (c: string | null) =>
+      c === "copied" ? "สำเนาเรียบร้อย" : c === "waiting_copy" ? "รอสำเนา" : "—";
+    const headers = ["ลำดับ", "ชื่อครู", "รหัสวิชา", "ชื่อวิชา", "ชั้น", "ห้อง", "ชื่อไฟล์", "ลิงก์ไฟล์", "สถานะ", "หมายเหตุสำเนา", "วันที่อัพโหลด"];
+    const csvRows = [
+      headers.join(","),
+      ...rows.map((r, i) =>
+        [
+          i + 1,
+          `"${r.teacher_name}"`,
+          r.subject_code,
+          `"${r.subject_name}"`,
+          `"${gradeLabel(r.grade as Grade)}"`,
+          `"${r.rooms ?? "—"}"`,
+          `"${r.file_name}"`,
+          r.file_url,
+          statusLabel(r.status),
+          copyLabel(r.copy_status),
+          `"${new Date(r.created_at).toLocaleDateString("th-TH")}"`,
+        ].join(",")
+      ),
+    ];
+    const blob = new Blob(["﻿" + csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ข้อสอบ_${new Date().toLocaleDateString("th-TH").replace(/\//g, "-")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ---- delete file (admin only) ----
+  async function handleDelete(row: ExamUploadRow) {
+    if (!isAdmin) return;
+    if (!window.confirm(`ลบไฟล์ "${row.file_name}" ออกจากระบบใช่หรือไม่?\nไฟล์จะถูกลบออกจาก Storage ด้วย`)) return;
+    if (row.storage_path) {
+      await supabase.storage.from("exam-pdfs").remove([row.storage_path]);
+    }
+    await supabase.from("exam_uploads").delete().eq("id", row.id);
+    setRows((prev) => prev.filter((r) => r.id !== row.id));
   }
 
   // ---- status update (admin only) ----
@@ -293,7 +335,14 @@ export default function ExamUpload() {
 
       {/* ---- Uploaded list ---- */}
       <div className="card exup-list-card">
-        <div className="exup-list-title">รายการที่อัพโหลดแล้ว</div>
+        <div className="exup-list-header">
+          <div className="exup-list-title">รายการที่อัพโหลดแล้ว</div>
+          {rows.length > 0 && (
+            <button type="button" className="btn btn-ghost exup-export-btn" onClick={handleExport}>
+              ⬇ ส่งออก CSV
+            </button>
+          )}
+        </div>
 
         {loadingList ? (
           <div className="exup-list-empty">กำลังโหลด…</div>
@@ -301,7 +350,7 @@ export default function ExamUpload() {
           <div className="exup-list-empty">ยังไม่มีรายการ</div>
         ) : (
           <div className="exup-table-wrap">
-            <div className="exup-table">
+            <div className={"exup-table" + (isAdmin ? " exup-table-admin" : "")}>
               <div className="exup-row exup-head">
                 <span>#</span>
                 <span>ชื่อครู</span>
@@ -312,6 +361,7 @@ export default function ExamUpload() {
                 <span>ไฟล์ข้อสอบ</span>
                 <span>สถานะ</span>
                 <span>หมายเหตุ</span>
+                {isAdmin && <span>ลบ</span>}
               </div>
               {rows.map((row, i) => (
                 <div className="exup-row" key={row.id}>
@@ -356,6 +406,13 @@ export default function ExamUpload() {
                       <span className="exup-copy-na">—</span>
                     )}
                   </span>
+                  {isAdmin && (
+                    <span>
+                      <button type="button" className="exup-delete-btn" onClick={() => handleDelete(row)} title="ลบไฟล์">
+                        🗑
+                      </button>
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
