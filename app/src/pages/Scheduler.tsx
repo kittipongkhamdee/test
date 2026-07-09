@@ -45,7 +45,7 @@ export default function Scheduler() {
           if (ids.length < 2) continue;
           const items = ids.map((id) => state.submissions[id]).filter(Boolean);
           const slot = state.slots.find((s) => s.day === day && s.session === session);
-          const times = computeCellTimes(items, slot?.start ?? "08:30");
+          const times = computeCellTimes(items, slot?.start ?? "08:30", state.round?.gapMinutes ?? 15);
           n += times.filter((t) => t.conflict).length;
         }
       }
@@ -417,7 +417,7 @@ export default function Scheduler() {
                     {GRADES.map((g) => {
                       const ids = state.cellOrder[cellKey(g, day, session)] ?? [];
                       const items = ids.map((id) => state.submissions[id]).filter(Boolean);
-                      const times = computeCellTimes(items, slot?.start ?? "08:30");
+                      const times = computeCellTimes(items, slot?.start ?? "08:30", state.round?.gapMinutes ?? 15);
                       return (
                         <td key={g} className="sched-print-cell">
                           {items.map((item, i) => (
@@ -531,7 +531,8 @@ function GridCell({
   const { dispatch, state, isAdmin, pushUndoSnapshot } = useStore();
   const items = useCellItems(grade, day, session);
   const slotStart = state.slots.find((s) => s.day === day && s.session === session)?.start ?? "08:30";
-  const times = useMemo(() => computeCellTimes(items, slotStart), [items, slotStart]);
+  const gapMinutes = state.round?.gapMinutes ?? 15;
+  const times = useMemo(() => computeCellTimes(items, slotStart, gapMinutes), [items, slotStart, gapMinutes]);
   const [dragOver, setDragOver] = useState(false);
 
   return (
@@ -601,7 +602,8 @@ function MobileGradeRow({
   const { state } = useStore();
   const items = useCellItems(grade, day, session);
   const slotStart = state.slots.find((s) => s.day === day && s.session === session)?.start ?? "08:30";
-  const times = useMemo(() => computeCellTimes(items, slotStart), [items, slotStart]);
+  const gapMinutes = state.round?.gapMinutes ?? 15;
+  const times = useMemo(() => computeCellTimes(items, slotStart, gapMinutes), [items, slotStart, gapMinutes]);
   const selectedSub = selectedPendingId ? state.submissions[selectedPendingId] : null;
   const isValidTarget = !!selectedSub && selectedSub.grade === grade;
 

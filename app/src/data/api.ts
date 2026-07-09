@@ -86,7 +86,7 @@ export interface RoundBundle {
 export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
   const { data: round, error: roundError } = await supabase
     .from("exam_rounds")
-    .select("id, name, academic_year, semester, submission_opens_at, submission_closes_at, publish_date")
+    .select("id, name, academic_year, semester, submission_opens_at, submission_closes_at, publish_date, gap_minutes")
     .eq("is_active", true)
     .limit(1)
     .single();
@@ -132,6 +132,7 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
       submissionOpensAt: round.submission_opens_at,
       submissionClosesAt: round.submission_closes_at,
       publishDate: round.publish_date,
+      gapMinutes: round.gap_minutes ?? 15,
     },
     slots: (slotRows ?? []).map((s) => ({
       day: s.day_number as ExamDay,
@@ -248,6 +249,7 @@ export interface RoundSettingsInput {
   name: string;
   submissionOpensAt: string | null;
   submissionClosesAt: string | null;
+  gapMinutes: number;
 }
 
 export interface NewRoundInput {
@@ -309,8 +311,25 @@ export async function updateRoundSettings(examRoundId: string, input: RoundSetti
       name: input.name,
       submission_opens_at: input.submissionOpensAt,
       submission_closes_at: input.submissionClosesAt,
+      gap_minutes: input.gapMinutes,
     })
     .eq("id", examRoundId);
+  if (error) throw error;
+}
+
+export async function updateSlotTimes(
+  examRoundId: string,
+  day: ExamDay,
+  session: ExamSession,
+  start: string,
+  end: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("exam_round_slots")
+    .update({ start_time: start + ":00", end_time: end + ":00" })
+    .eq("exam_round_id", examRoundId)
+    .eq("day_number", day)
+    .eq("session", session);
   if (error) throw error;
 }
 

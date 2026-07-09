@@ -38,6 +38,7 @@ export interface ExamRoundMeta {
   submissionOpensAt: string | null; // ISO datetime
   submissionClosesAt: string | null; // ISO datetime
   publishDate: string | null; // ISO date
+  gapMinutes: number; // break between subjects in same cell
 }
 
 export interface ExamSlotMeta {

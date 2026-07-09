@@ -21,16 +21,7 @@ function toHHMM(mins: number): string {
   return `${h}:${m}`;
 }
 
-const GAP_MINUTES = 15;
-
-/**
- * Given the ordered list of submissions placed in one grade/day/session cell,
- * compute each item's effective start/end time and flag overlaps.
- * Items normally chain back-to-back with a gap; a manually-set start time
- * can be moved earlier and collide with a neighbor, which is what should
- * trigger the red conflict warning.
- */
-export function computeCellTimes(items: Submission[], sessionStartTime: string): CellTime[] {
+export function computeCellTimes(items: Submission[], sessionStartTime: string, gapMinutes = 15): CellTime[] {
   let cursor = toMinutes(sessionStartTime);
   const times: { id: string; start: number; end: number }[] = [];
 
@@ -38,7 +29,7 @@ export function computeCellTimes(items: Submission[], sessionStartTime: string):
     const start = item.manualStartMinutes ?? cursor;
     const end = start + item.durationMinutes;
     times.push({ id: item.id, start, end });
-    cursor = Math.max(cursor, end) + GAP_MINUTES;
+    cursor = Math.max(cursor, end) + gapMinutes;
   }
 
   return times.map((t, i) => {
