@@ -338,7 +338,7 @@
 .tform-chip {
   border: 1px solid var(--border-input);
   background: #fff;
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
   padding: 9px 18px;
   font-size: 14px;
   color: var(--text-muted);
@@ -352,6 +352,7 @@
 .tform-chip.selected {
   border: 2px solid var(--blue-600);
   background: var(--blue-100);
+  border-radius: 999px;
   font-weight: 600;
   color: var(--blue-600);
   padding: 8px 17px;
