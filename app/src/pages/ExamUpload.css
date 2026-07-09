@@ -220,6 +220,19 @@
   gap: 14px;
 }
 
+.exup-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.exup-export-btn {
+  font-size: 13px;
+  padding: 6px 14px;
+  flex-shrink: 0;
+}
+
 .exup-list-empty {
   font-size: 13px;
   color: var(--text-muted);
@@ -241,6 +254,10 @@
   align-items: center;
   gap: 0;
   border-bottom: 1px solid var(--border-soft);
+}
+
+.exup-table-admin .exup-row {
+  grid-template-columns: 36px 130px 90px minmax(130px, 1fr) 60px 100px minmax(140px, 1fr) 110px 130px 48px;
 }
 
 .exup-row:last-child {
@@ -344,6 +361,25 @@
 
 .exup-copy-na {
   color: var(--text-faint);
+}
+
+/* ---------- Delete button ---------- */
+.exup-delete-btn {
+  border: 1px solid var(--red-border, #fca5a5);
+  background: transparent;
+  border-radius: var(--radius-sm);
+  width: 30px;
+  height: 30px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, border-color 0.12s;
+}
+.exup-delete-btn:hover {
+  background: var(--red-100);
+  border-color: var(--red-700);
 }
 
 /* ---------- Responsive ---------- */
