@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCellItems, useSubmissions, useStore, type AutoScheduleRules } from "../data/store";
 import { computeCellTimes } from "../data/scheduling";

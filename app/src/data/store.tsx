@@ -424,7 +424,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               updates.push({ id: sub.id, patch: { status: "pending", slot_day: null, slot_session: null, manual_start_minutes: null } });
             }
           }
-          for (const [key, ids] of Object.entries(action.cellOrder)) {
+          for (const [, ids] of Object.entries(action.cellOrder)) {
             ids.forEach((id, i) => {
               const sub = action.submissions[id];
               if (!sub?.slot) return;
