@@ -7,6 +7,7 @@ import Submissions from "./pages/Submissions";
 import Scheduler from "./pages/Scheduler";
 import Publish from "./pages/Publish";
 import AdminSettings from "./pages/AdminSettings";
+import ExamUpload from "./pages/ExamUpload";
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
             <Route path="scheduler" element={<Scheduler />} />
             <Route path="publish" element={<Publish />} />
             <Route path="admin" element={<AdminSettings />} />
+            <Route path="exam-upload" element={<ExamUpload />} />
           </Route>
         </Routes>
       </HashRouter>

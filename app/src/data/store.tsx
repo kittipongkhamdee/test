@@ -300,6 +300,8 @@ function reducer(state: DataState, action: Action): DataState {
 interface StoreContextValue {
   state: DataState;
   dispatch: (action: Action) => void;
+  examMenuEnabled: boolean;
+  toggleExamMenu: () => void;
   submit: (input: {
     code: string;
     subjectName: string;
@@ -442,6 +444,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  const [examMenuEnabled, setExamMenuEnabled] = useState(() => {
+    try {
+      return localStorage.getItem("exam-menu-enabled") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleExamMenu = useCallback(() => {
+    setExamMenuEnabled((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("exam-menu-enabled", next ? "1" : "0"); } catch {}
+      return next;
+    });
+  }, []);
+
   const unlockAdmin = useCallback((password: string) => {
     const ok = password === ADMIN_PASSWORD;
     if (ok) {
@@ -556,6 +574,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     () => ({
       state,
       dispatch,
+      examMenuEnabled,
+      toggleExamMenu,
       submit,
       isAdmin,
       unlockAdmin,
@@ -574,6 +594,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [
       state,
       dispatch,
+      examMenuEnabled,
+      toggleExamMenu,
       submit,
       isAdmin,
       unlockAdmin,

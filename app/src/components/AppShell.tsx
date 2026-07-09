@@ -13,6 +13,7 @@ const NAV_ITEMS = [
 ];
 
 const ADMIN_NAV_ITEM = { to: "/admin", label: "ตั้งค่ารอบสอบ", icon: "⚙", end: false };
+const EXAM_UPLOAD_NAV_ITEM = { to: "/exam-upload", label: "ส่งข้อสอบ", icon: "📤", end: false };
 
 const BOTTOM_NAV_ITEMS = [
   { to: "/", label: "แดชบอร์ด", icon: "◧", end: true },
@@ -107,10 +108,14 @@ function SchoolLogo({ logoUrl }: { logoUrl: string | null }) {
 
 export default function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { state, isAdmin } = useStore();
+  const { state, isAdmin, examMenuEnabled } = useStore();
   const schoolName = state.school?.schoolName ?? "";
   const logoUrl = state.school?.logoUrl ?? null;
-  const navItems = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
+  const navItems = [
+    ...NAV_ITEMS,
+    ...(examMenuEnabled ? [EXAM_UPLOAD_NAV_ITEM] : []),
+    ...(isAdmin ? [ADMIN_NAV_ITEM] : []),
+  ];
 
   return (
     <div className="shell">

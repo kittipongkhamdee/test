@@ -256,7 +256,7 @@ function OptionCategorySection({
 }
 
 export default function AdminSettings() {
-  const { state, isAdmin, unlockAdmin, updateRoundSettings, updateSchoolSettings, updateSlotDate, addExamDay, removeExamDay } = useStore();
+  const { state, isAdmin, unlockAdmin, updateRoundSettings, updateSchoolSettings, updateSlotDate, addExamDay, removeExamDay, examMenuEnabled, toggleExamMenu } = useStore();
   const [password, setPassword] = useState("");
   const [unlockError, setUnlockError] = useState<string | null>(null);
 
@@ -720,6 +720,24 @@ export default function AdminSettings() {
           </button>
         </div>
       </form>
+      </div>
+
+      <div className="card admin-menu-toggle-card">
+        <div className="admin-opt-section-title" style={{ marginBottom: 4 }}>การตั้งค่าเมนู</div>
+        <label className="admin-menu-toggle-row">
+          <div className="admin-menu-toggle-info">
+            <div className="admin-menu-toggle-label">เมนู "ส่งข้อสอบ"</div>
+            <div className="admin-menu-toggle-sub">เปิดให้ครูอัพโหลดไฟล์ข้อสอบ PDF เพื่อสำเนาและตรวจต้นฉบับ</div>
+          </div>
+          <button
+            type="button"
+            className={"sched-toggle" + (examMenuEnabled ? " on" : "")}
+            onClick={toggleExamMenu}
+            aria-pressed={examMenuEnabled}
+          >
+            <div className="sched-toggle-knob" />
+          </button>
+        </label>
       </div>
 
       <div className="admin-opt-section">

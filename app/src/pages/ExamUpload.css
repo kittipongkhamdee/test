@@ -1,0 +1,358 @@
+.exup-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ---------- Upload card ---------- */
+.exup-form-card {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.exup-form-title,
+.exup-list-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.exup-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.exup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.exup-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.exup-select {
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text-strong);
+  font-family: inherit;
+  background: #fff;
+  cursor: pointer;
+}
+.exup-select:focus {
+  outline: 2px solid var(--blue-600);
+  outline-offset: -1px;
+}
+.exup-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* auto-filled info row */
+.exup-info-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.exup-info-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--blue-100);
+  border: 1px solid var(--blue-200);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+  color: var(--blue-ink);
+}
+
+.exup-info-label {
+  font-size: 11px;
+  color: var(--blue-ink-2);
+  font-weight: 600;
+}
+
+/* ---------- Drop zone ---------- */
+.exup-dropzone {
+  border: 2px dashed var(--border-input);
+  border-radius: var(--radius-md);
+  padding: 32px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.exup-dropzone:hover,
+.exup-dropzone.drag-over {
+  border-color: var(--blue-600);
+  background: var(--blue-100);
+}
+.exup-dropzone.has-file {
+  border-style: solid;
+  border-color: var(--blue-600);
+  background: var(--blue-100);
+}
+
+.exup-file-input {
+  display: none;
+}
+
+.exup-dropzone-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.exup-dropzone-icon {
+  font-size: 28px;
+  color: var(--blue-600);
+}
+
+.exup-dropzone-link {
+  color: var(--blue-600);
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.exup-dropzone-sub {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.exup-dropzone-file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--blue-ink);
+  font-weight: 600;
+}
+
+.exup-pdf-icon {
+  font-size: 22px;
+}
+
+.exup-dropzone-name {
+  word-break: break-all;
+}
+
+.exup-dropzone-size {
+  font-size: 12px;
+  color: var(--blue-ink-2);
+  font-weight: 400;
+}
+
+/* ---------- Progress bar ---------- */
+.exup-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.exup-progress-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--blue-100);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.exup-progress-fill {
+  height: 8px;
+  background: var(--blue-600);
+  border-radius: 999px;
+  transition: width 0.15s ease;
+}
+
+.exup-progress-pct {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--blue-600);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* ---------- Alerts ---------- */
+.exup-error {
+  background: var(--red-100);
+  color: var(--red-700);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.exup-success {
+  background: var(--green-100);
+  color: var(--green-700);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---------- Form actions ---------- */
+.exup-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* ---------- List card ---------- */
+.exup-list-card {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.exup-list-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.exup-table-wrap {
+  overflow-x: auto;
+}
+
+.exup-table {
+  display: grid;
+  min-width: 900px;
+  font-size: 13px;
+}
+
+.exup-row {
+  display: grid;
+  grid-template-columns: 36px 130px 90px minmax(130px, 1fr) 60px 100px minmax(140px, 1fr) 110px 130px;
+  align-items: center;
+  gap: 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.exup-row:last-child {
+  border-bottom: none;
+}
+
+.exup-head {
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.exup-head span,
+.exup-row span,
+.exup-row > * {
+  padding: 10px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.exup-cell-num {
+  color: var(--text-faint);
+  font-weight: 600;
+  text-align: center;
+}
+
+.exup-cell-code {
+  font-weight: 700;
+  color: var(--blue-600);
+}
+
+/* ---------- File link ---------- */
+.exup-file-link {
+  color: var(--blue-600);
+  font-weight: 600;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+.exup-file-link:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Status ---------- */
+.exup-status-select {
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  background: #fff;
+}
+.exup-status-select.exup-status-pending  { color: var(--orange-700); border-color: var(--orange-700); }
+.exup-status-select.exup-status-approved { color: var(--green-700);  border-color: var(--green-700); }
+.exup-status-select.exup-status-rejected { color: var(--red-700);    border-color: var(--red-700); }
+
+.exup-status-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.exup-status-badge.exup-status-pending  { background: var(--orange-100); color: var(--orange-700); }
+.exup-status-badge.exup-status-approved { background: var(--green-100);  color: var(--green-700); }
+.exup-status-badge.exup-status-rejected { background: var(--red-100);    color: var(--red-700); }
+
+/* ---------- Copy status button ---------- */
+.exup-copy-btn {
+  border: 1px solid var(--orange-700);
+  background: var(--orange-100);
+  color: var(--orange-700);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+.exup-copy-btn:hover {
+  background: var(--orange-700);
+  color: #fff;
+}
+.exup-copy-btn.copied {
+  border-color: var(--green-700);
+  background: var(--green-100);
+  color: var(--green-700);
+}
+.exup-copy-btn.copied:hover {
+  background: var(--green-700);
+  color: #fff;
+}
+
+.exup-copy-na {
+  color: var(--text-faint);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 899px) {
+  .exup-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .exup-form-card,
+  .exup-list-card {
+    padding: 18px 16px;
+  }
+}
