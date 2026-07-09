@@ -415,52 +415,47 @@ export default function Scheduler() {
         <table className="sched-print-table">
           <thead>
             <tr>
-              <th>ชั้น</th>
-              {days.flatMap((day) =>
-                (["morning", "afternoon"] as ExamSession[]).map((session) => {
-                  const slot = state.slots.find((s) => s.day === day && s.session === session);
-                  return (
-                    <th key={`${day}-${session}`}>
+              <th>วัน / เวลา</th>
+              {GRADES.map((g) => <th key={g}>{gradeLabel(g)}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {days.flatMap((day) =>
+              (["morning", "afternoon"] as ExamSession[]).map((session) => {
+                const slot = state.slots.find((s) => s.day === day && s.session === session);
+                return (
+                  <tr key={`${day}-${session}`}>
+                    <td className="sched-print-rowhead">
                       <div>{dayLabel(slot, day)}</div>
                       <div className="sched-print-time">
                         {session === "morning" ? "เช้า" : "บ่าย"}{" "}
                         {slot ? `${slot.start.replace(":", ".")}–${slot.end.replace(":", ".")}` : ""}
                       </div>
-                    </th>
-                  );
-                }),
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {GRADES.map((g) => (
-              <tr key={g}>
-                <td className="sched-print-rowhead">{gradeLabel(g)}</td>
-                {days.flatMap((day) =>
-                  (["morning", "afternoon"] as ExamSession[]).map((session) => {
-                    const slot = state.slots.find((s) => s.day === day && s.session === session);
-                    const ids = state.cellOrder[cellKey(g, day, session)] ?? [];
-                    const items = ids.map((id) => state.submissions[id]).filter(Boolean);
-                    const times = computeCellTimes(items, slot?.start ?? "08:30", state.round?.gapMinutes ?? 15);
-                    return (
-                      <td key={`${day}-${session}`} className="sched-print-cell">
-                        {items.map((item, i) => (
-                          <div key={item.id} className="sched-print-chip">
-                            <b>{item.code}</b>
-                            <span>{item.subjectName}</span>
-                            {times[i] && (
-                              <span className="sched-print-chip-time">
-                                {times[i].start.replace(":", ".")}–{times[i].end.replace(":", ".")}
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </td>
-                    );
-                  }),
-                )}
-              </tr>
-            ))}
+                    </td>
+                    {GRADES.map((g) => {
+                      const ids = state.cellOrder[cellKey(g, day, session)] ?? [];
+                      const items = ids.map((id) => state.submissions[id]).filter(Boolean);
+                      const times = computeCellTimes(items, slot?.start ?? "08:30", state.round?.gapMinutes ?? 15);
+                      return (
+                        <td key={g} className="sched-print-cell">
+                          {items.map((item, i) => (
+                            <div key={item.id} className="sched-print-chip">
+                              <b>{item.code}</b>
+                              <span>{item.subjectName}</span>
+                              {times[i] && (
+                                <span className="sched-print-chip-time">
+                                  {times[i].start.replace(":", ".")}–{times[i].end.replace(":", ".")}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              }),
+            )}
           </tbody>
         </table>
       </div>
