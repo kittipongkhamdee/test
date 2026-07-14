@@ -57,6 +57,14 @@ export interface SchoolMeta {
 
 export type FormOptionCategory = "grade" | "room" | "duration" | "preference";
 
+export interface SubjectCatalogEntry {
+  id: string;
+  code: string;
+  subjectName: string;
+  grade: Grade;
+  createdAt: string;
+}
+
 export interface FormOption {
   id: string;
   category: FormOptionCategory;

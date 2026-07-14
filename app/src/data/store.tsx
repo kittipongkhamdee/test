@@ -10,17 +10,21 @@ import type {
   MorningPreference,
   SchoolMeta,
   Submission,
+  SubjectCatalogEntry,
 } from "./types";
 import { cellKey } from "./mockData";
 import { timeToMinutes } from "./scheduling";
 import {
   addExamDay as apiAddExamDay,
+  addSubjectCatalogEntry as apiAddCatalogEntry,
   bulkUpdatePlacements,
   createFormOption,
   deleteExamDay as apiDeleteExamDay,
   deleteFormOption as apiDeleteFormOption,
   deleteSubmission as apiDeleteSubmission,
+  deleteSubjectCatalogEntry as apiDeleteCatalogEntry,
   fetchActiveRoundBundle,
+  fetchSubjectCatalog,
   submitSubmission,
   updateFormOption as apiUpdateFormOption,
   updateManualStart,
@@ -32,6 +36,7 @@ import {
   type FormOptionInput,
   type PlacementPatch,
   type RoundSettingsInput,
+  type SubjectCatalogInput,
   type SubmissionEditInput,
 } from "./api";
 
@@ -48,6 +53,7 @@ interface DataState {
   submissions: Record<string, Submission>; // includes not-yet-confirmed "draft" catalog rows
   cellOrder: Record<string, string[]>;
   formOptions: FormOption[];
+  catalogEntries: SubjectCatalogEntry[];
 }
 
 const initialState: DataState = {
@@ -60,6 +66,7 @@ const initialState: DataState = {
   submissions: {},
   cellOrder: {},
   formOptions: [],
+  catalogEntries: [],
 };
 
 function buildCellOrder(submissions: Submission[]): Record<string, string[]> {
@@ -106,7 +113,10 @@ type Action =
   | { type: "UPDATE_GAP_MINUTES"; gapMinutes: number }
   | { type: "ADD_SLOTS"; slots: ExamSlotMeta[] }
   | { type: "REMOVE_DAY"; day: ExamDay }
-  | { type: "RESTORE_SCHEDULE"; submissions: Record<string, Submission>; cellOrder: Record<string, string[]> };
+  | { type: "RESTORE_SCHEDULE"; submissions: Record<string, Submission>; cellOrder: Record<string, string[]> }
+  | { type: "SET_CATALOG"; entries: SubjectCatalogEntry[] }
+  | { type: "ADD_CATALOG_ENTRY"; entry: SubjectCatalogEntry }
+  | { type: "REMOVE_CATALOG_ENTRY"; id: string };
 
 function removeFromAllCells(cellOrder: Record<string, string[]>, id: string): Record<string, string[]> {
   const next: Record<string, string[]> = {};
@@ -133,6 +143,12 @@ function reducer(state: DataState, action: Action): DataState {
         cellOrder: buildCellOrder(action.submissions),
         formOptions: action.formOptions,
       };
+    case "SET_CATALOG":
+      return { ...state, catalogEntries: action.entries };
+    case "ADD_CATALOG_ENTRY":
+      return { ...state, catalogEntries: [...state.catalogEntries, action.entry] };
+    case "REMOVE_CATALOG_ENTRY":
+      return { ...state, catalogEntries: state.catalogEntries.filter((e) => e.id !== action.id) };
     case "LOAD_ERROR":
       return { ...state, loading: false, error: action.message };
     case "UPSERT_SUBMISSION":
@@ -347,6 +363,8 @@ interface StoreContextValue {
   pushUndoSnapshot: () => void;
   undoSchedule: () => void;
   canUndo: boolean;
+  addCatalogEntry: (input: SubjectCatalogInput) => Promise<SubjectCatalogEntry>;
+  removeCatalogEntry: (id: string) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -371,8 +389,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetchActiveRoundBundle()
-      .then((bundle) => {
+    Promise.all([fetchActiveRoundBundle(), fetchSubjectCatalog()])
+      .then(([bundle, catalog]) => {
         if (cancelled) return;
         dispatchRaw({
           type: "LOADED",
@@ -383,6 +401,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           school: bundle.school,
           formOptions: bundle.formOptions,
         });
+        dispatchRaw({ type: "SET_CATALOG", entries: catalog });
       })
       .catch((err: Error) => {
         if (cancelled) return;
@@ -635,6 +654,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [state.round],
   );
 
+  const addCatalogEntry = useCallback(async (input: SubjectCatalogInput) => {
+    const saved = await apiAddCatalogEntry(input);
+    dispatchRaw({ type: "ADD_CATALOG_ENTRY", entry: saved });
+    return saved;
+  }, []);
+
+  const removeCatalogEntry = useCallback(async (id: string) => {
+    await apiDeleteCatalogEntry(id);
+    dispatchRaw({ type: "REMOVE_CATALOG_ENTRY", id });
+  }, []);
+
   const value = useMemo(
     () => ({
       state,
@@ -659,6 +689,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       pushUndoSnapshot,
       undoSchedule,
       canUndo,
+      addCatalogEntry,
+      removeCatalogEntry,
     }),
     [
       state,
@@ -683,6 +715,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       pushUndoSnapshot,
       undoSchedule,
       canUndo,
+      addCatalogEntry,
+      removeCatalogEntry,
     ],
   );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -707,10 +741,9 @@ export function useSubmissions(): Submission[] {
   return useMemo(() => Object.values(state.submissions).filter((s) => s.status !== "draft"), [state.submissions]);
 }
 
-// All catalog rows regardless of status — used for "expected total" counts.
-export function useCatalog(): Submission[] {
+export function useCatalog(): SubjectCatalogEntry[] {
   const { state } = useStore();
-  return useMemo(() => Object.values(state.submissions), [state.submissions]);
+  return useMemo(() => state.catalogEntries, [state.catalogEntries]);
 }
 
 // All options for a category (any status), sorted for the admin management list.

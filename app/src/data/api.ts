@@ -11,6 +11,7 @@ import type {
   SchoolMeta,
   Submission,
   SubmissionStatus,
+  SubjectCatalogEntry,
 } from "./types";
 
 interface FormOptionRow {
@@ -472,5 +473,54 @@ export async function deleteExamDay(examRoundId: string, day: number): Promise<v
     .delete()
     .eq("exam_round_id", examRoundId)
     .eq("day_number", day);
+  if (error) throw error;
+}
+
+interface SubjectCatalogRow {
+  id: string;
+  code: string;
+  subject_name: string;
+  grade: number;
+  created_at: string;
+}
+
+function rowToCatalogEntry(row: SubjectCatalogRow): SubjectCatalogEntry {
+  return {
+    id: row.id,
+    code: row.code,
+    subjectName: row.subject_name,
+    grade: row.grade as Grade,
+    createdAt: row.created_at,
+  };
+}
+
+export async function fetchSubjectCatalog(): Promise<SubjectCatalogEntry[]> {
+  const { data, error } = await supabase
+    .from("subject_catalog")
+    .select("id, code, subject_name, grade, created_at")
+    .order("grade")
+    .order("code");
+  if (error) throw error;
+  return (data ?? []).map(rowToCatalogEntry);
+}
+
+export interface SubjectCatalogInput {
+  code: string;
+  subjectName: string;
+  grade: Grade;
+}
+
+export async function addSubjectCatalogEntry(input: SubjectCatalogInput): Promise<SubjectCatalogEntry> {
+  const { data, error } = await supabase
+    .from("subject_catalog")
+    .insert({ code: input.code.trim(), subject_name: input.subjectName.trim(), grade: input.grade })
+    .select("id, code, subject_name, grade, created_at")
+    .single();
+  if (error) throw error;
+  return rowToCatalogEntry(data);
+}
+
+export async function deleteSubjectCatalogEntry(id: string): Promise<void> {
+  const { error } = await supabase.from("subject_catalog").delete().eq("id", id);
   if (error) throw error;
 }

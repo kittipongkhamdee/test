@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useActiveFormOptions, useCatalog, useStore, useSubmissions } from "../data/store";
 import { gradeLabel } from "../data/mockData";
-import type { Grade, MorningPreference, Submission, SubmissionStatus } from "../data/types";
+import type { Grade, MorningPreference, Submission, SubmissionStatus, SubjectCatalogEntry } from "../data/types";
 import { formatRelativeTime, formatThaiDateTime } from "../lib/time";
 import { useCountdown } from "../lib/useCountdown";
 import "./TeacherForm.css";
@@ -14,8 +14,8 @@ function statusLabel(status: SubmissionStatus): { text: string; className: strin
 
 type RoomsSelection = number[] | "all" | null;
 
-function dedupeCatalog(catalog: Submission[]): Submission[] {
-  const seen = new Map<string, Submission>();
+function dedupeCatalog(catalog: SubjectCatalogEntry[]): SubjectCatalogEntry[] {
+  const seen = new Map<string, SubjectCatalogEntry>();
   for (const s of catalog) {
     seen.set(`${s.code}_${s.grade}`, s);
   }
@@ -85,11 +85,10 @@ export default function TeacherForm() {
       .slice(0, 6);
   }, [activeSuggestField, code, subjectName, knownSubjects]);
 
-  function applySuggestion(s: Submission) {
+  function applySuggestion(s: SubjectCatalogEntry) {
     setCode(s.code);
     setSubjectName(s.subjectName);
     setGrade(s.grade);
-    if (!teacherName.trim()) setTeacherName(s.teacherName);
     setActiveSuggestField(null);
   }
 
