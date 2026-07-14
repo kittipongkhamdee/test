@@ -516,6 +516,65 @@
   padding: 12px 0;
 }
 
+/* ---------- Catalog topbar (title + toggle button) ---------- */
+.admin-catalog-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-catalog-total {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.admin-catalog-add-toggle {
+  flex-shrink: 0;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* ---------- Search + grade chips bar ---------- */
+.admin-catalog-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-catalog-search {
+  width: 100%;
+  max-width: 340px;
+}
+
+.admin-catalog-grade-chips {
+  flex-wrap: wrap;
+}
+
+/* ---------- Scrollable list ---------- */
+.admin-catalog-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+/* ---------- PP5 badge (read-only rows) ---------- */
+.admin-catalog-pp5-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--blue-600);
+  background: var(--blue-100, #dbeafe);
+  border-radius: 4px;
+  padding: 2px 6px;
+  letter-spacing: 0.03em;
+}
+
+/* ---------- Add form name input ---------- */
+.admin-catalog-name-input {
+  flex: 1;
+  min-width: 140px;
+}
+
 @media (max-width: 899px) {
   .admin-catalog-add-fields {
     grid-template-columns: 1fr 1fr;

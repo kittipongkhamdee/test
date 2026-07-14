@@ -256,10 +256,11 @@ function OptionCategorySection({
   );
 }
 
-function SubjectCatalogRow({ entry, onDelete }: { entry: SubjectCatalogEntry; onDelete: (id: string) => Promise<void> }) {
+function SubjectCatalogRow({ entry, onDelete }: { entry: SubjectCatalogEntry; onDelete: ((id: string) => Promise<void>) | null }) {
   const [deleting, setDeleting] = useState(false);
 
   async function handleDelete() {
+    if (!onDelete) return;
     if (!window.confirm(`ลบวิชา ${entry.code} ${entry.subjectName} (${gradeLabel(entry.grade)}) ใช่หรือไม่?`)) return;
     setDeleting(true);
     try {
@@ -274,9 +275,13 @@ function SubjectCatalogRow({ entry, onDelete }: { entry: SubjectCatalogEntry; on
       <span className="admin-catalog-code">{entry.code}</span>
       <span className="admin-catalog-name">{entry.subjectName}</span>
       <span className="admin-catalog-grade">{gradeLabel(entry.grade)}</span>
-      <button type="button" className="admin-opt-delete" onClick={handleDelete} disabled={deleting} title="ลบรายวิชา">
-        {deleting ? "…" : "ลบ"}
-      </button>
+      {onDelete ? (
+        <button type="button" className="admin-opt-delete" onClick={handleDelete} disabled={deleting} title="ลบรายวิชา">
+          {deleting ? "…" : "ลบ"}
+        </button>
+      ) : (
+        <span className="admin-catalog-pp5-badge">ปพ.5</span>
+      )}
     </div>
   );
 }
@@ -290,6 +295,8 @@ function SubjectCatalogSection() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filterGrade, setFilterGrade] = useState<number | "all">("all");
+  const [search, setSearch] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -303,6 +310,7 @@ function SubjectCatalogSection() {
       await addCatalogEntry({ code: code.trim(), subjectName: subjectName.trim(), grade: grade as 1 | 2 | 3 | 4 | 5 | 6 });
       setCode("");
       setSubjectName("");
+      setShowAddForm(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "เพิ่มรายวิชาไม่สำเร็จ");
     } finally {
@@ -310,78 +318,100 @@ function SubjectCatalogSection() {
     }
   }
 
-  const filtered = filterGrade === "all" ? catalog : catalog.filter((e) => e.grade === filterGrade);
+  const q = search.trim().toLowerCase();
+  const filtered = catalog.filter((e) => {
+    if (filterGrade !== "all" && e.grade !== filterGrade) return false;
+    if (q) return e.code.toLowerCase().includes(q) || e.subjectName.toLowerCase().includes(q);
+    return true;
+  });
 
   return (
     <div className="card admin-catalog-card">
-      <div className="admin-opt-header">
-        <div className="admin-opt-title">รายวิชาในระบบ (Catalog)</div>
-        <div className="admin-opt-hint">
-          ครูจะเห็นรายวิชาเหล่านี้เป็นตัวเลือก Autocomplete เมื่อกรอกฟอร์มสำรวจ — เพิ่มหรือลบได้อิสระ ครูยังพิมพ์รหัสวิชาเองได้เสมอ
+      <div className="admin-catalog-topbar">
+        <div>
+          <div className="admin-opt-title">
+            รายวิชาในระบบ
+            <span className="admin-catalog-total"> · {catalog.length} วิชา (ดึงจาก ปพ.5 อัตโนมัติ)</span>
+          </div>
+          <div className="admin-opt-hint">ครูพิมพ์รหัสหรือชื่อวิชาในฟอร์มสำรวจ ระบบจะ Autocomplete จากรายการนี้</div>
         </div>
+        <button
+          type="button"
+          className="btn btn-ghost admin-catalog-add-toggle"
+          onClick={() => { setShowAddForm((p) => !p); setError(null); }}
+        >
+          {showAddForm ? "ยกเลิก" : "+ เพิ่มวิชาเอง"}
+        </button>
       </div>
 
-      <form className="admin-opt-add" onSubmit={handleAdd}>
-        <div className="admin-catalog-add-fields">
-          <input
-            className="tform-input"
-            placeholder="รหัสวิชา เช่น อ23101"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            disabled={busy}
-          />
-          <input
-            className="tform-input admin-catalog-name-input"
-            placeholder="ชื่อวิชา เช่น ภาษาอังกฤษ 5"
-            value={subjectName}
-            onChange={(e) => setSubjectName(e.target.value)}
-            disabled={busy}
-          />
-          <select
-            className="tform-input admin-catalog-grade-select"
-            value={grade}
-            onChange={(e) => setGrade(Number(e.target.value))}
-            disabled={busy}
-          >
-            {([1, 2, 3, 4, 5, 6] as const).map((g) => (
-              <option key={g} value={g}>{gradeLabel(g)}</option>
-            ))}
-          </select>
-          <button type="submit" className="btn btn-ghost admin-opt-add-btn" disabled={busy}>
-            + เพิ่มรายวิชา
-          </button>
-        </div>
-        {error && <div className="tform-error">{error}</div>}
-      </form>
+      {showAddForm && (
+        <form className="admin-opt-add" onSubmit={handleAdd}>
+          <div className="admin-catalog-add-fields">
+            <input
+              className="tform-input"
+              placeholder="รหัสวิชา"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              disabled={busy}
+              autoFocus
+            />
+            <input
+              className="tform-input admin-catalog-name-input"
+              placeholder="ชื่อวิชา"
+              value={subjectName}
+              onChange={(e) => setSubjectName(e.target.value)}
+              disabled={busy}
+            />
+            <select
+              className="tform-input admin-catalog-grade-select"
+              value={grade}
+              onChange={(e) => setGrade(Number(e.target.value))}
+              disabled={busy}
+            >
+              {([1, 2, 3, 4, 5, 6] as const).map((g) => (
+                <option key={g} value={g}>{gradeLabel(g)}</option>
+              ))}
+            </select>
+            <button type="submit" className="btn btn-ghost admin-opt-add-btn" disabled={busy}>
+              บันทึก
+            </button>
+          </div>
+          {error && <div className="tform-error">{error}</div>}
+        </form>
+      )}
 
-      <div className="admin-catalog-filter">
-        <span className="tform-label" style={{ marginBottom: 0 }}>กรองระดับชั้น:</span>
-        <div className="tform-chip-row" style={{ flexWrap: "wrap" }}>
+      <div className="admin-catalog-controls">
+        <input
+          className="tform-input admin-catalog-search"
+          placeholder="ค้นหารหัสหรือชื่อวิชา…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <div className="tform-chip-row admin-catalog-grade-chips">
           <button
             type="button"
             className={"tform-chip" + (filterGrade === "all" ? " selected" : "")}
             onClick={() => setFilterGrade("all")}
           >
-            ทั้งหมด <span className="admin-catalog-count">({catalog.length})</span>
+            ทั้งหมด
           </button>
-          {([1, 2, 3, 4, 5, 6] as const).map((g) => {
-            const count = catalog.filter((e) => e.grade === g).length;
-            return (
-              <button
-                key={g}
-                type="button"
-                className={"tform-chip" + (filterGrade === g ? " selected" : "")}
-                onClick={() => setFilterGrade(g)}
-              >
-                {gradeLabel(g)} <span className="admin-catalog-count">({count})</span>
-              </button>
-            );
-          })}
+          {([1, 2, 3, 4, 5, 6] as const).map((g) => (
+            <button
+              key={g}
+              type="button"
+              className={"tform-chip" + (filterGrade === g ? " selected" : "")}
+              onClick={() => setFilterGrade(g)}
+            >
+              {gradeLabel(g)} <span className="admin-catalog-count">({catalog.filter((e) => e.grade === g).length})</span>
+            </button>
+          ))}
         </div>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="admin-catalog-empty">ยังไม่มีรายวิชาในระบบ — เพิ่มรายวิชาด้านบนเพื่อให้ครูใช้ Autocomplete ได้</div>
+        <div className="admin-catalog-empty">
+          {q || filterGrade !== "all" ? "ไม่พบรายวิชาที่ตรงกัน" : "ยังไม่มีรายวิชา — ระบบจะดึงจาก ปพ.5 เมื่อครูบันทึกรายวิชาแล้ว"}
+        </div>
       ) : (
         <div className="admin-catalog-list">
           <div className="admin-catalog-header-row">
@@ -391,7 +421,11 @@ function SubjectCatalogSection() {
             <span />
           </div>
           {filtered.map((entry) => (
-            <SubjectCatalogRow key={entry.id} entry={entry} onDelete={removeCatalogEntry} />
+            <SubjectCatalogRow
+              key={entry.id}
+              entry={entry}
+              onDelete={entry.id.startsWith("pp5_") ? null : removeCatalogEntry}
+            />
           ))}
         </div>
       )}
@@ -959,13 +993,6 @@ export default function AdminSettings() {
       </div>
 
       <div className="admin-opt-section">
-        <div className="admin-opt-section-title">รายวิชาในระบบ</div>
-        <div className="admin-opt-section-sub">จัดการรายวิชาที่ใช้เป็น Autocomplete ในฟอร์มสำรวจ</div>
-      </div>
-
-      <SubjectCatalogSection />
-
-      <div className="admin-opt-section">
         <div className="admin-opt-section-title">ตัวเลือกในฟอร์มสำรวจ</div>
         <div className="admin-opt-section-sub">กำหนดว่าครูจะเลือกอะไรได้บ้างในแบบสำรวจการจัดสอบ</div>
       </div>
@@ -1000,6 +1027,13 @@ export default function AdminSettings() {
           withIcon={true}
         />
       </div>
+
+      <div className="admin-opt-section">
+        <div className="admin-opt-section-title">รายวิชาในระบบ</div>
+        <div className="admin-opt-section-sub">จัดการรายวิชาที่ใช้เป็น Autocomplete ในฟอร์มสำรวจ (ดึงจาก ปพ.5 อัตโนมัติ)</div>
+      </div>
+
+      <SubjectCatalogSection />
     </div>
   );
 }
