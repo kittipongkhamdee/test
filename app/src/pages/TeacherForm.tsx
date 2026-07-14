@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useActiveFormOptions, useCatalog, useStore, useSubmissions } from "../data/store";
 import { gradeLabel } from "../data/mockData";
-import type { Grade, MorningPreference, Submission, SubmissionStatus, SubjectCatalogEntry } from "../data/types";
+import type { Grade, MorningPreference, SubmissionStatus, SubjectCatalogEntry } from "../data/types";
 import { formatRelativeTime, formatThaiDateTime } from "../lib/time";
 import { useCountdown } from "../lib/useCountdown";
 import "./TeacherForm.css";
