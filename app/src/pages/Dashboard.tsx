@@ -29,18 +29,29 @@ export default function Dashboard() {
   const { state } = useStore();
   const submissions = useSubmissions();
 
+  const totalTeachers = state.teachers.length;
+
+  const submittedTeacherNames = useMemo(
+    () => new Set(submissions.filter((s) => !s.selfScheduled).map((s) => s.teacherName.trim().toLowerCase())),
+    [submissions],
+  );
+
+  const notSubmittedTeachers = useMemo(
+    () => state.teachers.filter((t) => !submittedTeacherNames.has(t.trim().toLowerCase())),
+    [state.teachers, submittedTeacherNames],
+  );
+
   const stats = useMemo(() => {
     const mainSubs = submissions.filter((s) => !s.selfScheduled);
     const scheduled = mainSubs.filter((s) => s.status === "scheduled").length;
     const pending = mainSubs.filter((s) => s.status === "pending").length;
-    const teacherIds = new Set(mainSubs.map((s) => s.teacherId));
     return {
       submittedCount: mainSubs.length,
       scheduled,
       pending,
-      teachersSubmitted: teacherIds.size,
+      teachersSubmitted: totalTeachers - notSubmittedTeachers.length,
     };
-  }, [submissions]);
+  }, [submissions, totalTeachers, notSubmittedTeachers]);
 
   const perGrade = useMemo(() => {
     const counts = new Map<number, number>();
@@ -72,15 +83,6 @@ export default function Dashboard() {
   const deadline = formatThaiDateTime(state.round?.submissionClosesAt);
   const countdown = useCountdown(state.round?.submissionClosesAt);
 
-  const totalTeachers = state.teachers.length;
-  const submittedTeacherNames = useMemo(
-    () => new Set(submissions.map((s) => s.teacherName.trim().toLowerCase())),
-    [submissions],
-  );
-  const notSubmittedTeachers = useMemo(
-    () => state.teachers.filter((t) => !submittedTeacherNames.has(t.trim().toLowerCase())),
-    [state.teachers, submittedTeacherNames],
-  );
   const teacherSubmittedPct = totalTeachers ? Math.round((stats.teachersSubmitted / totalTeachers) * 100) : 0;
 
   const selfScheduledTeachers = useMemo(() => {
