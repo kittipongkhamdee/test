@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
+import * as XLSX from "xlsx";
 import { useActiveFormOptions, useStore, useSubmissions } from "../data/store";
 import { GRADES, gradeLabel } from "../data/mockData";
 import type { Grade, MorningPreference, Submission } from "../data/types";
@@ -43,6 +44,66 @@ function toCsv(rows: Submission[]): string {
     );
   }
   return lines.join("\n");
+}
+
+function exportGroupedExcel(submissions: Submission[], roundName: string) {
+  // Group by teacher, sorted by name
+  const map = new Map<string, { name: string; subs: Submission[] }>();
+  for (const s of [...submissions.filter((s) => !s.selfScheduled)].sort((a, b) =>
+    a.teacherName.localeCompare(b.teacherName, "th"),
+  )) {
+    if (!map.has(s.teacherId)) map.set(s.teacherId, { name: s.teacherName, subs: [] });
+    map.get(s.teacherId)!.subs.push(s);
+  }
+  for (const g of map.values()) {
+    g.subs.sort((a, b) => a.grade - b.grade || a.code.localeCompare(b.code));
+  }
+  const grouped = [...map.values()];
+
+  // Build rows (row 0 = header)
+  const rows: (string | number)[][] = [["ลำดับ", "ครูผู้สอน", "รหัสวิชา", "ชื่อวิชา", "ชั้น", "เวลา (นาที)"]];
+  const merges: XLSX.Range[] = [];
+  let rowIdx = 1;
+
+  for (const [gi, group] of grouped.entries()) {
+    const startRow = rowIdx;
+    for (const s of group.subs) {
+      rows.push([gi + 1, group.name, s.code, s.subjectName, formatGradeRooms(s.grade, s.rooms), s.durationMinutes]);
+      rowIdx++;
+    }
+    if (group.subs.length > 1) {
+      merges.push({ s: { r: startRow, c: 0 }, e: { r: rowIdx - 1, c: 0 } });
+      merges.push({ s: { r: startRow, c: 1 }, e: { r: rowIdx - 1, c: 1 } });
+    }
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws["!merges"] = merges;
+  ws["!cols"] = [{ wch: 8 }, { wch: 26 }, { wch: 13 }, { wch: 36 }, { wch: 18 }, { wch: 13 }];
+
+  // Style header row
+  const headerStyle = { font: { bold: true }, fill: { fgColor: { rgb: "E8EEF8" } }, alignment: { horizontal: "center" } };
+  ["A1", "B1", "C1", "D1", "E1", "F1"].forEach((cell) => {
+    if (ws[cell]) ws[cell].s = headerStyle;
+  });
+
+  // Center-align ลำดับ and เวลา columns
+  for (let r = 1; r < rows.length; r++) {
+    const numCell = XLSX.utils.encode_cell({ r, c: 0 });
+    const durCell = XLSX.utils.encode_cell({ r, c: 5 });
+    if (ws[numCell]) ws[numCell].s = { alignment: { horizontal: "center", vertical: "center" } };
+    if (ws[durCell]) ws[durCell].s = { alignment: { horizontal: "center", vertical: "center" } };
+  }
+
+  // Vertical center for merged teacher cells
+  for (const m of merges) {
+    const cell = XLSX.utils.encode_cell({ r: m.s.r, c: m.s.c });
+    if (ws[cell]) ws[cell].s = { alignment: { vertical: "center" } };
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "รายวิชาที่ขอจัดสอบ");
+  XLSX.writeFile(wb, `รายวิชาจัดสอบ_${roundName || "ทั้งหมด"}.xlsx`);
 }
 
 function EditSubmissionModal({ submission, onClose }: { submission: Submission; onClose: () => void }) {
@@ -236,7 +297,7 @@ function GroupedTable({ submissions }: { submissions: Submission[] }) {
 }
 
 export default function Submissions() {
-  const { isAdmin, removeSubmission } = useStore();
+  const { isAdmin, removeSubmission, state } = useStore();
   const submissions = useSubmissions();
   const [viewMode, setViewMode] = useState<"list" | "grouped">("list");
   const [search, setSearch] = useState("");
@@ -339,8 +400,11 @@ export default function Submissions() {
               ⊞ จัดกลุ่มครู
             </button>
           </div>
+          <button className="btn btn-ghost" onClick={() => exportGroupedExcel(filtered, state.round?.name ?? "")}>
+            ⬇ ส่งออก Excel (จัดกลุ่ม)
+          </button>
           <button className="btn btn-ghost" onClick={handleExport}>
-            ⬇ ส่งออก Excel
+            ⬇ ส่งออก CSV
           </button>
           <Link to="/form" className="btn btn-primary">
             + เพิ่มรายวิชาแทนครู
