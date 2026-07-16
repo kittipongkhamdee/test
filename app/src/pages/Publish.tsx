@@ -55,7 +55,7 @@ export default function Publish() {
           }
         }
         for (const [grade, items] of grouped) {
-          const times = computeCellTimes(items, slot?.start ?? "08:30");
+          const times = computeCellTimes(items, slot?.start ?? "08:30", state.round?.gapMinutes ?? 15);
           items.forEach((item, i) => {
             byDay[day].push({
               start: times[i].start,
