@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { useStore, useSubmissions } from "../data/store";
 import { computeCellTimes } from "../data/scheduling";
@@ -29,12 +29,77 @@ function fmtGradeRooms(grade: Grade, rooms: number[]): string {
   return rooms.map((r) => `ม.${grade}/${r}`).join(", ");
 }
 
+function escHtml(val: string | number): string {
+  return String(val)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+const PRINT_CSS = `
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Sarabun', 'Noto Sans Thai', 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  color: #1a1a2e;
+  line-height: 1.5;
+}
+@page { size: A4 portrait; margin: 12mm 15mm; }
+.pub-sheet-title {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+.pub-sheet-h1 { font-size: 18px; font-weight: 700; color: #1a1a2e; }
+.pub-sheet-h2 { font-size: 13px; color: #6b7280; }
+.pub-day { margin-bottom: 20px; }
+.pub-day-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e3a8a;
+  padding: 6px 0;
+  border-bottom: 2px solid #2563eb;
+  margin-bottom: 4px;
+}
+.pub-table { display: flex; flex-direction: column; font-size: 12px; color: #1a1a2e; }
+.pub-table-head,
+.pub-table-row {
+  display: grid;
+  grid-template-columns: 110px 80px 1fr 100px 65px minmax(130px, 1fr);
+  gap: 4px;
+}
+.pub-table-head span {
+  padding: 7px 8px;
+  font-weight: 700;
+  color: #6b7280;
+  border-bottom: 1px solid #d1d5db;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.pub-table-row span {
+  padding: 7px 8px;
+  border-bottom: 1px solid #e5e7eb;
+  word-break: break-word;
+  white-space: normal;
+}
+.pub-code { font-weight: 600; }
+.pub-table-empty { padding: 12px 8px; color: #6b7280; font-size: 12px; }
+.pub-table-head.pub-table-head-bygrade,
+.pub-table-row.pub-table-row-bygrade {
+  grid-template-columns: 110px 110px 80px 1fr 120px 65px 120px;
+}
+.pub-grade-print-page { padding: 0; }
+.pub-grade-page-break { page-break-after: always; }
+`;
+
 export default function Publish() {
   const { state } = useStore();
   const submissions = useSubmissions();
   const [gradeFilter, setGradeFilter] = useState<Grade | null>(null);
-  const [printByGrade, setPrintByGrade] = useState(false);
-  const printByGradeTriggered = useRef(false);
 
   const days = useMemo(
     () => [...new Set(state.slots.map((s) => s.day))].sort((a, b) => a - b),
@@ -111,24 +176,126 @@ export default function Publish() {
     return result;
   }, [rowsByDay, gradeFilter, days]);
 
-  useEffect(() => {
-    if (!printByGrade || printByGradeTriggered.current) return;
-    printByGradeTriggered.current = true;
-    const handler = () => {
-      setPrintByGrade(false);
-      printByGradeTriggered.current = false;
-    };
-    window.addEventListener("afterprint", handler, { once: true });
+  const examTitle = state.round?.name ?? "";
+  const schoolName = state.school?.schoolName ?? "";
+  const slotsByDay = (day: ExamDay): ExamSlotMeta | undefined => state.slots.find((s) => s.day === day);
+
+  function fullGradeLabel(grade: Grade): string {
+    return `ชั้นมัธยมศึกษาปีที่ ${grade}`;
+  }
+
+  const sheetSubtitle = gradeFilter != null
+    ? `${schoolName} — ${fullGradeLabel(gradeFilter)}`
+    : schoolName;
+
+  function openPrintPopup(bodyHTML: string) {
+    const html = `<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>${PRINT_CSS}</style>
+</head>
+<body>
+${bodyHTML}
+<script>
+(function(){
+  var done=false;
+  function doPrint(){
+    if(done)return;done=true;
+    window.addEventListener('afterprint',function(){window.close();},{once:true});
     window.print();
-    return () => window.removeEventListener("afterprint", handler);
-  }, [printByGrade]);
+  }
+  if(document.fonts&&document.fonts.ready){
+    document.fonts.ready.then(function(){setTimeout(doPrint,100);});
+  } else {
+    window.addEventListener('load',function(){setTimeout(doPrint,400);});
+  }
+})();
+</` + `script>
+</body>
+</html>`;
+    const win = window.open("", "_blank");
+    if (!win) { window.print(); return; }
+    win.document.write(html);
+    win.document.close();
+  }
+
+  function buildPrintHTML(): string {
+    const dayHtml = days.map((day) => {
+      const rows = filteredByDay[day];
+      const label = dayTitle(slotsByDay(day)?.examDate, day);
+      const rowsHtml = rows.length === 0
+        ? `<div class="pub-table-empty">ยังไม่มีวิชาที่จัดลงตารางสำหรับวันนี้</div>`
+        : rows.map((r) =>
+            `<div class="pub-table-row">` +
+            `<span>${escHtml(r.start.replace(":", "."))}–${escHtml(r.end.replace(":", "."))}</span>` +
+            `<span class="pub-code">${escHtml(r.code)}</span>` +
+            `<span>${escHtml(r.subjectName)}</span>` +
+            `<span>${escHtml(r.gradeRooms)}</span>` +
+            `<span>${escHtml(r.durationMinutes)}</span>` +
+            `<span>${escHtml(r.teacherName)}</span>` +
+            `</div>`
+          ).join("");
+      return (
+        `<div class="pub-day">` +
+        `<div class="pub-day-title">${escHtml(label)}</div>` +
+        `<div class="pub-table">` +
+        `<div class="pub-table-head">` +
+        `<span>เวลา</span><span>รหัสวิชา</span><span>ชื่อวิชา</span>` +
+        `<span>ระดับชั้น</span><span>เวลา (นาที)</span><span>ครูผู้ออกข้อสอบ</span>` +
+        `</div>${rowsHtml}</div></div>`
+      );
+    }).join("");
+
+    return (
+      `<div class="pub-sheet-title">` +
+      `<div class="pub-sheet-h1">ตาราง${escHtml(examTitle)}</div>` +
+      `<div class="pub-sheet-h2">${escHtml(sheetSubtitle)}</div>` +
+      `</div>${dayHtml}`
+    );
+  }
+
+  function buildPrintByGradeHTML(): string {
+    const grades = [...rowsByGrade.keys()].sort((a, b) => a - b);
+    return grades.map((grade, idx) => {
+      const entries = rowsByGrade.get(grade) ?? [];
+      const rowsHtml = entries.map(({ dayLabel, row }) =>
+        `<div class="pub-table-row pub-table-row-bygrade">` +
+        `<span>${escHtml(dayLabel)}</span>` +
+        `<span>${escHtml(row.start.replace(":", "."))}–${escHtml(row.end.replace(":", "."))}</span>` +
+        `<span class="pub-code">${escHtml(row.code)}</span>` +
+        `<span>${escHtml(row.subjectName)}</span>` +
+        `<span>${escHtml(row.gradeRooms)}</span>` +
+        `<span>${escHtml(row.durationMinutes)}</span>` +
+        `<span>${escHtml(row.teacherName)}</span>` +
+        `</div>`
+      ).join("");
+      const pageBreak = idx < grades.length - 1 ? " pub-grade-page-break" : "";
+      return (
+        `<div class="pub-grade-print-page${pageBreak}">` +
+        `<div class="pub-sheet-title">` +
+        `<div class="pub-sheet-h1">ตาราง${escHtml(examTitle)}</div>` +
+        `<div class="pub-sheet-h2">${escHtml(schoolName)} — ${escHtml(gradeLabel(grade))}</div>` +
+        `</div>` +
+        `<div class="pub-table">` +
+        `<div class="pub-table-head pub-table-head-bygrade">` +
+        `<span>วัน</span><span>เวลา</span><span>รหัสวิชา</span>` +
+        `<span>ชื่อวิชา</span><span>ระดับชั้น</span><span>เวลา (นาที)</span>` +
+        `<span>ครูผู้ออกข้อสอบ</span>` +
+        `</div>${rowsHtml}</div></div>`
+      );
+    }).join("");
+  }
 
   function handlePrint() {
-    window.print();
+    openPrintPopup(buildPrintHTML());
   }
 
   function handlePrintByGrade() {
-    setPrintByGrade(true);
+    openPrintPopup(buildPrintByGradeHTML());
   }
 
   function handleExportExcel() {
@@ -200,20 +367,8 @@ export default function Publish() {
     XLSX.writeFile(wb, `${examTitle}_รายชั้น.xlsx`);
   }
 
-  const examTitle = state.round?.name ?? "";
-  const schoolName = state.school?.schoolName ?? "";
-  const slotsByDay = (day: ExamDay): ExamSlotMeta | undefined => state.slots.find((s) => s.day === day);
-
-  function fullGradeLabel(grade: Grade): string {
-    return `ชั้นมัธยมศึกษาปีที่ ${grade}`;
-  }
-
-  const sheetSubtitle = gradeFilter != null
-    ? `${schoolName} — ${fullGradeLabel(gradeFilter)}`
-    : schoolName;
-
   return (
-    <div className={`pub-page${printByGrade ? " pub-by-grade-mode" : ""}`}>
+    <div className="pub-page">
       <div className="page-header no-print">
         <div>
           <h1>ตารางสอบเผยแพร่</h1>
@@ -292,42 +447,7 @@ export default function Publish() {
               </div>
             </div>
           ))}
-
         </div>
-      </div>
-
-      {/* by-grade print layout — hidden in screen, shown in print via pub-by-grade-mode */}
-      <div className="pub-print-grade-wrap">
-        {[...rowsByGrade.keys()].sort((a, b) => a - b).map((grade, idx, arr) => (
-          <div className={`pub-grade-print-page${idx < arr.length - 1 ? " pub-grade-page-break" : ""}`} key={grade}>
-            <div className="pub-sheet-title" style={{ textAlign: "center", marginBottom: 16 }}>
-              <div className="pub-sheet-h1">ตาราง{examTitle}</div>
-              <div className="pub-sheet-h2">{schoolName} — {gradeLabel(grade)}</div>
-            </div>
-            <div className="pub-table">
-              <div className="pub-table-head pub-table-head-bygrade">
-                <span>วัน</span>
-                <span>เวลา</span>
-                <span>รหัสวิชา</span>
-                <span>ชื่อวิชา</span>
-                <span>ระดับชั้น</span>
-                <span>เวลา (นาที)</span>
-                <span>ครูผู้ออกข้อสอบ</span>
-              </div>
-              {(rowsByGrade.get(grade) ?? []).map(({ dayLabel, row }, i) => (
-                <div className="pub-table-row pub-table-row-bygrade" key={i}>
-                  <span>{dayLabel}</span>
-                  <span>{row.start.replace(":", ".")}–{row.end.replace(":", ".")}</span>
-                  <span className="pub-code">{row.code}</span>
-                  <span>{row.subjectName}</span>
-                  <span>{row.gradeRooms}</span>
-                  <span>{row.durationMinutes}</span>
-                  <span>{row.teacherName}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );
