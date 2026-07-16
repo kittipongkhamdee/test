@@ -358,9 +358,6 @@
   padding: 8px 17px;
   animation: tform-chip-pop 0.25s ease;
 }
-.tform-chip.dim {
-  opacity: 0.35;
-}
 
 .tform-custom-duration {
   border: 1px solid var(--border-input);

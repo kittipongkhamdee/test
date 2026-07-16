@@ -85,29 +85,19 @@ export default function TeacherForm() {
       .slice(0, 6);
   }, [activeSuggestField, code, subjectName, knownSubjects]);
 
-  function fmtGradeRoom(g: Grade, r: number): string {
-    return `ม.${g}/${r}`;
-  }
-
   function applySuggestion(s: SubjectCatalogEntry) {
     setCode(s.code);
     setSubjectName(s.subjectName);
     setGrade(s.grade);
-    setRoomsSelection(null);
     setActiveSuggestField(null);
   }
 
-  function handleGradeRoomChip(g: Grade, r: number) {
-    if (grade !== g) {
-      setGrade(g);
-      setRoomsSelection([r]);
-    } else {
-      setRoomsSelection((prev) => {
-        const current = Array.isArray(prev) ? prev : [];
-        const next = current.includes(r) ? current.filter((x) => x !== r) : [...current, r].sort((a, b) => a - b);
-        return next.length > 0 ? next : null;
-      });
-    }
+  function toggleRoom(room: number) {
+    setRoomsSelection((prev) => {
+      const current = Array.isArray(prev) ? prev : [];
+      const next = current.includes(room) ? current.filter((r) => r !== room) : [...current, room].sort((a, b) => a - b);
+      return next.length > 0 ? next : null;
+    });
   }
 
   function resetForm() {
@@ -329,27 +319,42 @@ export default function TeacherForm() {
             </div>
 
             <div className="tform-field">
+              <span className="tform-label">ระดับชั้น</span>
+              <div className="tform-chip-row">
+                {gradeOptions.map((opt) => {
+                  const g = Number(opt.value) as Grade;
+                  return (
+                    <button
+                      type="button"
+                      key={opt.id}
+                      className={"tform-chip" + (grade === g ? " selected" : "")}
+                      onClick={() => { setGrade(g); setRoomsSelection(null); }}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="tform-field">
               <span className="tform-label">
-                ระดับชั้น <span className="tform-label-note">(เลือกได้หลายห้องในระดับเดียวกัน)</span>
+                ห้องที่จัดสอบ <span className="tform-label-note">(เลือกได้หลายห้อง)</span>
               </span>
               <div className="tform-chip-row">
-                {gradeOptions.flatMap((gOpt) => {
-                  const g = Number(gOpt.value) as Grade;
-                  return roomOptions.map((rOpt) => {
-                    const r = Number(rOpt.value);
-                    const selected = grade === g && Array.isArray(roomsSelection) && roomsSelection.includes(r);
-                    const dimmed = grade !== null && grade !== g;
-                    return (
-                      <button
-                        type="button"
-                        key={`${g}-${r}`}
-                        className={"tform-chip" + (selected ? " selected" : "") + (dimmed ? " dim" : "")}
-                        onClick={() => handleGradeRoomChip(g, r)}
-                      >
-                        {fmtGradeRoom(g, r)}
-                      </button>
-                    );
-                  });
+                {roomOptions.map((opt) => {
+                  const r = Number(opt.value);
+                  const selected = Array.isArray(roomsSelection) && roomsSelection.includes(r);
+                  return (
+                    <button
+                      type="button"
+                      key={opt.id}
+                      className={"tform-chip" + (selected ? " selected" : "")}
+                      onClick={() => toggleRoom(r)}
+                    >
+                      {opt.label}
+                    </button>
+                  );
                 })}
               </div>
             </div>
@@ -469,9 +474,16 @@ export default function TeacherForm() {
                   </div>
                   <div className="tform-confirm-row">
                     <span className="tform-confirm-label">ระดับชั้น</span>
+                    <span>{grade ? gradeLabel(grade) : "—"}</span>
+                  </div>
+                  <div className="tform-confirm-row">
+                    <span className="tform-confirm-label">ห้องสอบ</span>
                     <span>
-                      {grade && Array.isArray(roomsSelection) && roomsSelection.length > 0
-                        ? roomsSelection.map((r) => fmtGradeRoom(grade, r)).join(", ")
+                      {Array.isArray(roomsSelection) && roomsSelection.length > 0
+                        ? roomsSelection.map((r) => {
+                            const opt = roomOptions.find((o) => Number(o.value) === r);
+                            return opt ? opt.label : `ห้อง ${r}`;
+                          }).join(", ")
                         : "—"}
                     </span>
                   </div>
