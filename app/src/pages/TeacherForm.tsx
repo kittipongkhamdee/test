@@ -12,7 +12,7 @@ function statusLabel(status: SubmissionStatus): { text: string; className: strin
   return { text: "รอจัดตาราง", className: "badge-orange" };
 }
 
-type RoomsSelection = number[] | "all" | null;
+type RoomsSelection = number[] | null;
 
 function dedupeCatalog(catalog: SubjectCatalogEntry[]): SubjectCatalogEntry[] {
   const seen = new Map<string, SubjectCatalogEntry>();
@@ -114,7 +114,7 @@ export default function TeacherForm() {
   }
 
   const finalDuration = duration ?? Number(customDuration);
-  const isRoomsValid = roomsSelection === "all" || (Array.isArray(roomsSelection) && roomsSelection.length > 0);
+  const isRoomsValid = Array.isArray(roomsSelection) && roomsSelection.length > 0;
   const isComplete = selfScheduled
     ? !!teacherName.trim()
     : !!teacherName.trim() && !!code.trim() && !!subjectName.trim() && !!grade && isRoomsValid && finalDuration > 0 && !!preference;
@@ -143,7 +143,7 @@ export default function TeacherForm() {
         subjectName: selfScheduled ? "จัดสอบเอง" : subjectName.trim(),
         teacherName: teacherName.trim(),
         grade: selfScheduled ? 1 : grade!,
-        rooms: selfScheduled ? [] : (roomsSelection === "all" ? [] : (roomsSelection ?? [])),
+        rooms: selfScheduled ? [] : (roomsSelection ?? []),
         durationMinutes: selfScheduled ? 60 : finalDuration,
         morningPreference: selfScheduled ? "none" : (preference ?? "none"),
         selfScheduled,
@@ -339,16 +339,9 @@ export default function TeacherForm() {
 
             <div className="tform-field">
               <span className="tform-label">
-                ห้องที่จัดสอบ <span className="tform-label-note">(เลือกได้หลายห้อง หรือเลือก "ทุกห้อง")</span>
+                ห้องที่จัดสอบ <span className="tform-label-note">(เลือกได้หลายห้อง)</span>
               </span>
               <div className="tform-chip-row">
-                <button
-                  type="button"
-                  className={"tform-chip" + (roomsSelection === "all" ? " selected" : "")}
-                  onClick={() => setRoomsSelection("all")}
-                >
-                  ทุกห้อง
-                </button>
                 {roomOptions.map((opt) => {
                   const r = Number(opt.value);
                   const selected = Array.isArray(roomsSelection) && roomsSelection.includes(r);
@@ -486,14 +479,12 @@ export default function TeacherForm() {
                   <div className="tform-confirm-row">
                     <span className="tform-confirm-label">ห้องสอบ</span>
                     <span>
-                      {roomsSelection === "all"
-                        ? "ทุกห้อง"
-                        : Array.isArray(roomsSelection)
-                          ? roomsSelection.map((r) => {
-                              const opt = roomOptions.find((o) => Number(o.value) === r);
-                              return opt ? opt.label : `ห้อง ${r}`;
-                            }).join(", ")
-                          : "—"}
+                      {Array.isArray(roomsSelection) && roomsSelection.length > 0
+                        ? roomsSelection.map((r) => {
+                            const opt = roomOptions.find((o) => Number(o.value) === r);
+                            return opt ? opt.label : `ห้อง ${r}`;
+                          }).join(", ")
+                        : "—"}
                     </span>
                   </div>
                   <div className="tform-confirm-row">
