@@ -421,7 +421,7 @@
   white-space: nowrap;
 }
 
-@media (max-width: 899px) {
+@media screen and (max-width: 899px) {
   .subs-page {
     height: auto;
   }

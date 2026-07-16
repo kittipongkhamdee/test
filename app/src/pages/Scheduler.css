@@ -537,7 +537,7 @@
   display: none;
 }
 
-@media (max-width: 899px) {
+@media screen and (max-width: 899px) {
   .sched-page {
     height: auto;
   }
@@ -1043,7 +1043,7 @@
 }
 
 /* ================= Medium desktop (900–1199px): narrow tray ================= */
-@media (min-width: 900px) and (max-width: 1199px) {
+@media screen and (min-width: 900px) and (max-width: 1199px) {
   .sched-tray {
     width: 180px;
   }
