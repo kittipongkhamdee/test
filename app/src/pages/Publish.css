@@ -82,7 +82,7 @@
 .pub-table-head,
 .pub-table-row {
   display: grid;
-  grid-template-columns: 120px 90px minmax(130px, 1fr) 90px 120px 140px;
+  grid-template-columns: 120px 90px minmax(130px, 1fr) 140px 80px 140px;
   gap: 4px;
 }
 .pub-table-head span {
@@ -168,8 +168,8 @@
   }
   .pub-table-head,
   .pub-table-row {
-    min-width: 690px;
-    grid-template-columns: 100px 75px minmax(130px, 1fr) 75px 110px 120px;
+    min-width: 710px;
+    grid-template-columns: 100px 75px minmax(130px, 1fr) 120px 70px 120px;
   }
 }
 
@@ -189,7 +189,7 @@
   /* บังคับ full layout ตอนพิมพ์ */
   .pub-table-head,
   .pub-table-row {
-    grid-template-columns: 110px 80px 1fr 80px 110px 130px !important;
+    grid-template-columns: 110px 80px 1fr 130px 70px 130px !important;
     min-width: 0 !important;
   }
   .pub-table-head span,

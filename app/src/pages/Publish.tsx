@@ -19,13 +19,14 @@ interface PrintRow {
   code: string;
   subjectName: string;
   grade: Grade;
-  rooms: string;
+  gradeRooms: string;
+  durationMinutes: number;
   teacherName: string;
 }
 
-function formatRooms(rooms: number[]): string {
-  if (rooms.length === 0) return "ทุกห้อง";
-  return rooms.join(", ");
+function fmtGradeRooms(grade: Grade, rooms: number[]): string {
+  if (rooms.length === 0) return gradeLabel(grade);
+  return rooms.map((r) => `ม.${grade}/${r}`).join(", ");
 }
 
 export default function Publish() {
@@ -62,7 +63,8 @@ export default function Publish() {
               code: item.code,
               subjectName: item.subjectName,
               grade,
-              rooms: formatRooms(item.rooms),
+              gradeRooms: fmtGradeRooms(grade, item.rooms),
+              durationMinutes: item.durationMinutes,
               teacherName: item.teacherName,
             });
           });
@@ -110,19 +112,19 @@ export default function Publish() {
 
       const rows = rowsByDay[day];
       const data = [
-        ["เวลา", "รหัสวิชา", "ชื่อวิชา", "ระดับชั้น", "ห้องสอบ", "ครูผู้ออกข้อสอบ"],
+        ["เวลา", "รหัสวิชา", "ชื่อวิชา", "ระดับชั้น", "เวลา (นาที)", "ครูผู้ออกข้อสอบ"],
         ...rows.map((r) => [
           `${r.start}–${r.end}`,
           r.code,
           r.subjectName,
-          gradeLabel(r.grade),
-          r.rooms,
+          r.gradeRooms,
+          r.durationMinutes,
           r.teacherName,
         ]),
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(data);
-      ws["!cols"] = [{ wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 10 }, { wch: 12 }, { wch: 22 }];
+      ws["!cols"] = [{ wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 14 }, { wch: 11 }, { wch: 22 }];
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
     }
 
@@ -186,7 +188,7 @@ export default function Publish() {
                   <span>รหัสวิชา</span>
                   <span>ชื่อวิชา</span>
                   <span>ระดับชั้น</span>
-                  <span>ห้องสอบ</span>
+                  <span>เวลา (นาที)</span>
                   <span>ครูผู้ออกข้อสอบ</span>
                 </div>
                 {filteredByDay[day].map((row, i) => (
@@ -196,8 +198,8 @@ export default function Publish() {
                     </span>
                     <span className="pub-code">{row.code}</span>
                     <span>{row.subjectName}</span>
-                    <span>{gradeLabel(row.grade)}</span>
-                    <span>{row.rooms}</span>
+                    <span>{row.gradeRooms}</span>
+                    <span>{row.durationMinutes}</span>
                     <span>{row.teacherName}</span>
                   </div>
                 ))}
