@@ -52,7 +52,7 @@ body {
   margin: 0;
   background: var(--bg-app);
   color: var(--text-strong);
-  font-family: "IBM Plex Sans Thai", sans-serif;
+  font-family: "Sarabun", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { useStore, useSubmissions } from "../data/store";
 import { computeCellTimes } from "../data/scheduling";
@@ -33,6 +33,8 @@ export default function Publish() {
   const { state } = useStore();
   const submissions = useSubmissions();
   const [gradeFilter, setGradeFilter] = useState<Grade | null>(null);
+  const [printByGrade, setPrintByGrade] = useState(false);
+  const printByGradeTriggered = useRef(false);
 
   const days = useMemo(
     () => [...new Set(state.slots.map((s) => s.day))].sort((a, b) => a - b),
@@ -79,6 +81,19 @@ export default function Publish() {
     return byDay;
   }, [submissions, state.slots, days]);
 
+  const rowsByGrade = useMemo(() => {
+    const byGrade = new Map<Grade, Array<{ dayLabel: string; row: PrintRow }>>();
+    for (const day of days) {
+      const slot = state.slots.find((s) => s.day === day);
+      const label = dayTitle(slot?.examDate, day);
+      for (const row of rowsByDay[day] ?? []) {
+        if (!byGrade.has(row.grade)) byGrade.set(row.grade, []);
+        byGrade.get(row.grade)!.push({ dayLabel: label, row });
+      }
+    }
+    return byGrade;
+  }, [rowsByDay, days, state.slots]);
+
   const availableGrades = useMemo(() => {
     const grades = new Set<Grade>();
     for (const day of days) {
@@ -96,8 +111,24 @@ export default function Publish() {
     return result;
   }, [rowsByDay, gradeFilter, days]);
 
+  useEffect(() => {
+    if (!printByGrade || printByGradeTriggered.current) return;
+    printByGradeTriggered.current = true;
+    const handler = () => {
+      setPrintByGrade(false);
+      printByGradeTriggered.current = false;
+    };
+    window.addEventListener("afterprint", handler, { once: true });
+    window.print();
+    return () => window.removeEventListener("afterprint", handler);
+  }, [printByGrade]);
+
   function handlePrint() {
     window.print();
+  }
+
+  function handlePrintByGrade() {
+    setPrintByGrade(true);
   }
 
   function handleExportExcel() {
@@ -174,7 +205,7 @@ export default function Publish() {
   const slotsByDay = (day: ExamDay): ExamSlotMeta | undefined => state.slots.find((s) => s.day === day);
 
   return (
-    <div className="pub-page">
+    <div className={`pub-page${printByGrade ? " pub-by-grade-mode" : ""}`}>
       <div className="page-header no-print">
         <div>
           <h1>ตารางสอบเผยแพร่</h1>
@@ -186,6 +217,9 @@ export default function Publish() {
           </button>
           <button className="btn btn-ghost" onClick={handleExportExcelByGrade}>
             📊 Excel (รายชั้น)
+          </button>
+          <button className="btn btn-ghost" onClick={handlePrintByGrade}>
+            🖨 พิมพ์รายชั้น
           </button>
           <button className="btn btn-primary" onClick={handlePrint}>
             🖨 พิมพ์ / บันทึก PDF
@@ -252,6 +286,40 @@ export default function Publish() {
           ))}
 
         </div>
+      </div>
+
+      {/* by-grade print layout — hidden in screen, shown in print via pub-by-grade-mode */}
+      <div className="pub-print-grade-wrap">
+        {[...rowsByGrade.keys()].sort((a, b) => a - b).map((grade, idx, arr) => (
+          <div className={`pub-grade-print-page${idx < arr.length - 1 ? " pub-grade-page-break" : ""}`} key={grade}>
+            <div className="pub-sheet-title" style={{ textAlign: "center", marginBottom: 16 }}>
+              <div className="pub-sheet-h1">ตาราง{examTitle}</div>
+              <div className="pub-sheet-h2">{schoolName} — {gradeLabel(grade)}</div>
+            </div>
+            <div className="pub-table">
+              <div className="pub-table-head pub-table-head-bygrade">
+                <span>วัน</span>
+                <span>เวลา</span>
+                <span>รหัสวิชา</span>
+                <span>ชื่อวิชา</span>
+                <span>ระดับชั้น</span>
+                <span>เวลา (นาที)</span>
+                <span>ครูผู้ออกข้อสอบ</span>
+              </div>
+              {(rowsByGrade.get(grade) ?? []).map(({ dayLabel, row }, i) => (
+                <div className="pub-table-row pub-table-row-bygrade" key={i}>
+                  <span>{dayLabel}</span>
+                  <span>{row.start.replace(":", ".")}–{row.end.replace(":", ".")}</span>
+                  <span className="pub-code">{row.code}</span>
+                  <span>{row.subjectName}</span>
+                  <span>{row.gradeRooms}</span>
+                  <span>{row.durationMinutes}</span>
+                  <span>{row.teacherName}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
