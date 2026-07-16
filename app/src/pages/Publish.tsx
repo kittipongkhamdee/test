@@ -131,6 +131,44 @@ export default function Publish() {
     XLSX.writeFile(wb, `${examTitle}.xlsx`);
   }
 
+  function handleExportExcelByGrade() {
+    const examTitle = state.round?.name ?? "ตารางสอบ";
+    const wb = XLSX.utils.book_new();
+
+    const byGrade = new Map<Grade, Array<{ dayLabel: string; row: PrintRow }>>();
+    for (const day of days) {
+      const slot = state.slots.find((s) => s.day === day);
+      const label = slot?.examDate
+        ? new Date(slot.examDate).toLocaleDateString("th-TH", { day: "numeric", month: "short" })
+        : `วันที่ ${day}`;
+      for (const row of rowsByDay[day] ?? []) {
+        if (!byGrade.has(row.grade)) byGrade.set(row.grade, []);
+        byGrade.get(row.grade)!.push({ dayLabel: label, row });
+      }
+    }
+
+    for (const grade of [...byGrade.keys()].sort((a, b) => a - b)) {
+      const entries = byGrade.get(grade)!;
+      const data = [
+        ["วัน", "เวลา", "รหัสวิชา", "ชื่อวิชา", "ระดับชั้น", "เวลา (นาที)", "ครูผู้ออกข้อสอบ"],
+        ...entries.map(({ dayLabel, row }) => [
+          dayLabel,
+          `${row.start}–${row.end}`,
+          row.code,
+          row.subjectName,
+          row.gradeRooms,
+          row.durationMinutes,
+          row.teacherName,
+        ]),
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      ws["!cols"] = [{ wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 14 }, { wch: 11 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, ws, gradeLabel(grade));
+    }
+
+    XLSX.writeFile(wb, `${examTitle}_รายชั้น.xlsx`);
+  }
+
   const examTitle = state.round?.name ?? "";
   const schoolName = state.school?.schoolName ?? "";
   const slotsByDay = (day: ExamDay): ExamSlotMeta | undefined => state.slots.find((s) => s.day === day);
@@ -144,7 +182,10 @@ export default function Publish() {
         </div>
         <div className="pub-header-actions">
           <button className="btn btn-ghost" onClick={handleExportExcel}>
-            📊 ส่งออก Excel
+            📊 Excel (รายวัน)
+          </button>
+          <button className="btn btn-ghost" onClick={handleExportExcelByGrade}>
+            📊 Excel (รายชั้น)
           </button>
           <button className="btn btn-primary" onClick={handlePrint}>
             🖨 พิมพ์ / บันทึก PDF
