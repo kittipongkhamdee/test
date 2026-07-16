@@ -172,6 +172,48 @@
   }
 }
 
+/* ---------- Small phones: 2×2 button grid ---------- */
+@media (max-width: 599px) {
+  .pub-header-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    gap: 8px;
+  }
+  .pub-header-actions .btn {
+    justify-content: center;
+    font-size: 12px;
+    padding: 9px 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pub-header-actions {
+    grid-template-columns: 1fr;
+  }
+  .pub-sheet {
+    padding: 14px 8px;
+  }
+  .pub-sheet-h1 {
+    font-size: 16px;
+  }
+  .pub-sheet-h2 {
+    font-size: 12px;
+  }
+  .pub-grade-filter {
+    gap: 6px;
+  }
+  .pub-grade-chip {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+  .pub-footer {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+}
+
 /* ---------- Print by grade ---------- */
 .pub-print-grade-wrap {
   display: none;

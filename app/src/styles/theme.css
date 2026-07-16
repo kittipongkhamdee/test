@@ -156,3 +156,16 @@ a:hover {
   color: var(--text-muted);
   margin-top: 2px;
 }
+
+@media (max-width: 480px) {
+  .page-header h1 {
+    font-size: 18px;
+  }
+  .page-header .page-subtitle {
+    font-size: 12px;
+  }
+  .btn {
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+}
