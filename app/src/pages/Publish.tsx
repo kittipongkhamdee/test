@@ -290,80 +290,94 @@ ${bodyHTML}
     }).join("");
   }
 
-  async function generatePDF(bodyHTML: string, filename: string) {
-    const [{ jsPDF }, { default: html2canvas }] = await Promise.all([
-      import("jspdf"),
-      import("html2canvas"),
-    ]);
+  async function canvasToPDF(canvas: HTMLCanvasElement, filename: string) {
+    const { jsPDF } = await import("jspdf");
+    const marginMm = 12;
+    const contentW = 210 - marginMm * 2;
+    const contentH = 297 - marginMm * 2;
+    const mmPerPx = contentW / canvas.width;
+    const totalH = canvas.height * mmPerPx;
+    const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
 
-    const host = document.createElement("div");
-    Object.assign(host.style, {
-      position: "fixed" as const,
-      top: "-10000px",
-      left: "0",
-      width: "794px",
-      background: "white",
-      boxSizing: "border-box",
-      padding: "45px 57px",
-    });
-
-    const styleEl = document.createElement("style");
-    styleEl.textContent = PRINT_CSS;
-    host.appendChild(styleEl);
-
-    const content = document.createElement("div");
-    content.innerHTML = bodyHTML;
-    host.appendChild(content);
-    document.body.appendChild(host);
-
-    try {
-      const canvas = await html2canvas(host, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        windowWidth: 794,
-      });
-
-      document.body.removeChild(host);
-
-      const marginMm = 12;
-      const pageW = 210;
-      const pageH = 297;
-      const contentW = pageW - marginMm * 2;
-      const contentH = pageH - marginMm * 2;
-      const mmPerPx = contentW / canvas.width;
-      const totalHeightMm = canvas.height * mmPerPx;
-
-      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-
-      if (totalHeightMm <= contentH) {
-        pdf.addImage(canvas.toDataURL("image/png"), "PNG", marginMm, marginMm, contentW, totalHeightMm);
-      } else {
-        const pxPerMm = canvas.width / contentW;
-        const slicePx = Math.floor(contentH * pxPerMm);
-        let srcY = 0;
-        let firstPage = true;
-        while (srcY < canvas.height) {
-          const h = Math.min(slicePx, canvas.height - srcY);
-          const slice = document.createElement("canvas");
-          slice.width = canvas.width;
-          slice.height = h;
-          const ctx = slice.getContext("2d")!;
-          ctx.fillStyle = "#fff";
-          ctx.fillRect(0, 0, slice.width, h);
-          ctx.drawImage(canvas, 0, srcY, canvas.width, h, 0, 0, canvas.width, h);
-          if (!firstPage) pdf.addPage();
-          pdf.addImage(slice.toDataURL("image/png"), "PNG", marginMm, marginMm, contentW, h * mmPerPx);
-          srcY += h;
-          firstPage = false;
-        }
+    if (totalH <= contentH) {
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", marginMm, marginMm, contentW, totalH);
+    } else {
+      const slicePx = Math.floor(contentH / mmPerPx);
+      let srcY = 0;
+      let first = true;
+      while (srcY < canvas.height) {
+        const h = Math.min(slicePx, canvas.height - srcY);
+        const slice = document.createElement("canvas");
+        slice.width = canvas.width;
+        slice.height = h;
+        const ctx = slice.getContext("2d")!;
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, slice.width, h);
+        ctx.drawImage(canvas, 0, srcY, canvas.width, h, 0, 0, canvas.width, h);
+        if (!first) pdf.addPage();
+        pdf.addImage(slice.toDataURL("image/png"), "PNG", marginMm, marginMm, contentW, h * mmPerPx);
+        srcY += h;
+        first = false;
       }
-
-      pdf.save(`${filename}.pdf`);
-    } catch {
-      document.body.removeChild(host);
-      openPrintPopup(bodyHTML);
     }
+    pdf.save(`${filename}.pdf`);
+  }
+
+  // Captures the on-screen .pub-sheet element exactly as displayed
+  function handleExportPDF() {
+    const sheetEl = document.querySelector<HTMLElement>(".pub-sheet");
+    if (!sheetEl) { openPrintPopup(buildPrintHTML()); return; }
+    void (async () => {
+      try {
+        const { default: html2canvas } = await import("html2canvas");
+        const canvas = await html2canvas(sheetEl, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+        });
+        await canvasToPDF(canvas, examTitle || "ตารางสอบ");
+      } catch {
+        openPrintPopup(buildPrintHTML());
+      }
+    })();
+  }
+
+  // By-grade renders each grade page into an off-screen container
+  function handleExportPDFByGrade() {
+    void (async () => {
+      try {
+        const [{ default: html2canvas }] = await Promise.all([import("html2canvas")]);
+
+        const host = document.createElement("div");
+        Object.assign(host.style, {
+          position: "fixed" as const,
+          top: "-10000px",
+          left: "0",
+          width: "794px",
+          background: "white",
+          boxSizing: "border-box",
+          padding: "32px 48px",
+        });
+        const styleEl = document.createElement("style");
+        styleEl.textContent = PRINT_CSS;
+        host.appendChild(styleEl);
+        const content = document.createElement("div");
+        content.innerHTML = buildPrintByGradeHTML();
+        host.appendChild(content);
+        document.body.appendChild(host);
+
+        const canvas = await html2canvas(host, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          windowWidth: 794,
+        });
+        document.body.removeChild(host);
+        await canvasToPDF(canvas, (examTitle || "ตารางสอบ") + "_รายชั้น");
+      } catch {
+        openPrintPopup(buildPrintByGradeHTML());
+      }
+    })();
   }
 
   function handlePrint() {
@@ -372,14 +386,6 @@ ${bodyHTML}
 
   function handlePrintByGrade() {
     openPrintPopup(buildPrintByGradeHTML());
-  }
-
-  function handleExportPDF() {
-    void generatePDF(buildPrintHTML(), examTitle || "ตารางสอบ");
-  }
-
-  function handleExportPDFByGrade() {
-    void generatePDF(buildPrintByGradeHTML(), (examTitle || "ตารางสอบ") + "_รายชั้น");
   }
 
   function handleExportExcel() {
