@@ -426,3 +426,30 @@
     padding: 18px 16px;
   }
 }
+
+@media (max-width: 480px) {
+  .exup-form-card,
+  .exup-list-card {
+    padding: 14px 12px;
+  }
+  .exup-dropzone {
+    padding: 20px 16px;
+  }
+  .exup-dropzone-icon {
+    font-size: 22px;
+  }
+  .exup-dropzone-hint {
+    font-size: 13px;
+  }
+  .exup-select {
+    font-size: 16px;
+  }
+  .exup-form-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+  .exup-form-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

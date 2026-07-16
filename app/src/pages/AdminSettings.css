@@ -375,6 +375,28 @@
   }
 }
 
+@media (max-width: 480px) {
+  .admin-settings-card {
+    padding: 14px 14px;
+  }
+  .admin-opt-card {
+    padding: 14px 14px;
+  }
+  .admin-opt-section-title {
+    font-size: 15px;
+  }
+  .admin-menu-toggle-card {
+    padding: 14px 14px;
+  }
+  .admin-menu-toggle-label {
+    font-size: 13px;
+  }
+  .admin-unlock-card {
+    max-width: 100%;
+    padding: 20px 16px;
+  }
+}
+
 /* ---------- Dynamic exam days ---------- */
 .admin-exam-days {
   display: flex;

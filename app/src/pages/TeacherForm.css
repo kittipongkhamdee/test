@@ -453,3 +453,36 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 480px) {
+  .tform-card {
+    padding: 14px 12px;
+    gap: 18px;
+  }
+  .tform-title {
+    font-size: 17px;
+  }
+  .tform-input,
+  .tform-custom-duration {
+    font-size: 16px;
+    padding: 10px 12px;
+  }
+  .tform-select {
+    font-size: 16px;
+  }
+  .tform-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+  .tform-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .tform-chip {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+  .tform-chip.selected {
+    padding: 7px 13px;
+  }
+}

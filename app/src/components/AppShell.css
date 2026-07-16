@@ -210,6 +210,13 @@
   display: none;
 }
 
+/* ================= Medium desktop (900–1199px) ================= */
+@media (min-width: 900px) and (max-width: 1199px) {
+  .shell-main {
+    padding: 20px 24px;
+  }
+}
+
 /* ================= Mobile layout ================= */
 @media (max-width: 899px) {
   .shell {
@@ -316,5 +323,18 @@
 
   .shell-bottomnav-icon {
     font-size: 17px;
+  }
+}
+
+/* ================= Very small phones (≤480px) ================= */
+@media (max-width: 480px) {
+  .shell-main {
+    padding: 10px 12px 84px;
+  }
+  .shell-mobile-topbar {
+    padding: 8px 12px 10px;
+  }
+  .shell-mobile-title-main {
+    font-size: 14px;
   }
 }

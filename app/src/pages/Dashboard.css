@@ -540,3 +540,92 @@
     padding-top: 8px;
   }
 }
+
+@media (min-width: 481px) and (max-width: 599px) {
+  .dash-hero {
+    padding: 22px 18px;
+  }
+  .dash-hero-title {
+    font-size: 20px;
+  }
+  .dash-hero-num {
+    font-size: 24px;
+  }
+  .dash-hero-stats {
+    gap: 20px;
+  }
+  .dash-countdown-num {
+    font-size: 22px;
+    min-width: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dash {
+    gap: 14px;
+  }
+  .dash-hero {
+    padding: 16px 14px;
+    gap: 12px;
+    border-radius: var(--radius-md);
+  }
+  .dash-hero-title {
+    font-size: 17px;
+  }
+  .dash-hero-sub {
+    font-size: 12px;
+  }
+  .dash-hero-stats {
+    gap: 14px;
+    width: 100%;
+    justify-content: space-around;
+  }
+  .dash-hero-num {
+    font-size: 20px;
+  }
+  .dash-hero-num span {
+    font-size: 12px;
+  }
+  .dash-hero-label {
+    font-size: 10px;
+  }
+  .dash-countdown {
+    gap: 4px;
+    margin-top: 8px;
+  }
+  .dash-countdown-num {
+    font-size: 18px;
+    min-width: 32px;
+    padding: 3px 5px;
+  }
+  .dash-countdown-colon {
+    font-size: 15px;
+    margin-bottom: 12px;
+  }
+  .dash-countdown-unit {
+    font-size: 9px;
+  }
+  .dash-stat-grid {
+    gap: 10px;
+  }
+  .dash-stat {
+    padding: 12px 12px;
+  }
+  .dash-stat-value {
+    font-size: 24px;
+  }
+  .dash-stat-label {
+    font-size: 12px;
+  }
+  .dash-not-submitted,
+  .dash-self-sched,
+  .dash-schedule-card,
+  .dash-recent,
+  .dash-progress {
+    padding: 14px 14px;
+  }
+  .dash-survey-btn {
+    font-size: 13px;
+    padding: 10px 16px;
+  }
+}

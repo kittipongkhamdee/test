@@ -1041,3 +1041,30 @@
     font-size: 10px;
   }
 }
+
+/* ================= Medium desktop (900–1199px): narrow tray ================= */
+@media (min-width: 900px) and (max-width: 1199px) {
+  .sched-tray {
+    width: 180px;
+  }
+  .sched-tray-head {
+    padding: 12px 12px;
+  }
+  .sched-tray-search {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+  .sched-tray-item {
+    padding: 8px 10px;
+    gap: 7px;
+  }
+  .sched-tray-item-title {
+    font-size: 12px;
+  }
+  .sched-timeline-panels {
+    min-width: 560px;
+  }
+  .sched-tl-grade-name {
+    width: 48px;
+  }
+}

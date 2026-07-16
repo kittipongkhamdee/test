@@ -204,6 +204,14 @@ export default function Publish() {
   const schoolName = state.school?.schoolName ?? "";
   const slotsByDay = (day: ExamDay): ExamSlotMeta | undefined => state.slots.find((s) => s.day === day);
 
+  function fullGradeLabel(grade: Grade): string {
+    return `ชั้นมัธยมศึกษาปีที่ ${grade}`;
+  }
+
+  const sheetSubtitle = gradeFilter != null
+    ? `${schoolName} — ${fullGradeLabel(gradeFilter)}`
+    : schoolName;
+
   return (
     <div className={`pub-page${printByGrade ? " pub-by-grade-mode" : ""}`}>
       <div className="page-header no-print">
@@ -251,7 +259,7 @@ export default function Publish() {
         <div className="pub-sheet card">
           <div className="pub-sheet-title">
             <div className="pub-sheet-h1">ตาราง{examTitle}</div>
-            <div className="pub-sheet-h2">{schoolName}</div>
+            <div className="pub-sheet-h2">{sheetSubtitle}</div>
           </div>
 
           {days.map((day) => (
