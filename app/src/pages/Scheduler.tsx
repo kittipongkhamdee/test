@@ -4,6 +4,7 @@ import { useCellItems, useSubmissions, useStore, type AutoScheduleRules } from "
 import { computeCellTimes, timeToMinutes, minutesToTime } from "../data/scheduling";
 import type { ExamDay, ExamSession, ExamSlotMeta, Grade, Submission } from "../data/types";
 import { GRADES, cellKey, gradeLabel } from "../data/mockData";
+import { escHtml, openPrintPopup } from "../lib/printPopup";
 import "./Scheduler.css";
 
 const SESSIONS: ExamSession[] = ["morning", "afternoon"];
@@ -16,6 +17,30 @@ function dayLabel(slot: ExamSlotMeta | undefined, day: ExamDay): string {
 function subjectChipLabel(s: Submission): string {
   return `${s.code} · ${gradeLabel(s.grade)}`;
 }
+
+const SCHED_PRINT_CSS = `
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Sarabun', 'Noto Sans Thai', 'Segoe UI', Arial, sans-serif;
+  font-size: 12px;
+  color: #1a1a2e;
+  line-height: 1.4;
+}
+@page { size: A4 landscape; margin: 12mm; }
+.sched-print-header { text-align: center; margin-bottom: 12px; }
+.sched-print-title { font-size: 18px; font-weight: 700; color: #000; }
+.sched-print-sub { font-size: 13px; color: #555; margin-top: 2px; }
+.sched-print-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.sched-print-table th,
+.sched-print-table td { border: 1px solid #ccc; padding: 6px 8px; vertical-align: top; }
+.sched-print-table thead th { background: #e8eef8; font-weight: 700; text-align: center; font-size: 12px; }
+.sched-print-rowhead { background: #f5f7fc; font-weight: 700; white-space: nowrap; min-width: 80px; }
+.sched-print-time { font-weight: 400; font-size: 10px; color: #666; margin-top: 2px; }
+.sched-print-cell { min-width: 90px; }
+.sched-print-chip { background: #eef3ff; border-radius: 4px; padding: 4px 6px; margin-bottom: 4px; font-size: 10px; display: flex; flex-direction: column; gap: 1px; }
+.sched-print-chip b { font-size: 11px; color: #1a3a6b; }
+.sched-print-chip-time { color: #555; font-size: 10px; }
+`;
 
 export default function Scheduler() {
   const { state, dispatch, isAdmin, pushUndoSnapshot, undoSchedule, canUndo } = useStore();
@@ -128,6 +153,50 @@ export default function Scheduler() {
     showToast("บันทึกและเผยแพร่ตารางสอบเรียบร้อยแล้ว");
   }
 
+  function buildSchedPrintHTML(): string {
+    const headHtml = `<th>วัน / เวลา</th>` + GRADES.map((g) => `<th>${escHtml(gradeLabel(g))}</th>`).join("");
+
+    const rowsHtml = days.flatMap((day) =>
+      SESSIONS.map((session) => {
+        const slot = state.slots.find((s) => s.day === day && s.session === session);
+        const cellsHtml = GRADES.map((g) => {
+          const ids = state.cellOrder[cellKey(g, day, session)] ?? [];
+          const items = ids.map((id) => state.submissions[id]).filter(Boolean);
+          const times = computeCellTimes(items, slot?.start ?? "08:30", state.round?.gapMinutes ?? 15);
+          const chipsHtml = items
+            .map((item, i) => {
+              const t = times[i];
+              return (
+                `<div class="sched-print-chip"><b>${escHtml(item.code)}</b><span>${escHtml(item.subjectName)}</span>` +
+                (t ? `<span class="sched-print-chip-time">${escHtml(t.start.replace(":", "."))}–${escHtml(t.end.replace(":", "."))}</span>` : "") +
+                `</div>`
+              );
+            })
+            .join("");
+          return `<td class="sched-print-cell">${chipsHtml}</td>`;
+        }).join("");
+        return (
+          `<tr><td class="sched-print-rowhead"><div>${escHtml(dayLabel(slot, day))}</div>` +
+          `<div class="sched-print-time">${session === "morning" ? "เช้า" : "บ่าย"} ${slot ? escHtml(`${slot.start.replace(":", ".")}–${slot.end.replace(":", ".")}`) : ""}</div></td>` +
+          cellsHtml +
+          `</tr>`
+        );
+      }),
+    ).join("");
+
+    return (
+      `<div class="sched-print-header">` +
+      `<div class="sched-print-title">${escHtml(state.school?.schoolName ?? "ตารางสอบ")}</div>` +
+      `<div class="sched-print-sub">${escHtml(state.round?.name ?? "")}</div>` +
+      `</div>` +
+      `<table class="sched-print-table"><thead><tr>${headHtml}</tr></thead><tbody>${rowsHtml}</tbody></table>`
+    );
+  }
+
+  function handlePrint() {
+    openPrintPopup(SCHED_PRINT_CSS, buildSchedPrintHTML());
+  }
+
   function handleDropOnCell(e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession, index?: number) {
     e.preventDefault();
     if (!requireAdmin()) return;
@@ -171,7 +240,7 @@ export default function Scheduler() {
           >
             ↩ ย้อนกลับ
           </button>
-          <button className="btn btn-ghost" onClick={() => window.print()} title="พิมพ์ตารางสอบ">
+          <button className="btn btn-ghost" onClick={handlePrint} title="พิมพ์ตารางสอบ">
             🖨 พิมพ์
           </button>
           <div className="sched-auto-wrap">

@@ -4,6 +4,7 @@ import { useStore, useSubmissions } from "../data/store";
 import { computeCellTimes } from "../data/scheduling";
 import type { ExamDay, ExamSession, ExamSlotMeta, Grade } from "../data/types";
 import { gradeLabel } from "../data/mockData";
+import { escHtml, openPrintPopup } from "../lib/printPopup";
 import "./Publish.css";
 
 const SESSIONS: ExamSession[] = ["morning", "afternoon"];
@@ -27,14 +28,6 @@ interface PrintRow {
 function fmtGradeRooms(grade: Grade, rooms: number[]): string {
   if (rooms.length === 0) return gradeLabel(grade);
   return rooms.map((r) => `ม.${grade}/${r}`).join(", ");
-}
-
-function escHtml(val: string | number): string {
-  return String(val)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 const PRINT_CSS = `
@@ -188,41 +181,6 @@ export default function Publish() {
     ? `${schoolName} — ${fullGradeLabel(gradeFilter)}`
     : schoolName;
 
-  function openPrintPopup(bodyHTML: string) {
-    const html = `<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
-<style>${PRINT_CSS}</style>
-</head>
-<body>
-${bodyHTML}
-<script>
-(function(){
-  var done=false;
-  function doPrint(){
-    if(done)return;done=true;
-    window.addEventListener('afterprint',function(){window.close();},{once:true});
-    window.print();
-  }
-  if(document.fonts&&document.fonts.ready){
-    document.fonts.ready.then(function(){setTimeout(doPrint,100);});
-  } else {
-    window.addEventListener('load',function(){setTimeout(doPrint,400);});
-  }
-})();
-</` + `script>
-</body>
-</html>`;
-    const win = window.open("", "_blank");
-    if (!win) { window.print(); return; }
-    win.document.write(html);
-    win.document.close();
-  }
-
   function buildPrintHTML(): string {
     const dayHtml = days.map((day) => {
       const rows = filteredByDay[day];
@@ -291,11 +249,11 @@ ${bodyHTML}
   }
 
   function handlePrint() {
-    openPrintPopup(buildPrintHTML());
+    openPrintPopup(PRINT_CSS, buildPrintHTML());
   }
 
   function handlePrintByGrade() {
-    openPrintPopup(buildPrintByGradeHTML());
+    openPrintPopup(PRINT_CSS, buildPrintByGradeHTML());
   }
 
   function handleExportExcel() {

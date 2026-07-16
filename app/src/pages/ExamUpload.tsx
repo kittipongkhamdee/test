@@ -41,6 +41,7 @@ export default function ExamUpload() {
   // ---- list state ----
   const [rows, setRows] = useState<ExamUploadRow[]>([]);
   const [loadingList, setLoadingList] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
 
   // ---- derived ----
   const uniqueTeachers = useMemo(() => {
@@ -64,10 +65,16 @@ export default function ExamUpload() {
   // ---- load list ----
   const loadList = useCallback(async () => {
     setLoadingList(true);
-    const { data } = await supabase
+    setListError(null);
+    const { data, error } = await supabase
       .from("exam_uploads")
       .select("*")
       .order("created_at", { ascending: false });
+    if (error) {
+      setListError(error.message);
+      setLoadingList(false);
+      return;
+    }
     setRows((data as ExamUploadRow[]) ?? []);
     setLoadingList(false);
   }, []);
@@ -75,9 +82,12 @@ export default function ExamUpload() {
   useEffect(() => { loadList(); }, [loadList]);
 
   // ---- file handling ----
+  const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
   function handleFileChange(f: File | null) {
     if (!f) return;
     if (f.type !== "application/pdf") { setUploadError("รองรับเฉพาะไฟล์ PDF เท่านั้น"); return; }
+    if (f.size > MAX_FILE_SIZE) { setUploadError("ไฟล์มีขนาดใหญ่เกิน 50 MB"); return; }
     setFile(f);
     setUploadError(null);
     setUploadSuccess(false);
@@ -187,19 +197,22 @@ export default function ExamUpload() {
     if (!isAdmin) return;
     if (!window.confirm(`ลบไฟล์ "${row.file_name}" ออกจากระบบใช่หรือไม่?\nไฟล์จะถูกลบออกจาก Storage ด้วย`)) return;
     if (row.storage_path) {
-      await supabase.storage.from("exam-pdfs").remove([row.storage_path]);
+      const { error: storageErr } = await supabase.storage.from("exam-pdfs").remove([row.storage_path]);
+      if (storageErr) { window.alert(`ลบไฟล์ไม่สำเร็จ: ${storageErr.message}`); return; }
     }
-    await supabase.from("exam_uploads").delete().eq("id", row.id);
+    const { error: dbErr } = await supabase.from("exam_uploads").delete().eq("id", row.id);
+    if (dbErr) { window.alert(`ลบรายการไม่สำเร็จ: ${dbErr.message}`); return; }
     setRows((prev) => prev.filter((r) => r.id !== row.id));
   }
 
   // ---- status update (admin only) ----
   async function handleStatusChange(id: string, status: "pending" | "approved" | "rejected") {
-    await supabase.from("exam_uploads").update({
+    const { error } = await supabase.from("exam_uploads").update({
       status,
       copy_status: status === "approved" ? "waiting_copy" : null,
       updated_at: new Date().toISOString(),
     }).eq("id", id);
+    if (error) { window.alert(`อัปเดตสถานะไม่สำเร็จ: ${error.message}`); return; }
     setRows((prev) => prev.map((r) => r.id === id ? { ...r, status, copy_status: status === "approved" ? "waiting_copy" : null } : r));
   }
 
@@ -208,7 +221,8 @@ export default function ExamUpload() {
     const row = rows.find((r) => r.id === id);
     if (!row || row.status !== "approved") return;
     const next = row.copy_status === "waiting_copy" ? "copied" : "waiting_copy";
-    await supabase.from("exam_uploads").update({ copy_status: next, updated_at: new Date().toISOString() }).eq("id", id);
+    const { error } = await supabase.from("exam_uploads").update({ copy_status: next, updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) { window.alert(`อัปเดตสถานะสำเนาไม่สำเร็จ: ${error.message}`); return; }
     setRows((prev) => prev.map((r) => r.id === id ? { ...r, copy_status: next } : r));
   }
 
@@ -363,6 +377,8 @@ export default function ExamUpload() {
 
         {loadingList ? (
           <div className="exup-list-empty">กำลังโหลด…</div>
+        ) : listError ? (
+          <div className="exup-error">โหลดรายการไม่สำเร็จ: {listError}</div>
         ) : rows.length === 0 ? (
           <div className="exup-list-empty">ยังไม่มีรายการ</div>
         ) : (
