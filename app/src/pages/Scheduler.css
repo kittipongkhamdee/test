@@ -958,6 +958,19 @@
   color: var(--red-600);
 }
 
+.sched-tl-insert-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  background: var(--blue-600);
+  border-radius: 3px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.55);
+}
+
 /* ---------- Print styles ---------- */
 @media print {
   @page { size: A4 landscape; margin: 12mm; }

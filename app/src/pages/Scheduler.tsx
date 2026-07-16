@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCellItems, useSubmissions, useStore, type AutoScheduleRules } from "../data/store";
 import { computeCellTimes, timeToMinutes, minutesToTime } from "../data/scheduling";
@@ -128,14 +128,14 @@ export default function Scheduler() {
     showToast("บันทึกและเผยแพร่ตารางสอบเรียบร้อยแล้ว");
   }
 
-  function handleDropOnCell(e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession) {
+  function handleDropOnCell(e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession, index?: number) {
     e.preventDefault();
     if (!requireAdmin()) return;
     const id = e.dataTransfer.getData("text/plain");
     const sub = state.submissions[id];
     if (!sub || sub.grade !== grade) return;
     pushUndoSnapshot();
-    dispatch({ type: "PLACE", id, day, session });
+    dispatch({ type: "PLACE", id, day, session, index });
   }
 
   function handleMobilePlace(grade: Grade) {
@@ -546,7 +546,7 @@ function TimelinePanel({
   session: ExamSession;
   slot: ExamSlotMeta | undefined;
   dateLabel: string;
-  onDropCell: (e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession) => void;
+  onDropCell: (e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession, index?: number) => void;
 }) {
   const { state } = useStore();
   const sessionStart = slot?.start ?? (session === "morning" ? "08:30" : "13:00");
@@ -640,7 +640,7 @@ function TimelineLane({
   startMin: number;
   durationMin: number;
   timeMarks: Array<{ min: number; isHour: boolean }>;
-  onDropCell: (e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession) => void;
+  onDropCell: (e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession, index?: number) => void;
 }) {
   const { dispatch, state, isAdmin, pushUndoSnapshot } = useStore();
   const items = useCellItems(grade, day, session);
@@ -651,15 +651,54 @@ function TimelineLane({
     [items, slotStart, gapMinutes],
   );
   const [dragOver, setDragOver] = useState(false);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const laneRef = useRef<HTMLDivElement>(null);
+
+  function calcInsertIndex(clientX: number): number {
+    const el = laneRef.current;
+    if (!el || times.length === 0) return 0;
+    const rect = el.getBoundingClientRect();
+    const cursorMin = startMin + ((clientX - rect.left) / rect.width) * durationMin;
+    for (let i = 0; i < times.length; i++) {
+      const centerMin = (timeToMinutes(times[i].start) + timeToMinutes(times[i].end)) / 2;
+      if (cursorMin < centerMin) return i;
+    }
+    return times.length;
+  }
+
+  function getIndicatorLeft(index: number): number {
+    if (times.length === 0) return 0;
+    if (index === 0) {
+      return ((timeToMinutes(times[0].start) - startMin) / durationMin) * 100;
+    }
+    if (index >= times.length) {
+      return ((timeToMinutes(times[times.length - 1].end) - startMin) / durationMin) * 100;
+    }
+    const midMin = (timeToMinutes(times[index - 1].end) + timeToMinutes(times[index].start)) / 2;
+    return ((midMin - startMin) / durationMin) * 100;
+  }
 
   return (
     <div className="sched-tl-grade-row">
       <div className="sched-tl-grade-name">{gradeLabel(grade)}</div>
       <div
+        ref={laneRef}
         className={"sched-tl-lane" + (dragOver ? " drag-over" : "")}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => { setDragOver(false); onDropCell(e, grade, day, session); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+          if (items.length > 0) setDropIndex(calcInsertIndex(e.clientX));
+        }}
+        onDragLeave={() => { setDragOver(false); setDropIndex(null); }}
+        onDrop={(e) => {
+          setDragOver(false);
+          setDropIndex(null);
+          const id = e.dataTransfer.getData("text/plain");
+          const currentIndex = items.findIndex((item) => item.id === id);
+          let idx = calcInsertIndex(e.clientX);
+          if (currentIndex >= 0 && currentIndex < idx) idx--;
+          onDropCell(e, grade, day, session, idx);
+        }}
       >
         {timeMarks.slice(1, -1).map(({ min, isHour }) => (
           <div
@@ -670,6 +709,12 @@ function TimelineLane({
         ))}
         {items.length === 0 && (
           <div className="sched-tl-lane-empty">วางที่นี่</div>
+        )}
+        {dragOver && dropIndex !== null && items.length > 0 && (
+          <div
+            className="sched-tl-insert-indicator"
+            style={{ left: `${getIndicatorLeft(dropIndex)}%` }}
+          />
         )}
         {items.map((item, i) => {
           const t = times[i];

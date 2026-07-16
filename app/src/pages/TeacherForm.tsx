@@ -14,6 +14,15 @@ function statusLabel(status: SubmissionStatus): { text: string; className: strin
 
 type RoomsSelection = number[] | null;
 
+function gradeFromCode(code: string): Grade | null {
+  const m = code.match(/[^\d]*(\d)(\d)/);
+  if (!m) return null;
+  const level = m[1], year = Number(m[2]);
+  if (level === "2" && year >= 1 && year <= 3) return year as Grade;
+  if (level === "3" && year >= 1 && year <= 3) return (year + 3) as Grade;
+  return null;
+}
+
 function dedupeCatalog(catalog: SubjectCatalogEntry[]): SubjectCatalogEntry[] {
   const seen = new Map<string, SubjectCatalogEntry>();
   for (const s of catalog) {
@@ -267,7 +276,12 @@ export default function TeacherForm() {
                 <input
                   className="tform-input"
                   value={code}
-                  onChange={(e) => setCode(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setCode(v);
+                    const detected = gradeFromCode(v);
+                    if (detected !== null) { setGrade(detected); setRoomsSelection(null); }
+                  }}
                   onFocus={() => setActiveSuggestField("code")}
                   onBlur={() => setTimeout(() => setActiveSuggestField(null), 150)}
                   placeholder="อ23101"
