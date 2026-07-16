@@ -374,9 +374,12 @@
   vertical-align: middle;
 }
 
-.subs-gt-first-row td,
+.subs-gt-first-row td {
+  border-top: 2px solid var(--border) !important;
+}
+
 .subs-grouped-table tbody tr:first-child td {
-  border-top-color: var(--border);
+  border-top: 2px solid var(--border) !important;
 }
 
 .subs-gt-num {
