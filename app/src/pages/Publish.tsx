@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { flushSync } from "react-dom";
 import * as XLSX from "xlsx";
 import { useStore, useSubmissions } from "../data/store";
 import { computeCellTimes } from "../data/scheduling";
@@ -291,89 +290,6 @@ ${bodyHTML}
     }).join("");
   }
 
-  // Shared: writes one canvas onto pdf, slicing into A4 pages as needed
-  function addCanvasToDoc(
-    pdf: { addImage(d: string, f: string, x: number, y: number, w: number, h: number): void; addPage(): void },
-    canvas: HTMLCanvasElement,
-    isFirstPage: boolean,
-  ) {
-    const marginMm = 12;
-    const contentW = 210 - marginMm * 2;
-    const contentH = 297 - marginMm * 2;
-    const mmPerPx = contentW / canvas.width;
-    const totalH = canvas.height * mmPerPx;
-
-    if (totalH <= contentH) {
-      if (!isFirstPage) pdf.addPage();
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", marginMm, marginMm, contentW, totalH);
-    } else {
-      const slicePx = Math.floor(contentH / mmPerPx);
-      let srcY = 0;
-      let first = isFirstPage;
-      while (srcY < canvas.height) {
-        const h = Math.min(slicePx, canvas.height - srcY);
-        const slice = document.createElement("canvas");
-        slice.width = canvas.width;
-        slice.height = h;
-        const ctx = slice.getContext("2d")!;
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(0, 0, slice.width, h);
-        ctx.drawImage(canvas, 0, srcY, canvas.width, h, 0, 0, canvas.width, h);
-        if (!first) pdf.addPage();
-        pdf.addImage(slice.toDataURL("image/png"), "PNG", marginMm, marginMm, contentW, h * mmPerPx);
-        srcY += h;
-        first = false;
-      }
-    }
-  }
-
-  // Captures the on-screen .pub-sheet element exactly as displayed
-  function handleExportPDF() {
-    const sheetEl = document.querySelector<HTMLElement>(".pub-sheet");
-    if (!sheetEl) { openPrintPopup(buildPrintHTML()); return; }
-    void (async () => {
-      try {
-        const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-          import("html2canvas"),
-          import("jspdf"),
-        ]);
-        const canvas = await html2canvas(sheetEl, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-        const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-        addCanvasToDoc(pdf, canvas, true);
-        pdf.save(`${examTitle || "ตารางสอบ"}.pdf`);
-      } catch {
-        openPrintPopup(buildPrintHTML());
-      }
-    })();
-  }
-
-  // Iterates through each grade: sets filter → captures on-screen .pub-sheet → adds to PDF
-  function handleExportPDFByGrade() {
-    const sheetEl = document.querySelector<HTMLElement>(".pub-sheet");
-    if (!sheetEl) { openPrintPopup(buildPrintByGradeHTML()); return; }
-    const grades = [...rowsByGrade.keys()].sort((a, b) => a - b);
-    if (!grades.length) return;
-    const savedFilter = gradeFilter;
-    void (async () => {
-      try {
-        const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-          import("html2canvas"),
-          import("jspdf"),
-        ]);
-        const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-        for (let i = 0; i < grades.length; i++) {
-          flushSync(() => setGradeFilter(grades[i]));
-          await new Promise<void>((r) => requestAnimationFrame(() => r()));
-          const canvas = await html2canvas(sheetEl, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-          addCanvasToDoc(pdf, canvas, i === 0);
-        }
-        pdf.save(`${examTitle || "ตารางสอบ"}_รายชั้น.pdf`);
-      } finally {
-        flushSync(() => setGradeFilter(savedFilter));
-      }
-    })();
-  }
-
   function handlePrint() {
     openPrintPopup(buildPrintHTML());
   }
@@ -464,12 +380,6 @@ ${bodyHTML}
           </button>
           <button className="btn btn-ghost" onClick={handleExportExcelByGrade}>
             📊 Excel (รายชั้น)
-          </button>
-          <button className="btn btn-ghost" onClick={handleExportPDF}>
-            📄 PDF (รายวัน)
-          </button>
-          <button className="btn btn-ghost" onClick={handleExportPDFByGrade}>
-            📄 PDF (รายชั้น)
           </button>
           <button className="btn btn-ghost" onClick={handlePrintByGrade}>
             🖨 พิมพ์รายชั้น
