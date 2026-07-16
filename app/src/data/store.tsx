@@ -563,11 +563,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     dispatchRaw({ type: "REMOVE_SUBMISSION", id });
   }, []);
 
-  const editSubmission = useCallback(async (id: string, input: SubmissionEditInput) => {
-    const saved = await updateSubmissionDetails(id, input);
-    dispatchRaw({ type: "UPSERT_SUBMISSION", submission: saved });
-    return saved;
-  }, []);
+  const editSubmission = useCallback(
+    async (id: string, input: SubmissionEditInput) => {
+      const existing = state.submissions[id];
+      const shouldUnschedule = !!existing && existing.status === "scheduled" && existing.grade !== input.grade;
+      const saved = await updateSubmissionDetails(id, input, shouldUnschedule);
+      dispatchRaw({ type: "UPSERT_SUBMISSION", submission: saved });
+      if (shouldUnschedule) dispatchRaw({ type: "UNPLACE", id });
+      return saved;
+    },
+    [state.submissions],
+  );
 
   const updateRoundSettings = useCallback(
     async (input: RoundSettingsInput) => {

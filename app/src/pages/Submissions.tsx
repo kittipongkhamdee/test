@@ -114,6 +114,8 @@ function EditSubmissionModal({ submission, onClose }: { submission: Submission; 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const willUnschedule = submission.status === "scheduled" && grade !== submission.grade;
+
   function toggleRoom(room: number) {
     setRooms((prev) => (prev.includes(room) ? prev.filter((r) => r !== room) : [...prev, room].sort((a, b) => a - b)));
   }
@@ -168,6 +170,11 @@ function EditSubmissionModal({ submission, onClose }: { submission: Submission; 
               </button>
             ))}
           </div>
+          {willUnschedule && (
+            <div className="tform-error">
+              วิชานี้จัดตารางสอบไว้แล้ว — เปลี่ยนระดับชั้นจะย้ายกลับไปเป็น "รอจัด" และต้องจัดตารางใหม่
+            </div>
+          )}
         </div>
 
         <div className="tform-field">

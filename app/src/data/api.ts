@@ -171,17 +171,32 @@ export interface SubmitInput {
 // Real subjects already exist in the catalog as "draft" rows (seeded from the
 // school's subject list). Submitting the survey confirms an existing draft for
 // that subject+grade if one exists, otherwise it adds a new subject.
+//
+// Self-scheduled requests always use a placeholder code ("–") and grade 1, so
+// matching by code+grade would incorrectly treat every self-scheduled request
+// as the same subject — skip the lookup for those entirely.
 export async function submitSubmission(input: SubmitInput): Promise<Submission> {
-  const { data: existing, error: findError } = await supabase
-    .from("exam_submissions")
-    .select("id")
-    .eq("exam_round_id", input.examRoundId)
-    .eq("subject_code", input.code)
-    .eq("grade_level", input.grade)
-    .eq("status", "draft")
-    .limit(1)
-    .maybeSingle();
-  if (findError) throw findError;
+  let existing: { id: string; status: SubmissionStatus } | null = null;
+
+  if (!input.selfScheduled) {
+    const { data, error: findError } = await supabase
+      .from("exam_submissions")
+      .select("id, status")
+      .eq("exam_round_id", input.examRoundId)
+      .eq("subject_code", input.code)
+      .eq("grade_level", input.grade)
+      .in("status", ["draft", "pending", "scheduled"])
+      .limit(1)
+      .maybeSingle();
+    if (findError) throw findError;
+    existing = data;
+  }
+
+  if (existing && existing.status === "scheduled") {
+    throw new Error(
+      `วิชา ${input.code} ระดับชั้นนี้มีข้อมูลส่งและจัดตารางสอบไปแล้ว หากต้องการแก้ไข กรุณาแจ้งผู้ดูแลระบบให้แก้ไขที่หน้า "ข้อมูลที่ส่งเข้ามา" แทน`,
+    );
+  }
 
   const payload = {
     subject_code: input.code,
@@ -351,18 +366,29 @@ export interface SubmissionEditInput {
   morningPreference: MorningPreference;
 }
 
-export async function updateSubmissionDetails(id: string, input: SubmissionEditInput): Promise<Submission> {
+// `unschedule` clears the slot assignment when the grade changes on an
+// already-scheduled submission — the cell it was placed in belongs to the
+// old grade's timeline, so it can't stay "scheduled" there without going
+// stale (see store.tsx's editSubmission for the local cellOrder cleanup).
+export async function updateSubmissionDetails(id: string, input: SubmissionEditInput, unschedule: boolean): Promise<Submission> {
+  const patch: Record<string, unknown> = {
+    subject_code: input.code,
+    subject_name: input.subjectName,
+    teacher_name: input.teacherName,
+    grade_level: input.grade,
+    rooms: input.rooms,
+    duration_minutes: input.durationMinutes,
+    session_preference: input.morningPreference,
+  };
+  if (unschedule) {
+    patch.status = "pending";
+    patch.slot_day = null;
+    patch.slot_session = null;
+    patch.manual_start_minutes = null;
+  }
   const { data, error } = await supabase
     .from("exam_submissions")
-    .update({
-      subject_code: input.code,
-      subject_name: input.subjectName,
-      teacher_name: input.teacherName,
-      grade_level: input.grade,
-      rooms: input.rooms,
-      duration_minutes: input.durationMinutes,
-      session_preference: input.morningPreference,
-    })
+    .update(patch)
     .eq("id", id)
     .select(
       "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at, self_scheduled, self_scheduled_note",
