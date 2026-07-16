@@ -223,14 +223,22 @@
   .no-print {
     display: none !important;
   }
+  .pub-page {
+    display: block !important;
+  }
   .pub-sheet-wrap {
-    display: block;
+    display: block !important;
   }
   .pub-sheet {
     box-shadow: none;
     border: none;
     max-width: none;
     padding: 0;
+    display: block !important;
+  }
+  /* override mobile overflow-x:auto so print doesn't clip rows */
+  .pub-day {
+    overflow: visible !important;
   }
   /* บังคับ full layout ตอนพิมพ์ */
   .pub-table-head,
