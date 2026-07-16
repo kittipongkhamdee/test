@@ -9,11 +9,6 @@ import "./Submissions.css";
 
 type StatusFilter = "all" | "scheduled" | "pending" | "self-scheduled";
 
-function formatRooms(rooms: number[]): string {
-  if (rooms.length === 0) return "ทุกห้อง";
-  return rooms.join(", ");
-}
-
 function formatGradeRooms(grade: Grade, rooms: number[]): string {
   if (rooms.length === 0) return gradeLabel(grade);
   return rooms.map((r) => `ม.${grade}/${r}`).join(", ");
@@ -26,7 +21,7 @@ function statusBadge(s: Submission) {
 }
 
 function toCsv(rows: Submission[]): string {
-  const header = ["รหัสวิชา", "ชื่อวิชา", "ครูผู้สอน", "ระดับ", "ห้อง", "เวลาสอบ (นาที)", "สถานะ"];
+  const header = ["รหัสวิชา", "ชื่อวิชา", "ครูผู้สอน", "ระดับชั้น", "เวลาสอบ (นาที)", "สถานะ"];
   const lines = [header.join(",")];
   for (const r of rows) {
     lines.push(
@@ -34,8 +29,7 @@ function toCsv(rows: Submission[]): string {
         r.code,
         r.subjectName,
         r.teacherName,
-        gradeLabel(r.grade),
-        formatRooms(r.rooms),
+        r.selfScheduled ? "–" : formatGradeRooms(r.grade, r.rooms),
         String(r.durationMinutes),
         r.status === "scheduled" ? "จัดแล้ว" : "รอจัด",
       ]
@@ -467,8 +461,7 @@ export default function Submissions() {
             <span>รหัสวิชา</span>
             <span>ชื่อวิชา</span>
             <span>ครูผู้สอน</span>
-            <span>ระดับ</span>
-            <span>ห้อง</span>
+            <span>ระดับชั้น</span>
             <span>เวลาสอบ</span>
             <span>สถานะ</span>
             {isAdmin && <span>จัดการ</span>}
@@ -479,8 +472,7 @@ export default function Submissions() {
                 <span className="subs-code">{s.code}</span>
                 <span>{s.subjectName}</span>
                 <span>{s.teacherName}</span>
-                <span>{s.selfScheduled ? "–" : gradeLabel(s.grade)}</span>
-                <span className="subs-muted">{s.selfScheduled ? "–" : formatRooms(s.rooms)}</span>
+                <span>{s.selfScheduled ? "–" : formatGradeRooms(s.grade, s.rooms)}</span>
                 <span>{s.selfScheduled ? "–" : `${s.durationMinutes} นาที`}</span>
                 <span>{statusBadge(s)}</span>
                 {isAdmin && (
