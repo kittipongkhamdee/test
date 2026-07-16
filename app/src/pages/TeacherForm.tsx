@@ -224,18 +224,16 @@ export default function TeacherForm() {
 
         <label className="tform-field">
           <span className="tform-label">ชื่อครูผู้สอน</span>
-          <input
-            className="tform-input"
-            list="teacher-names"
+          <select
+            className="tform-input tform-select"
             value={teacherName}
             onChange={(e) => setTeacherName(e.target.value)}
-            placeholder="เช่น นางสาวโสรดา ศรีสุข"
-          />
-          <datalist id="teacher-names">
+          >
+            <option value="">— เลือกชื่อครูผู้สอน —</option>
             {state.teachers.map((name) => (
-              <option key={name} value={name} />
+              <option key={name} value={name}>{name}</option>
             ))}
-          </datalist>
+          </select>
         </label>
 
         <div className="tform-self-sched">
