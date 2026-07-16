@@ -82,7 +82,7 @@
 .pub-table-head,
 .pub-table-row {
   display: grid;
-  grid-template-columns: 120px 90px minmax(130px, 1fr) 140px 80px 140px;
+  grid-template-columns: 120px 90px minmax(130px, 1fr) 140px 80px minmax(140px, 1fr);
   gap: 4px;
 }
 .pub-table-head span {
@@ -97,8 +97,7 @@
 .pub-table-row span {
   padding: 9px 10px;
   border-bottom: 1px solid var(--border-soft);
-  white-space: nowrap;
-  overflow: hidden;
+  word-break: break-word;
 }
 .pub-code {
   font-weight: 600;
@@ -169,7 +168,7 @@
   .pub-table-head,
   .pub-table-row {
     min-width: 710px;
-    grid-template-columns: 100px 75px minmax(130px, 1fr) 120px 70px 120px;
+    grid-template-columns: 100px 75px minmax(130px, 1fr) 120px 70px minmax(120px, 1fr);
   }
 }
 
@@ -194,7 +193,7 @@
   /* บังคับ full layout ตอนพิมพ์ */
   .pub-table-head,
   .pub-table-row {
-    grid-template-columns: 110px 80px 1fr 130px 70px 130px !important;
+    grid-template-columns: 110px 80px 1fr 130px 70px minmax(130px, 1fr) !important;
     min-width: 0 !important;
   }
   .pub-table-head span,
