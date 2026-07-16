@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 import * as XLSX from "xlsx";
 import { useStore, useSubmissions } from "../data/store";
 import { computeCellTimes } from "../data/scheduling";
@@ -290,21 +291,25 @@ ${bodyHTML}
     }).join("");
   }
 
-  async function canvasToPDF(canvas: HTMLCanvasElement, filename: string) {
-    const { jsPDF } = await import("jspdf");
+  // Shared: writes one canvas onto pdf, slicing into A4 pages as needed
+  function addCanvasToDoc(
+    pdf: { addImage(d: string, f: string, x: number, y: number, w: number, h: number): void; addPage(): void },
+    canvas: HTMLCanvasElement,
+    isFirstPage: boolean,
+  ) {
     const marginMm = 12;
     const contentW = 210 - marginMm * 2;
     const contentH = 297 - marginMm * 2;
     const mmPerPx = contentW / canvas.width;
     const totalH = canvas.height * mmPerPx;
-    const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
 
     if (totalH <= contentH) {
+      if (!isFirstPage) pdf.addPage();
       pdf.addImage(canvas.toDataURL("image/png"), "PNG", marginMm, marginMm, contentW, totalH);
     } else {
       const slicePx = Math.floor(contentH / mmPerPx);
       let srcY = 0;
-      let first = true;
+      let first = isFirstPage;
       while (srcY < canvas.height) {
         const h = Math.min(slicePx, canvas.height - srcY);
         const slice = document.createElement("canvas");
@@ -320,7 +325,6 @@ ${bodyHTML}
         first = false;
       }
     }
-    pdf.save(`${filename}.pdf`);
   }
 
   // Captures the on-screen .pub-sheet element exactly as displayed
@@ -329,53 +333,43 @@ ${bodyHTML}
     if (!sheetEl) { openPrintPopup(buildPrintHTML()); return; }
     void (async () => {
       try {
-        const { default: html2canvas } = await import("html2canvas");
-        const canvas = await html2canvas(sheetEl, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-        });
-        await canvasToPDF(canvas, examTitle || "ตารางสอบ");
+        const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+          import("html2canvas"),
+          import("jspdf"),
+        ]);
+        const canvas = await html2canvas(sheetEl, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+        const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+        addCanvasToDoc(pdf, canvas, true);
+        pdf.save(`${examTitle || "ตารางสอบ"}.pdf`);
       } catch {
         openPrintPopup(buildPrintHTML());
       }
     })();
   }
 
-  // By-grade renders each grade page into an off-screen container
+  // Iterates through each grade: sets filter → captures on-screen .pub-sheet → adds to PDF
   function handleExportPDFByGrade() {
+    const sheetEl = document.querySelector<HTMLElement>(".pub-sheet");
+    if (!sheetEl) { openPrintPopup(buildPrintByGradeHTML()); return; }
+    const grades = [...rowsByGrade.keys()].sort((a, b) => a - b);
+    if (!grades.length) return;
+    const savedFilter = gradeFilter;
     void (async () => {
       try {
-        const [{ default: html2canvas }] = await Promise.all([import("html2canvas")]);
-
-        const host = document.createElement("div");
-        Object.assign(host.style, {
-          position: "fixed" as const,
-          top: "-10000px",
-          left: "0",
-          width: "794px",
-          background: "white",
-          boxSizing: "border-box",
-          padding: "32px 48px",
-        });
-        const styleEl = document.createElement("style");
-        styleEl.textContent = PRINT_CSS;
-        host.appendChild(styleEl);
-        const content = document.createElement("div");
-        content.innerHTML = buildPrintByGradeHTML();
-        host.appendChild(content);
-        document.body.appendChild(host);
-
-        const canvas = await html2canvas(host, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          windowWidth: 794,
-        });
-        document.body.removeChild(host);
-        await canvasToPDF(canvas, (examTitle || "ตารางสอบ") + "_รายชั้น");
-      } catch {
-        openPrintPopup(buildPrintByGradeHTML());
+        const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+          import("html2canvas"),
+          import("jspdf"),
+        ]);
+        const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+        for (let i = 0; i < grades.length; i++) {
+          flushSync(() => setGradeFilter(grades[i]));
+          await new Promise<void>((r) => requestAnimationFrame(() => r()));
+          const canvas = await html2canvas(sheetEl, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+          addCanvasToDoc(pdf, canvas, i === 0);
+        }
+        pdf.save(`${examTitle || "ตารางสอบ"}_รายชั้น.pdf`);
+      } finally {
+        flushSync(() => setGradeFilter(savedFilter));
       }
     })();
   }
