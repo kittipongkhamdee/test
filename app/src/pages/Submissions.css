@@ -304,6 +304,112 @@
   font-size: 13px;
 }
 
+/* ---------- View mode toggle ---------- */
+.subs-view-toggle {
+  display: flex;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.subs-view-btn {
+  background: #fff;
+  border: none;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.1s ease;
+  border-right: 1px solid var(--border-input);
+}
+.subs-view-btn:last-child {
+  border-right: none;
+}
+.subs-view-btn.active {
+  background: var(--blue-600);
+  color: #fff;
+  font-weight: 600;
+}
+.subs-view-btn:not(.active):hover {
+  background: var(--bg-subtle);
+}
+
+/* ---------- Grouped teacher table ---------- */
+.subs-grouped-card {
+  flex: 1;
+  overflow: hidden;
+  padding: 0;
+}
+
+.subs-grouped-scroll {
+  overflow: auto;
+  height: 100%;
+}
+
+.subs-grouped-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: var(--text-strong);
+  min-width: 560px;
+}
+
+.subs-grouped-table thead th {
+  background: #f0f4fb;
+  border: 1px solid var(--border);
+  padding: 9px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.subs-grouped-table tbody td {
+  border: 1px solid var(--border-soft);
+  padding: 9px 14px;
+  vertical-align: middle;
+}
+
+.subs-gt-first-row td,
+.subs-grouped-table tbody tr:first-child td {
+  border-top-color: var(--border);
+}
+
+.subs-gt-num {
+  text-align: center;
+  width: 56px;
+  font-weight: 700;
+  color: var(--blue-600);
+}
+
+.subs-gt-teacher {
+  width: 200px;
+  font-weight: 600;
+  color: var(--text-strong);
+  background: var(--bg-subtle);
+  border-right: 2px solid var(--border) !important;
+}
+
+.subs-gt-code {
+  width: 110px;
+  font-weight: 600;
+  color: var(--blue-600);
+}
+
+.subs-gt-subject {
+  /* flex-grow */
+}
+
+.subs-gt-grade {
+  width: 150px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 @media (max-width: 899px) {
   .subs-page {
     height: auto;

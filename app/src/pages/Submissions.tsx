@@ -13,6 +13,11 @@ function formatRooms(rooms: number[]): string {
   return rooms.join(", ");
 }
 
+function formatGradeRooms(grade: Grade, rooms: number[]): string {
+  if (rooms.length === 0) return gradeLabel(grade);
+  return rooms.map((r) => `ม.${grade}/${r}`).join(", ");
+}
+
 function statusBadge(s: Submission) {
   if (s.selfScheduled) return <span className="badge badge-purple">นอกตาราง</span>;
   if (s.status === "scheduled") return <span className="badge badge-green">จัดแล้ว</span>;
@@ -168,9 +173,70 @@ function EditSubmissionModal({ submission, onClose }: { submission: Submission; 
   );
 }
 
+function GroupedTable({ submissions }: { submissions: Submission[] }) {
+  const mainSubs = useMemo(() => submissions.filter((s) => !s.selfScheduled), [submissions]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, { name: string; subs: Submission[] }>();
+    for (const s of [...mainSubs].sort((a, b) => a.teacherName.localeCompare(b.teacherName, "th"))) {
+      if (!map.has(s.teacherId)) map.set(s.teacherId, { name: s.teacherName, subs: [] });
+      map.get(s.teacherId)!.subs.push(s);
+    }
+    // sort each teacher's subs by grade then code
+    for (const g of map.values()) {
+      g.subs.sort((a, b) => a.grade - b.grade || a.code.localeCompare(b.code));
+    }
+    return [...map.values()];
+  }, [mainSubs]);
+
+  if (grouped.length === 0) {
+    return <div className="subs-empty">ยังไม่มีข้อมูลส่งเข้ามา</div>;
+  }
+
+  return (
+    <div className="card subs-grouped-card">
+      <div className="subs-grouped-scroll">
+        <table className="subs-grouped-table">
+          <thead>
+            <tr>
+              <th>ลำดับ</th>
+              <th>ครูผู้สอน</th>
+              <th>รหัสวิชา</th>
+              <th>ชื่อวิชา</th>
+              <th>ชั้น</th>
+            </tr>
+          </thead>
+          <tbody>
+            {grouped.map((group, gi) =>
+              group.subs.map((s, si) => (
+                <tr key={s.id} className={si === 0 ? "subs-gt-first-row" : ""}>
+                  {si === 0 && (
+                    <td className="subs-gt-num" rowSpan={group.subs.length}>
+                      {gi + 1}
+                    </td>
+                  )}
+                  {si === 0 && (
+                    <td className="subs-gt-teacher" rowSpan={group.subs.length}>
+                      {group.name}
+                    </td>
+                  )}
+                  <td className="subs-gt-code">{s.code}</td>
+                  <td className="subs-gt-subject">{s.subjectName}</td>
+                  <td className="subs-gt-grade">{formatGradeRooms(s.grade, s.rooms)}</td>
+                </tr>
+              )),
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function Submissions() {
   const { isAdmin, removeSubmission } = useStore();
   const submissions = useSubmissions();
+  const [viewMode, setViewMode] = useState<"list" | "grouped">("list");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [gradeFilter, setGradeFilter] = useState<number | "all">("all");
@@ -255,6 +321,22 @@ export default function Submissions() {
           </div>
         </div>
         <div className="subs-header-actions">
+          <div className="subs-view-toggle">
+            <button
+              className={"subs-view-btn" + (viewMode === "list" ? " active" : "")}
+              onClick={() => setViewMode("list")}
+              title="มุมมองรายการ"
+            >
+              ☰ รายการ
+            </button>
+            <button
+              className={"subs-view-btn" + (viewMode === "grouped" ? " active" : "")}
+              onClick={() => setViewMode("grouped")}
+              title="มุมมองจัดกลุ่มตามครู"
+            >
+              ⊞ จัดกลุ่มครู
+            </button>
+          </div>
           <button className="btn btn-ghost" onClick={handleExport}>
             ⬇ ส่งออก Excel
           </button>
@@ -311,55 +393,59 @@ export default function Submissions() {
         </select>
       </div>
 
-      <div className="card subs-table-card">
-        <div className={"subs-row subs-row-head" + (isAdmin ? " admin" : "")}>
-          <span>รหัสวิชา</span>
-          <span>ชื่อวิชา</span>
-          <span>ครูผู้สอน</span>
-          <span>ระดับ</span>
-          <span>ห้อง</span>
-          <span>เวลาสอบ</span>
-          <span>สถานะ</span>
-          {isAdmin && <span>จัดการ</span>}
+      {viewMode === "grouped" ? (
+        <GroupedTable submissions={filtered} />
+      ) : (
+        <div className="card subs-table-card">
+          <div className={"subs-row subs-row-head" + (isAdmin ? " admin" : "")}>
+            <span>รหัสวิชา</span>
+            <span>ชื่อวิชา</span>
+            <span>ครูผู้สอน</span>
+            <span>ระดับ</span>
+            <span>ห้อง</span>
+            <span>เวลาสอบ</span>
+            <span>สถานะ</span>
+            {isAdmin && <span>จัดการ</span>}
+          </div>
+          <div className="subs-table-body">
+            {filtered.map((s) => (
+              <div className={"subs-row" + (isAdmin ? " admin" : "")} key={s.id}>
+                <span className="subs-code">{s.code}</span>
+                <span>{s.subjectName}</span>
+                <span>{s.teacherName}</span>
+                <span>{s.selfScheduled ? "–" : gradeLabel(s.grade)}</span>
+                <span className="subs-muted">{s.selfScheduled ? "–" : formatRooms(s.rooms)}</span>
+                <span>{s.selfScheduled ? "–" : `${s.durationMinutes} นาที`}</span>
+                <span>{statusBadge(s)}</span>
+                {isAdmin && (
+                  <span className="subs-row-actions">
+                    <button type="button" className="subs-action-btn subs-action-desktop" onClick={() => setEditing(s)}>
+                      แก้ไข
+                    </button>
+                    <button
+                      type="button"
+                      className="subs-action-btn danger subs-action-desktop"
+                      onClick={() => handleDelete(s)}
+                      disabled={deletingId === s.id}
+                    >
+                      ลบ
+                    </button>
+                    <button
+                      type="button"
+                      className="subs-action-btn subs-action-mobile"
+                      aria-label="จัดการ"
+                      onClick={(e) => openMenu(e, s)}
+                    >
+                      ⋮
+                    </button>
+                  </span>
+                )}
+              </div>
+            ))}
+            {filtered.length === 0 && <div className="subs-empty">ไม่พบรายการที่ตรงกับเงื่อนไข</div>}
+          </div>
         </div>
-        <div className="subs-table-body">
-          {filtered.map((s) => (
-            <div className={"subs-row" + (isAdmin ? " admin" : "")} key={s.id}>
-              <span className="subs-code">{s.code}</span>
-              <span>{s.subjectName}</span>
-              <span>{s.teacherName}</span>
-              <span>{s.selfScheduled ? "–" : gradeLabel(s.grade)}</span>
-              <span className="subs-muted">{s.selfScheduled ? "–" : formatRooms(s.rooms)}</span>
-              <span>{s.selfScheduled ? "–" : `${s.durationMinutes} นาที`}</span>
-              <span>{statusBadge(s)}</span>
-              {isAdmin && (
-                <span className="subs-row-actions">
-                  <button type="button" className="subs-action-btn subs-action-desktop" onClick={() => setEditing(s)}>
-                    แก้ไข
-                  </button>
-                  <button
-                    type="button"
-                    className="subs-action-btn danger subs-action-desktop"
-                    onClick={() => handleDelete(s)}
-                    disabled={deletingId === s.id}
-                  >
-                    ลบ
-                  </button>
-                  <button
-                    type="button"
-                    className="subs-action-btn subs-action-mobile"
-                    aria-label="จัดการ"
-                    onClick={(e) => openMenu(e, s)}
-                  >
-                    ⋮
-                  </button>
-                </span>
-              )}
-            </div>
-          ))}
-          {filtered.length === 0 && <div className="subs-empty">ไม่พบรายการที่ตรงกับเงื่อนไข</div>}
-        </div>
-      </div>
+      )}
 
       {editing && <EditSubmissionModal submission={editing} onClose={() => setEditing(null)} />}
 
