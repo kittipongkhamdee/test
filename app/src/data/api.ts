@@ -48,7 +48,6 @@ interface SubmissionRow {
   status: SubmissionStatus;
   slot_day: number | null;
   slot_session: ExamSession | null;
-  manual_start_minutes: number | null;
   sort_order: number;
   submitted_at: string;
   self_scheduled: boolean;
@@ -68,7 +67,6 @@ function rowToSubmission(row: SubmissionRow): Submission {
     morningPreference: row.session_preference,
     status: row.status,
     slot: row.slot_day && row.slot_session ? { day: row.slot_day as ExamDay, session: row.slot_session } : undefined,
-    manualStartMinutes: row.manual_start_minutes ?? undefined,
     submittedAt: row.submitted_at,
     selfScheduled: row.self_scheduled ?? false,
     selfScheduledNote: row.self_scheduled_note ?? "",
@@ -113,7 +111,7 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
     supabase
       .from("exam_submissions")
       .select(
-        "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at, self_scheduled, self_scheduled_note",
+        "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, sort_order, submitted_at, self_scheduled, self_scheduled_note",
       )
       .eq("exam_round_id", round.id)
       .order("sort_order")
@@ -236,7 +234,7 @@ export async function submitSubmission(input: SubmitInput): Promise<Submission> 
       .update(payload)
       .eq("id", existing.id)
       .select(
-        "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at, self_scheduled, self_scheduled_note",
+        "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, sort_order, submitted_at, self_scheduled, self_scheduled_note",
       )
       .single();
     if (error) throw error;
@@ -247,7 +245,7 @@ export async function submitSubmission(input: SubmitInput): Promise<Submission> 
     .from("exam_submissions")
     .insert({ exam_round_id: input.examRoundId, ...payload })
     .select(
-      "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at, self_scheduled, self_scheduled_note",
+      "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, sort_order, submitted_at, self_scheduled, self_scheduled_note",
     )
     .single();
   if (error) throw error;
@@ -258,7 +256,6 @@ export interface PlacementPatch {
   status: SubmissionStatus;
   slot_day: number | null;
   slot_session: ExamSession | null;
-  manual_start_minutes: number | null;
   sort_order?: number;
 }
 
@@ -269,11 +266,6 @@ export async function updateSubmissionPlacement(id: string, patch: PlacementPatc
 
 export async function bulkUpdatePlacements(updates: { id: string; patch: PlacementPatch }[]): Promise<void> {
   await Promise.all(updates.map((u) => updateSubmissionPlacement(u.id, u.patch)));
-}
-
-export async function updateManualStart(id: string, minutes: number | null): Promise<void> {
-  const { error } = await supabase.from("exam_submissions").update({ manual_start_minutes: minutes }).eq("id", id);
-  if (error) throw error;
 }
 
 export async function setRoundPublishDate(examRoundId: string, publishDate: string): Promise<void> {
@@ -402,14 +394,13 @@ export async function updateSubmissionDetails(id: string, input: SubmissionEditI
     patch.status = "pending";
     patch.slot_day = null;
     patch.slot_session = null;
-    patch.manual_start_minutes = null;
   }
   const { data, error } = await supabase
     .from("exam_submissions")
     .update(patch)
     .eq("id", id)
     .select(
-      "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at, self_scheduled, self_scheduled_note",
+      "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, sort_order, submitted_at, self_scheduled, self_scheduled_note",
     )
     .single();
   if (error) throw error;
