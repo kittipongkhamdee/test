@@ -91,7 +91,10 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
     .eq("is_active", true)
     .limit(1)
     .single();
-  if (roundError) throw roundError;
+  if (roundError) {
+    console.error("fetchActiveRoundBundle: exam_rounds query failed", roundError);
+    throw new Error("ไม่พบรอบสอบที่เปิดใช้งานอยู่ในขณะนี้ กรุณาติดต่อผู้ดูแลระบบ");
+  }
 
   const [
     { data: slotRows, error: slotError },
@@ -118,11 +121,26 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
     supabase.from("config").select("key, value").in("key", ["school_name", "head_academic", "school_logo"]),
     supabase.from("exam_form_options").select("id, category, value, label, icon, sort_order, is_active").order("sort_order"),
   ]);
-  if (slotError) throw slotError;
-  if (teacherError) throw teacherError;
-  if (subError) throw subError;
-  if (configError) throw configError;
-  if (formOptionError) throw formOptionError;
+  if (slotError) {
+    console.error("fetchActiveRoundBundle: exam_round_slots query failed", slotError);
+    throw new Error("โหลดข้อมูลช่วงเวลาสอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  }
+  if (teacherError) {
+    console.error("fetchActiveRoundBundle: exam_teachers query failed", teacherError);
+    throw new Error("โหลดรายชื่อครูไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  }
+  if (subError) {
+    console.error("fetchActiveRoundBundle: exam_submissions query failed", subError);
+    throw new Error("โหลดข้อมูลรายวิชาที่ส่งเข้ามาไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  }
+  if (configError) {
+    console.error("fetchActiveRoundBundle: config query failed", configError);
+    throw new Error("โหลดข้อมูลโรงเรียนไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  }
+  if (formOptionError) {
+    console.error("fetchActiveRoundBundle: exam_form_options query failed", formOptionError);
+    throw new Error("โหลดตัวเลือกฟอร์มสำรวจไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  }
 
   const configMap = new Map((configRows ?? []).map((r) => [r.key, r.value]));
 
@@ -531,10 +549,15 @@ interface Pp5SubjectRow {
 
 export async function fetchSubjectCatalog(): Promise<SubjectCatalogEntry[]> {
   // Pull from both PP5 subjects (via security-definer RPC) and manually-added catalog entries.
+  // Errors here degrade to an empty/partial catalog (autocomplete just won't
+  // suggest anything) rather than blocking the whole app's initial load, but
+  // are logged so a silent RPC/query failure is still visible in devtools.
   const [rpcResult, manualResult] = await Promise.all([
     supabase.rpc("get_subject_catalog"),
     supabase.from("subject_catalog").select("id, code, subject_name, grade, created_at").order("grade").order("code"),
   ]);
+  if (rpcResult.error) console.error("fetchSubjectCatalog: get_subject_catalog RPC failed", rpcResult.error);
+  if (manualResult.error) console.error("fetchSubjectCatalog: subject_catalog query failed", manualResult.error);
 
   const pp5Entries: SubjectCatalogEntry[] = ((rpcResult.data ?? []) as Pp5SubjectRow[])
     .map((row) => ({

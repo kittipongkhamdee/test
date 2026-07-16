@@ -502,13 +502,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [state.submissions, state.cellOrder]);
 
   const undoSchedule = useCallback(() => {
-    setUndoStack((prev) => {
-      if (prev.length === 0) return prev;
-      const snap = prev[prev.length - 1];
-      dispatch({ type: "RESTORE_SCHEDULE", submissions: snap.submissions, cellOrder: snap.cellOrder });
-      return prev.slice(0, -1);
-    });
-  }, [dispatch]);
+    if (undoStack.length === 0) return;
+    const snap = undoStack[undoStack.length - 1];
+    setUndoStack((prev) => prev.slice(0, -1));
+    dispatch({ type: "RESTORE_SCHEDULE", submissions: snap.submissions, cellOrder: snap.cellOrder });
+  }, [dispatch, undoStack]);
 
   const canUndo = undoStack.length > 0;
 
