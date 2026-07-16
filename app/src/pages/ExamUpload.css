@@ -417,7 +417,7 @@
 }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 899px) {
+@media screen and (max-width: 899px) {
   .exup-form-grid {
     grid-template-columns: 1fr;
   }
@@ -427,7 +427,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@media screen and (max-width: 480px) {
   .exup-form-card,
   .exup-list-card {
     padding: 14px 12px;

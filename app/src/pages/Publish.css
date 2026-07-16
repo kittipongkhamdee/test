@@ -157,7 +157,7 @@
   margin-top: 4px;
 }
 
-@media (max-width: 899px) {
+@media screen and (max-width: 899px) {
   .pub-sheet {
     padding: 24px 12px;
   }
@@ -173,7 +173,7 @@
 }
 
 /* ---------- Small phones: 2×2 button grid ---------- */
-@media (max-width: 599px) {
+@media screen and (max-width: 599px) {
   .pub-header-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -187,7 +187,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@media screen and (max-width: 480px) {
   .pub-header-actions {
     grid-template-columns: 1fr;
   }
@@ -235,17 +235,17 @@
     display: block !important;
   }
   .pub-sheet {
-    box-shadow: none;
-    border: none;
-    max-width: none;
-    padding: 0;
+    box-shadow: none !important;
+    border: none !important;
+    max-width: none !important;
+    width: 100% !important;
+    padding: 0 !important;
     display: block !important;
   }
-  /* override mobile overflow-x:auto so print doesn't clip rows */
   .pub-day {
     overflow: visible !important;
   }
-  /* บังคับ full layout ตอนพิมพ์ */
+  /* Fit A4 portrait content width (~680px after margins) */
   .pub-table-head,
   .pub-table-row {
     grid-template-columns: 110px 80px 1fr 100px 65px minmax(130px, 1fr) !important;
@@ -254,6 +254,8 @@
   .pub-table-head span,
   .pub-table-row span {
     display: block !important;
+    overflow: visible !important;
+    white-space: normal !important;
   }
 
   /* --- by-grade print mode overrides --- */

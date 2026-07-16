@@ -157,7 +157,7 @@ a:hover {
   margin-top: 2px;
 }
 
-@media (max-width: 480px) {
+@media screen and (max-width: 480px) {
   .page-header h1 {
     font-size: 18px;
   }

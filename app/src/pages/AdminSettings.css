@@ -363,7 +363,7 @@
   flex-shrink: 0;
 }
 
-@media (max-width: 899px) {
+@media screen and (max-width: 899px) {
   .admin-settings-grid {
     grid-template-columns: 1fr;
   }
@@ -375,7 +375,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@media screen and (max-width: 480px) {
   .admin-settings-card {
     padding: 14px 14px;
   }
@@ -597,7 +597,7 @@
   min-width: 140px;
 }
 
-@media (max-width: 899px) {
+@media screen and (max-width: 899px) {
   .admin-catalog-add-fields {
     grid-template-columns: 1fr 1fr;
   }
