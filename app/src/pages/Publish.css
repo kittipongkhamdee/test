@@ -219,6 +219,11 @@
   display: none;
 }
 
+@page {
+  size: A4 portrait;
+  margin: 12mm 15mm;
+}
+
 @media print {
   .no-print {
     display: none !important;
