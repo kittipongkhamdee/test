@@ -204,6 +204,7 @@ function GroupedTable({ submissions }: { submissions: Submission[] }) {
               <th>รหัสวิชา</th>
               <th>ชื่อวิชา</th>
               <th>ชั้น</th>
+              <th>เวลา</th>
             </tr>
           </thead>
           <tbody>
@@ -223,6 +224,7 @@ function GroupedTable({ submissions }: { submissions: Submission[] }) {
                   <td className="subs-gt-code">{s.code}</td>
                   <td className="subs-gt-subject">{s.subjectName}</td>
                   <td className="subs-gt-grade">{formatGradeRooms(s.grade, s.rooms)}</td>
+                  <td className="subs-gt-duration">{s.durationMinutes} นาที</td>
                 </tr>
               )),
             )}
