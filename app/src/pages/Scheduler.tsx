@@ -548,12 +548,28 @@ function TimelinePanel({
   dateLabel: string;
   onDropCell: (e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession) => void;
 }) {
+  const { state } = useStore();
   const sessionStart = slot?.start ?? (session === "morning" ? "08:30" : "13:00");
   const sessionEnd = slot?.end ?? (session === "morning" ? "11:30" : "16:00");
   const startMin = timeToMinutes(sessionStart);
-  const endMin = timeToMinutes(sessionEnd);
-  const durationMin = Math.max(endMin - startMin, 60);
-  const timeMarks = getTimeMarks(startMin, endMin);
+  const rawEndMin = timeToMinutes(sessionEnd);
+  const gapMinutes = state.round?.gapMinutes ?? 15;
+
+  const effectiveEndMin = useMemo(() => {
+    let maxEnd = rawEndMin;
+    for (const g of GRADES) {
+      const ids = state.cellOrder[cellKey(g, day, session)] ?? [];
+      const items = ids.map((id) => state.submissions[id]).filter(Boolean);
+      if (items.length === 0) continue;
+      const times = computeCellTimes(items, sessionStart, gapMinutes);
+      const last = times[times.length - 1];
+      if (last) maxEnd = Math.max(maxEnd, timeToMinutes(last.end));
+    }
+    return maxEnd;
+  }, [state.cellOrder, state.submissions, day, session, rawEndMin, sessionStart, gapMinutes]);
+
+  const durationMin = Math.max(effectiveEndMin - startMin, 60);
+  const timeMarks = getTimeMarks(startMin, effectiveEndMin);
 
   return (
     <div className="sched-tl-panel">
