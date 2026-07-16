@@ -112,7 +112,9 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
       .select(
         "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at, self_scheduled, self_scheduled_note",
       )
-      .eq("exam_round_id", round.id),
+      .eq("exam_round_id", round.id)
+      .order("sort_order")
+      .order("submitted_at"),
     supabase.from("config").select("key, value").in("key", ["school_name", "head_academic", "school_logo"]),
     supabase.from("exam_form_options").select("id, category, value, label, icon, sort_order, is_active").order("sort_order"),
   ]);
