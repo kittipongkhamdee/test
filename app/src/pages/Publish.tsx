@@ -144,7 +144,7 @@ export default function Publish() {
     }
 
     return byDay;
-  }, [submissions, state.slots, days]);
+  }, [submissions, state.slots, days, state.round?.gapMinutes]);
 
   const rowsByGrade = useMemo(() => {
     const byGrade = new Map<Grade, Array<{ dayLabel: string; row: PrintRow }>>();
@@ -165,7 +165,7 @@ export default function Publish() {
       for (const row of rowsByDay[day] ?? []) grades.add(row.grade);
     }
     return [...grades].sort((a, b) => a - b);
-  }, [rowsByDay]);
+  }, [rowsByDay, days]);
 
   const filteredByDay = useMemo(() => {
     if (!gradeFilter) return rowsByDay;

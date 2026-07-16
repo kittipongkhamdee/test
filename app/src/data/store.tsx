@@ -267,6 +267,7 @@ function reducer(state: DataState, action: Action): DataState {
     case "AUTO_SCHEDULE": {
       const { rules } = action;
       const allCells = state.slots.map((s) => ({ day: s.day, session: s.session }));
+      if (allCells.length === 0) return state;
       const pending = Object.values(state.submissions).filter((s) => s.status === "pending" && !s.selfScheduled);
       const sorted = [...pending].sort((a, b) => {
         if (rules.morningFirst) {
@@ -289,7 +290,8 @@ function reducer(state: DataState, action: Action): DataState {
       for (const item of sorted) {
         let candidates = allCells;
         if (rules.morningFirst && item.morningPreference === "morning") {
-          candidates = allCells.filter((c) => c.session === "morning");
+          const morningCells = allCells.filter((c) => c.session === "morning");
+          if (morningCells.length > 0) candidates = morningCells;
         }
         if (rules.spreadHeavy && item.durationMinutes >= HEAVY_MINUTES) {
           const usedDays = heavyDayUsed.get(String(item.grade)) ?? new Set<ExamDay>();

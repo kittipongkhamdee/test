@@ -51,7 +51,7 @@ export default function Scheduler() {
       }
     }
     return n;
-  }, [state.cellOrder, state.submissions, state.slots, days]);
+  }, [state.cellOrder, state.submissions, state.slots, days, state.round?.gapMinutes]);
 
   const [traySearch, setTraySearch] = useState("");
   const [trayGrade, setTrayGrade] = useState<number | null>(null);

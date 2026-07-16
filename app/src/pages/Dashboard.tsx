@@ -93,8 +93,10 @@ export default function Dashboard() {
     return [...seen.values()];
   }, [submissions]);
 
-  const day1Date = state.slots.find((s) => s.day === 1)?.examDate ?? null;
-  const day2Date = state.slots.find((s) => s.day === 2)?.examDate ?? null;
+  const examDays = useMemo(
+    () => [...new Set(state.slots.map((s) => s.day))].sort((a, b) => a - b),
+    [state.slots],
+  );
 
   if (state.loading) return <div className="dash">กำลังโหลดข้อมูล…</div>;
   if (state.error) return <div className="dash">โหลดข้อมูลไม่สำเร็จ: {state.error}</div>;
@@ -223,14 +225,15 @@ export default function Dashboard() {
             </div>
           )}
           <div className="dash-exam-dates-compact">
-            <div className="dash-exam-date-compact-row">
-              <span className="dash-exam-date-compact-label">วันที่ 1</span>
-              <span className={"dash-exam-date-compact-val" + (day1Date ? "" : " dash-schedule-unset")}>{formatThaiDate(day1Date)}</span>
-            </div>
-            <div className="dash-exam-date-compact-row">
-              <span className="dash-exam-date-compact-label">วันที่ 2</span>
-              <span className={"dash-exam-date-compact-val" + (day2Date ? "" : " dash-schedule-unset")}>{formatThaiDate(day2Date)}</span>
-            </div>
+            {examDays.map((day) => {
+              const examDate = state.slots.find((s) => s.day === day)?.examDate ?? null;
+              return (
+                <div className="dash-exam-date-compact-row" key={day}>
+                  <span className="dash-exam-date-compact-label">วันที่ {day}</span>
+                  <span className={"dash-exam-date-compact-val" + (examDate ? "" : " dash-schedule-unset")}>{formatThaiDate(examDate)}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
