@@ -26,7 +26,7 @@ export function computeCellTimes(items: Submission[], sessionStartTime: string, 
   const times: { id: string; start: number; end: number }[] = [];
 
   for (const item of items) {
-    const start = cursor;
+    const start = item.manualStartMinutes ?? cursor;
     const end = start + item.durationMinutes;
     times.push({ id: item.id, start, end });
     cursor = Math.max(cursor, end) + gapMinutes;

@@ -27,6 +27,7 @@ import {
   fetchSubjectCatalog,
   submitSubmission,
   updateFormOption as apiUpdateFormOption,
+  updateManualStart,
   updateRoundSettings as apiUpdateRoundSettings,
   updateSchoolSettings as apiUpdateSchoolSettings,
   updateSlotExamDate as apiUpdateSlotExamDate,
@@ -103,6 +104,7 @@ type Action =
   | { type: "REMOVE_FORM_OPTION"; id: string }
   | { type: "PLACE"; id: string; day: ExamDay; session: ExamSession; index?: number }
   | { type: "UNPLACE"; id: string }
+  | { type: "SET_MANUAL_START"; id: string; minutes: number | null }
   | { type: "AUTO_SCHEDULE"; rules: AutoScheduleRules }
   | { type: "CLEAR_SCHEDULE" }
   | { type: "UPDATE_SCHOOL"; school: SchoolMeta }
@@ -176,6 +178,7 @@ function reducer(state: DataState, action: Action): DataState {
       const targetList = cleared[key] ? [...cleared[key]] : [];
       const insertAt = action.index ?? targetList.length;
       targetList.splice(insertAt, 0, action.id);
+      const sameCell = existing.slot?.day === action.day && existing.slot?.session === action.session;
       return {
         ...state,
         submissions: {
@@ -184,6 +187,7 @@ function reducer(state: DataState, action: Action): DataState {
             ...existing,
             status: "scheduled",
             slot: { day: action.day, session: action.session },
+            manualStartMinutes: sameCell ? existing.manualStartMinutes : undefined,
           },
         },
         cellOrder: { ...cleared, [key]: targetList },
@@ -196,9 +200,20 @@ function reducer(state: DataState, action: Action): DataState {
         ...state,
         submissions: {
           ...state.submissions,
-          [action.id]: { ...existing, status: "pending", slot: undefined },
+          [action.id]: { ...existing, status: "pending", slot: undefined, manualStartMinutes: undefined },
         },
         cellOrder: removeFromAllCells(state.cellOrder, action.id),
+      };
+    }
+    case "SET_MANUAL_START": {
+      const existing = state.submissions[action.id];
+      if (!existing) return state;
+      return {
+        ...state,
+        submissions: {
+          ...state.submissions,
+          [action.id]: { ...existing, manualStartMinutes: action.minutes ?? undefined },
+        },
       };
     }
     case "UPDATE_SCHOOL":
@@ -222,7 +237,8 @@ function reducer(state: DataState, action: Action): DataState {
     case "CLEAR_SCHEDULE": {
       const submissions: Record<string, Submission> = {};
       for (const [id, s] of Object.entries(state.submissions)) {
-        submissions[id] = s.status === "scheduled" ? { ...s, status: "pending", slot: undefined } : s;
+        submissions[id] =
+          s.status === "scheduled" ? { ...s, status: "pending", slot: undefined, manualStartMinutes: undefined } : s;
       }
       return { ...state, submissions, cellOrder: {} };
     }
@@ -233,7 +249,8 @@ function reducer(state: DataState, action: Action): DataState {
     case "REMOVE_DAY": {
       const submissions: Record<string, Submission> = {};
       for (const [id, s] of Object.entries(state.submissions)) {
-        submissions[id] = s.slot?.day === action.day ? { ...s, status: "pending", slot: undefined } : s;
+        submissions[id] =
+          s.slot?.day === action.day ? { ...s, status: "pending", slot: undefined, manualStartMinutes: undefined } : s;
       }
       const cellOrder: Record<string, string[]> = {};
       for (const [key, ids] of Object.entries(state.cellOrder)) {
@@ -304,6 +321,7 @@ function reducer(state: DataState, action: Action): DataState {
           ...item,
           status: "scheduled",
           slot: { day: chosen.day, session: chosen.session },
+          manualStartMinutes: undefined,
         };
       }
 
@@ -361,6 +379,7 @@ function persistSortOrder(cellOrder: Record<string, string[]>, key: string, subm
       status: "scheduled",
       slot_day: s.slot!.day,
       slot_session: s.slot!.session,
+      manual_start_minutes: s.manualStartMinutes ?? null,
       sort_order: index,
     };
     return { id, patch };
@@ -415,12 +434,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           updateSubmissionUnplace(action.id).catch((err) => console.error("UNPLACE persist failed", err));
           break;
         }
+        case "SET_MANUAL_START": {
+          updateManualStart(action.id, action.minutes).catch((err) => console.error("SET_MANUAL_START persist failed", err));
+          break;
+        }
         case "CLEAR_SCHEDULE": {
           const updates = Object.values(state.submissions)
             .filter((s) => s.status === "scheduled")
             .map((s) => ({
               id: s.id,
-              patch: { status: "pending" as const, slot_day: null, slot_session: null },
+              patch: { status: "pending" as const, slot_day: null, slot_session: null, manual_start_minutes: null },
             }));
           bulkUpdatePlacements(updates).catch((err) => console.error("CLEAR_SCHEDULE persist failed", err));
           break;
@@ -434,14 +457,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           const updates: { id: string; patch: PlacementPatch }[] = [];
           for (const sub of Object.values(state.submissions)) {
             if (sub.status === "scheduled" && action.submissions[sub.id]?.status !== "scheduled") {
-              updates.push({ id: sub.id, patch: { status: "pending", slot_day: null, slot_session: null } });
+              updates.push({ id: sub.id, patch: { status: "pending", slot_day: null, slot_session: null, manual_start_minutes: null } });
             }
           }
           for (const [, ids] of Object.entries(action.cellOrder)) {
             ids.forEach((id, i) => {
               const sub = action.submissions[id];
               if (!sub?.slot) return;
-              updates.push({ id, patch: { status: "scheduled", slot_day: sub.slot.day, slot_session: sub.slot.session, sort_order: i } });
+              updates.push({ id, patch: { status: "scheduled", slot_day: sub.slot.day, slot_session: sub.slot.session, manual_start_minutes: sub.manualStartMinutes ?? null, sort_order: i } });
             });
           }
           if (updates.length) bulkUpdatePlacements(updates).catch((err) => console.error("RESTORE_SCHEDULE persist failed", err));
@@ -707,7 +730,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
 async function updateSubmissionUnplace(id: string) {
   await bulkUpdatePlacements([
-    { id, patch: { status: "pending", slot_day: null, slot_session: null } },
+    { id, patch: { status: "pending", slot_day: null, slot_session: null, manual_start_minutes: null } },
   ]);
 }
 

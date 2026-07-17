@@ -24,6 +24,7 @@ export interface Submission {
   morningPreference: MorningPreference;
   status: SubmissionStatus;
   slot?: Slot;
+  manualStartMinutes?: number; // admin-forced start time override, minutes-from-midnight
   submittedAt: string; // ISO
   selfScheduled: boolean;
   selfScheduledNote: string;
