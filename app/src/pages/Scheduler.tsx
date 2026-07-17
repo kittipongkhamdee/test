@@ -721,6 +721,7 @@ function TimelineLane({
   );
   const [dragOver, setDragOver] = useState(false);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [manualStartTarget, setManualStartTarget] = useState<Submission | null>(null);
   const laneRef = useRef<HTMLDivElement>(null);
 
   function calcInsertIndex(clientX: number): number {
@@ -804,9 +805,14 @@ function TimelineLane({
               }}
               draggable={isAdmin}
               onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
-              title={`${item.code} · ${item.subjectName} · ${t.start}–${t.end}`}
+              onClick={() => { if (isAdmin) setManualStartTarget(item); }}
+              title={
+                `${item.code} · ${item.subjectName} · ${t.start}–${t.end}` +
+                (isAdmin ? " · คลิกเพื่อกำหนดเวลาเริ่มสอบเอง" : "")
+              }
             >
               <div className="sched-tl-block-time" style={t.conflict ? {} : { color: c.text }}>
+                {item.manualStartMinutes !== undefined && "📌 "}
                 {t.start.replace(":", ".")}–{t.end.replace(":", ".")}
               </div>
               <div className="sched-tl-block-code" style={t.conflict ? {} : { color: c.text }}>
@@ -832,7 +838,85 @@ function TimelineLane({
           );
         })}
       </div>
+      {manualStartTarget && (() => {
+        const idx = items.findIndex((it) => it.id === manualStartTarget.id);
+        const computedStart = idx >= 0 && times[idx] ? times[idx].start : slotStart;
+        return (
+          <ManualStartModal
+            item={manualStartTarget}
+            computedStart={computedStart}
+            onClose={() => setManualStartTarget(null)}
+          />
+        );
+      })()}
     </div>
+  );
+}
+
+function ManualStartModal({
+  item,
+  computedStart,
+  onClose,
+}: {
+  item: Submission;
+  computedStart: string;
+  onClose: () => void;
+}) {
+  const { dispatch, pushUndoSnapshot } = useStore();
+  const [time, setTime] = useState(
+    item.manualStartMinutes !== undefined ? minutesToTime(item.manualStartMinutes) : computedStart,
+  );
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!time) return;
+    pushUndoSnapshot();
+    dispatch({ type: "SET_MANUAL_START", id: item.id, minutes: timeToMinutes(time) });
+    onClose();
+  }
+
+  function handleReset() {
+    pushUndoSnapshot();
+    dispatch({ type: "SET_MANUAL_START", id: item.id, minutes: null });
+    onClose();
+  }
+
+  return createPortal(
+    <div className="sched-confirm-overlay" onClick={onClose}>
+      <form className="sched-confirm-modal card" onClick={(e) => e.stopPropagation()} onSubmit={handleSave}>
+        <div className="sched-confirm-title">กำหนดเวลาเริ่มสอบเอง</div>
+        <div className="sched-manual-start-sub">
+          {item.code} · {item.subjectName}
+        </div>
+        <label className="tform-field">
+          <span className="tform-label">เวลาเริ่มสอบ</span>
+          <input
+            className="tform-input"
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            required
+          />
+        </label>
+        <div className="tform-hint">
+          ปกติระบบคำนวณเวลาเริ่มให้อัตโนมัติตามลำดับวิชาในช่อง — กำหนดเองเพื่อบังคับเวลาที่แน่นอน (ยังตรวจสอบเวลาซ้อนให้เหมือนเดิม)
+        </div>
+        <div className="sched-confirm-actions">
+          {item.manualStartMinutes !== undefined && (
+            <button type="button" className="btn btn-ghost" onClick={handleReset}>
+              ใช้เวลาอัตโนมัติ
+            </button>
+          )}
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            ยกเลิก
+          </button>
+          <button type="submit" className="btn btn-primary">
+            บันทึกเวลา
+          </button>
+        </div>
+      </form>
+    </div>,
+    document.body,
   );
 }
 
