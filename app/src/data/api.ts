@@ -210,21 +210,20 @@ export async function submitSubmission(input: SubmitInput): Promise<Submission> 
     existing = data;
   }
 
-  // A "draft" row is an unclaimed catalog placeholder (no real teacher_name
+  // A "draft" row is an unclaimed catalog placeholder (no real submission
   // yet) — claiming it is the normal flow, not a collision. Anything else
-  // (pending/scheduled) already belongs to a specific teacher; only that same
-  // teacher may resubmit into it, otherwise this would silently overwrite
-  // someone else's submission.
-  if (existing && existing.status !== "draft" && existing.teacher_name.trim() !== input.teacherName.trim()) {
-    throw new Error(
-      `วิชา ${input.code} ระดับชั้นนี้มีครู "${existing.teacher_name}" ส่งข้อมูลไว้แล้ว กรุณาตรวจสอบรหัสวิชาอีกครั้ง หรือแจ้งผู้ดูแลระบบหากต้องการแก้ไข`,
-    );
-  }
-
-  if (existing && existing.status === "scheduled") {
-    throw new Error(
-      `วิชา ${input.code} ระดับชั้นนี้มีข้อมูลส่งและจัดตารางสอบไปแล้ว หากต้องการแก้ไข กรุณาแจ้งผู้ดูแลระบบให้แก้ไขที่หน้า "ข้อมูลที่ส่งเข้ามา" แทน`,
-    );
+  // (pending/scheduled) is already a real submission for this subject+grade,
+  // by this teacher or another one — resubmitting into it must always be
+  // rejected, whether that means it'd silently overwrite someone else's row
+  // or silently rewrite the teacher's own already-recorded entry. Either way
+  // the fix is an admin edit on the Submissions page, not a repeat submit.
+  if (existing && existing.status !== "draft") {
+    const statusText = existing.status === "scheduled" ? "จัดตารางสอบแล้ว" : "รอจัดตาราง";
+    const message =
+      existing.teacher_name.trim() === input.teacherName.trim()
+        ? `คุณเคยส่งวิชา ${input.code} ระดับชั้นนี้ไปแล้ว (สถานะ: ${statusText}) หากต้องการแก้ไขข้อมูลเดิม กรุณาแจ้งผู้ดูแลระบบให้แก้ไขที่หน้า "ข้อมูลที่ส่งเข้ามา" แทน`
+        : `วิชา ${input.code} ระดับชั้นนี้มีครู "${existing.teacher_name}" ส่งข้อมูลไว้แล้ว (สถานะ: ${statusText}) กรุณาตรวจสอบรหัสวิชาอีกครั้ง หรือแจ้งผู้ดูแลระบบหากต้องการแก้ไข`;
+    throw new Error(message);
   }
 
   const payload = {

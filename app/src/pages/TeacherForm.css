@@ -175,16 +175,6 @@
   font-size: 13px;
   font-weight: 600;
 }
-.tform-note {
-  background: #fff3e8;
-  color: #c05000;
-  border: 1px solid #ffd4b0;
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
 .tform-field {
   display: flex;
   flex-direction: column;
