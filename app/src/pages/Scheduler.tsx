@@ -4,6 +4,7 @@ import { useCellItems, useSubmissions, useStore, type AutoScheduleRules } from "
 import { computeCellTimes, timeToMinutes, minutesToTime } from "../data/scheduling";
 import type { ExamDay, ExamSession, ExamSlotMeta, Grade, Submission } from "../data/types";
 import { GRADES, cellKey, gradeLabel } from "../data/mockData";
+import { escHtml, openPrintPopup } from "../lib/printPopup";
 import "./Scheduler.css";
 
 const SESSIONS: ExamSession[] = ["morning", "afternoon"];
@@ -16,6 +17,30 @@ function dayLabel(slot: ExamSlotMeta | undefined, day: ExamDay): string {
 function subjectChipLabel(s: Submission): string {
   return `${s.code} · ${gradeLabel(s.grade)}`;
 }
+
+const SCHED_PRINT_CSS = `
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Sarabun', 'Noto Sans Thai', 'Segoe UI', Arial, sans-serif;
+  font-size: 12px;
+  color: #1a1a2e;
+  line-height: 1.4;
+}
+@page { size: A4 landscape; margin: 12mm; }
+.sched-print-header { text-align: center; margin-bottom: 12px; }
+.sched-print-title { font-size: 18px; font-weight: 700; color: #000; }
+.sched-print-sub { font-size: 13px; color: #555; margin-top: 2px; }
+.sched-print-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.sched-print-table th,
+.sched-print-table td { border: 1px solid #ccc; padding: 6px 8px; vertical-align: top; }
+.sched-print-table thead th { background: #e8eef8; font-weight: 700; text-align: center; font-size: 12px; }
+.sched-print-rowhead { background: #f5f7fc; font-weight: 700; white-space: nowrap; min-width: 80px; }
+.sched-print-time { font-weight: 400; font-size: 10px; color: #666; margin-top: 2px; }
+.sched-print-cell { min-width: 90px; }
+.sched-print-chip { background: #eef3ff; border-radius: 4px; padding: 4px 6px; margin-bottom: 4px; font-size: 10px; display: flex; flex-direction: column; gap: 1px; }
+.sched-print-chip b { font-size: 11px; color: #1a3a6b; }
+.sched-print-chip-time { color: #555; font-size: 10px; }
+`;
 
 export default function Scheduler() {
   const { state, dispatch, isAdmin, pushUndoSnapshot, undoSchedule, canUndo } = useStore();
@@ -51,7 +76,7 @@ export default function Scheduler() {
       }
     }
     return n;
-  }, [state.cellOrder, state.submissions, state.slots, days]);
+  }, [state.cellOrder, state.submissions, state.slots, days, state.round?.gapMinutes]);
 
   const [traySearch, setTraySearch] = useState("");
   const [trayGrade, setTrayGrade] = useState<number | null>(null);
@@ -128,6 +153,50 @@ export default function Scheduler() {
     showToast("บันทึกและเผยแพร่ตารางสอบเรียบร้อยแล้ว");
   }
 
+  function buildSchedPrintHTML(): string {
+    const headHtml = `<th>วัน / เวลา</th>` + GRADES.map((g) => `<th>${escHtml(gradeLabel(g))}</th>`).join("");
+
+    const rowsHtml = days.flatMap((day) =>
+      SESSIONS.map((session) => {
+        const slot = state.slots.find((s) => s.day === day && s.session === session);
+        const cellsHtml = GRADES.map((g) => {
+          const ids = state.cellOrder[cellKey(g, day, session)] ?? [];
+          const items = ids.map((id) => state.submissions[id]).filter(Boolean);
+          const times = computeCellTimes(items, slot?.start ?? "08:30", state.round?.gapMinutes ?? 15);
+          const chipsHtml = items
+            .map((item, i) => {
+              const t = times[i];
+              return (
+                `<div class="sched-print-chip"><b>${escHtml(item.code)}</b><span>${escHtml(item.subjectName)}</span>` +
+                (t ? `<span class="sched-print-chip-time">${escHtml(t.start.replace(":", "."))}–${escHtml(t.end.replace(":", "."))}</span>` : "") +
+                `</div>`
+              );
+            })
+            .join("");
+          return `<td class="sched-print-cell">${chipsHtml}</td>`;
+        }).join("");
+        return (
+          `<tr><td class="sched-print-rowhead"><div>${escHtml(dayLabel(slot, day))}</div>` +
+          `<div class="sched-print-time">${session === "morning" ? "เช้า" : "บ่าย"} ${slot ? escHtml(`${slot.start.replace(":", ".")}–${slot.end.replace(":", ".")}`) : ""}</div></td>` +
+          cellsHtml +
+          `</tr>`
+        );
+      }),
+    ).join("");
+
+    return (
+      `<div class="sched-print-header">` +
+      `<div class="sched-print-title">${escHtml(state.school?.schoolName ?? "ตารางสอบ")}</div>` +
+      `<div class="sched-print-sub">${escHtml(state.round?.name ?? "")}</div>` +
+      `</div>` +
+      `<table class="sched-print-table"><thead><tr>${headHtml}</tr></thead><tbody>${rowsHtml}</tbody></table>`
+    );
+  }
+
+  function handlePrint() {
+    openPrintPopup(SCHED_PRINT_CSS, buildSchedPrintHTML());
+  }
+
   function handleDropOnCell(e: React.DragEvent, grade: Grade, day: ExamDay, session: ExamSession, index?: number) {
     e.preventDefault();
     if (!requireAdmin()) return;
@@ -171,7 +240,7 @@ export default function Scheduler() {
           >
             ↩ ย้อนกลับ
           </button>
-          <button className="btn btn-ghost" onClick={() => window.print()} title="พิมพ์ตารางสอบ">
+          <button className="btn btn-ghost" onClick={handlePrint} title="พิมพ์ตารางสอบ">
             🖨 พิมพ์
           </button>
           <div className="sched-auto-wrap">
@@ -652,6 +721,7 @@ function TimelineLane({
   );
   const [dragOver, setDragOver] = useState(false);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [manualStartTarget, setManualStartTarget] = useState<Submission | null>(null);
   const laneRef = useRef<HTMLDivElement>(null);
 
   function calcInsertIndex(clientX: number): number {
@@ -735,9 +805,14 @@ function TimelineLane({
               }}
               draggable={isAdmin}
               onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
-              title={`${item.code} · ${item.subjectName} · ${t.start}–${t.end}`}
+              onClick={() => { if (isAdmin) setManualStartTarget(item); }}
+              title={
+                `${item.code} · ${item.subjectName} · ${t.start}–${t.end}` +
+                (isAdmin ? " · คลิกเพื่อกำหนดเวลาเริ่มสอบเอง" : "")
+              }
             >
               <div className="sched-tl-block-time" style={t.conflict ? {} : { color: c.text }}>
+                {item.manualStartMinutes !== undefined && "📌 "}
                 {t.start.replace(":", ".")}–{t.end.replace(":", ".")}
               </div>
               <div className="sched-tl-block-code" style={t.conflict ? {} : { color: c.text }}>
@@ -763,7 +838,85 @@ function TimelineLane({
           );
         })}
       </div>
+      {manualStartTarget && (() => {
+        const idx = items.findIndex((it) => it.id === manualStartTarget.id);
+        const computedStart = idx >= 0 && times[idx] ? times[idx].start : slotStart;
+        return (
+          <ManualStartModal
+            item={manualStartTarget}
+            computedStart={computedStart}
+            onClose={() => setManualStartTarget(null)}
+          />
+        );
+      })()}
     </div>
+  );
+}
+
+function ManualStartModal({
+  item,
+  computedStart,
+  onClose,
+}: {
+  item: Submission;
+  computedStart: string;
+  onClose: () => void;
+}) {
+  const { dispatch, pushUndoSnapshot } = useStore();
+  const [time, setTime] = useState(
+    item.manualStartMinutes !== undefined ? minutesToTime(item.manualStartMinutes) : computedStart,
+  );
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!time) return;
+    pushUndoSnapshot();
+    dispatch({ type: "SET_MANUAL_START", id: item.id, minutes: timeToMinutes(time) });
+    onClose();
+  }
+
+  function handleReset() {
+    pushUndoSnapshot();
+    dispatch({ type: "SET_MANUAL_START", id: item.id, minutes: null });
+    onClose();
+  }
+
+  return createPortal(
+    <div className="sched-confirm-overlay" onClick={onClose}>
+      <form className="sched-confirm-modal card" onClick={(e) => e.stopPropagation()} onSubmit={handleSave}>
+        <div className="sched-confirm-title">กำหนดเวลาเริ่มสอบเอง</div>
+        <div className="sched-manual-start-sub">
+          {item.code} · {item.subjectName}
+        </div>
+        <label className="tform-field">
+          <span className="tform-label">เวลาเริ่มสอบ</span>
+          <input
+            className="tform-input"
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            required
+          />
+        </label>
+        <div className="tform-hint">
+          ปกติระบบคำนวณเวลาเริ่มให้อัตโนมัติตามลำดับวิชาในช่อง — กำหนดเองเพื่อบังคับเวลาที่แน่นอน (ยังตรวจสอบเวลาซ้อนให้เหมือนเดิม)
+        </div>
+        <div className="sched-confirm-actions">
+          {item.manualStartMinutes !== undefined && (
+            <button type="button" className="btn btn-ghost" onClick={handleReset}>
+              ใช้เวลาอัตโนมัติ
+            </button>
+          )}
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            ยกเลิก
+          </button>
+          <button type="submit" className="btn btn-primary">
+            บันทึกเวลา
+          </button>
+        </div>
+      </form>
+    </div>,
+    document.body,
   );
 }
 

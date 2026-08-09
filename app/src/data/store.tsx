@@ -267,6 +267,7 @@ function reducer(state: DataState, action: Action): DataState {
     case "AUTO_SCHEDULE": {
       const { rules } = action;
       const allCells = state.slots.map((s) => ({ day: s.day, session: s.session }));
+      if (allCells.length === 0) return state;
       const pending = Object.values(state.submissions).filter((s) => s.status === "pending" && !s.selfScheduled);
       const sorted = [...pending].sort((a, b) => {
         if (rules.morningFirst) {
@@ -289,7 +290,8 @@ function reducer(state: DataState, action: Action): DataState {
       for (const item of sorted) {
         let candidates = allCells;
         if (rules.morningFirst && item.morningPreference === "morning") {
-          candidates = allCells.filter((c) => c.session === "morning");
+          const morningCells = allCells.filter((c) => c.session === "morning");
+          if (morningCells.length > 0) candidates = morningCells;
         }
         if (rules.spreadHeavy && item.durationMinutes >= HEAVY_MINUTES) {
           const usedDays = heavyDayUsed.get(String(item.grade)) ?? new Set<ExamDay>();
@@ -500,13 +502,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [state.submissions, state.cellOrder]);
 
   const undoSchedule = useCallback(() => {
-    setUndoStack((prev) => {
-      if (prev.length === 0) return prev;
-      const snap = prev[prev.length - 1];
-      dispatch({ type: "RESTORE_SCHEDULE", submissions: snap.submissions, cellOrder: snap.cellOrder });
-      return prev.slice(0, -1);
-    });
-  }, [dispatch]);
+    if (undoStack.length === 0) return;
+    const snap = undoStack[undoStack.length - 1];
+    setUndoStack((prev) => prev.slice(0, -1));
+    dispatch({ type: "RESTORE_SCHEDULE", submissions: snap.submissions, cellOrder: snap.cellOrder });
+  }, [dispatch, undoStack]);
 
   const canUndo = undoStack.length > 0;
 
@@ -561,11 +561,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     dispatchRaw({ type: "REMOVE_SUBMISSION", id });
   }, []);
 
-  const editSubmission = useCallback(async (id: string, input: SubmissionEditInput) => {
-    const saved = await updateSubmissionDetails(id, input);
-    dispatchRaw({ type: "UPSERT_SUBMISSION", submission: saved });
-    return saved;
-  }, []);
+  const editSubmission = useCallback(
+    async (id: string, input: SubmissionEditInput) => {
+      const existing = state.submissions[id];
+      const shouldUnschedule = !!existing && existing.status === "scheduled" && existing.grade !== input.grade;
+      const saved = await updateSubmissionDetails(id, input, shouldUnschedule);
+      dispatchRaw({ type: "UPSERT_SUBMISSION", submission: saved });
+      if (shouldUnschedule) dispatchRaw({ type: "UNPLACE", id });
+      return saved;
+    },
+    [state.submissions],
+  );
 
   const updateRoundSettings = useCallback(
     async (input: RoundSettingsInput) => {

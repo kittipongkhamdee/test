@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useActiveFormOptions, useCatalog, useStore, useSubmissions } from "../data/store";
 import { gradeLabel } from "../data/mockData";
@@ -66,6 +66,7 @@ export default function TeacherForm() {
   const [submittedMsg, setSubmittedMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [activeSuggestField, setActiveSuggestField] = useState<"code" | "subjectName" | null>(null);
   const [selfScheduled, setSelfScheduled] = useState(false);
@@ -84,6 +85,31 @@ export default function TeacherForm() {
       .filter((s) => s.teacherName.trim().toLowerCase() === q)
       .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
   }, [submissions, teacherName]);
+
+  // Mirrors the server-side block in submitSubmission: any match that isn't
+  // an unclaimed "draft" catalog placeholder is already a real submission
+  // for this subject+grade — by this teacher or another one — and
+  // resubmitting into it is always rejected, so it's always a hard block
+  // here too. (submissions, from useSubmissions(), already excludes drafts,
+  // so any match found below is guaranteed non-draft.)
+  const duplicateMatch = useMemo(() => {
+    const normalizedCode = code.trim().replace(/\s+/g, "");
+    if (selfScheduled || !normalizedCode || !grade) return null;
+    return (
+      submissions.find(
+        (s) => !s.selfScheduled && s.grade === grade && s.code.trim().replace(/\s+/g, "") === normalizedCode,
+      ) ?? null
+    );
+  }, [submissions, code, grade, selfScheduled]);
+  const duplicateMessage = useMemo(() => {
+    if (!duplicateMatch) return null;
+    const label = `${duplicateMatch.code} ${gradeLabel(duplicateMatch.grade)}`;
+    const statusText = statusLabel(duplicateMatch.status).text;
+    if (duplicateMatch.teacherName.trim() === teacherName.trim()) {
+      return `คุณเคยส่งวิชา ${label} ไปแล้ว (สถานะ: ${statusText}) หากต้องการแก้ไขข้อมูลเดิม กรุณาแจ้งผู้ดูแลระบบให้แก้ไขที่หน้า "ข้อมูลที่ส่งเข้ามา" แทน`;
+    }
+    return `วิชา ${label} มีครู "${duplicateMatch.teacherName}" ส่งข้อมูลไว้แล้ว (สถานะ: ${statusText}) — กรุณาตรวจสอบรหัสวิชาอีกครั้ง หรือแจ้งผู้ดูแลระบบหากต้องการแก้ไข`;
+  }, [duplicateMatch, teacherName]);
 
   const suggestions = useMemo(() => {
     if (!activeSuggestField) return [];
@@ -126,12 +152,24 @@ export default function TeacherForm() {
   const isRoomsValid = Array.isArray(roomsSelection) && roomsSelection.length > 0;
   const isComplete = selfScheduled
     ? !!teacherName.trim()
-    : !!teacherName.trim() && !!code.trim() && !!subjectName.trim() && !!grade && isRoomsValid && finalDuration > 0 && !!preference;
+    : !!teacherName.trim() &&
+      !!code.trim() &&
+      !!subjectName.trim() &&
+      !!grade &&
+      isRoomsValid &&
+      finalDuration > 0 &&
+      !!preference &&
+      !duplicateMessage;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (windowClosed) {
       setError(windowMessage);
+      return;
+    }
+    if (duplicateMessage) {
+      setError(duplicateMessage);
+      setSubmittedMsg(null);
       return;
     }
     if (!isComplete) {
@@ -144,11 +182,17 @@ export default function TeacherForm() {
   }
 
   async function doSubmit() {
+    // submittingRef (not just the `submitting` state) guards against a fast
+    // double-tap firing doSubmit twice before React commits the re-render
+    // that disables the button — without it, both calls can race past the
+    // server's own duplicate check and create two rows.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setShowConfirm(false);
     setSubmitting(true);
     try {
       await submit({
-        code: selfScheduled ? "–" : code.trim(),
+        code: selfScheduled ? "–" : code.trim().replace(/\s+/g, ""),
         subjectName: selfScheduled ? "จัดสอบเอง" : subjectName.trim(),
         teacherName: teacherName.trim(),
         grade: selfScheduled ? 1 : grade!,
@@ -168,6 +212,7 @@ export default function TeacherForm() {
       setError(err instanceof Error ? err.message : "ส่งข้อมูลไม่สำเร็จ กรุณาลองใหม่");
     } finally {
       setSubmitting(false);
+      submittingRef.current = false;
     }
   }
 
@@ -329,6 +374,8 @@ export default function TeacherForm() {
                 )}
               </label>
             </div>
+
+            {duplicateMessage && <div className="tform-error">{duplicateMessage}</div>}
 
             <div className="tform-field">
               <span className="tform-label">ระดับชั้น</span>

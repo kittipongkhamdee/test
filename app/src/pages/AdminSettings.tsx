@@ -434,6 +434,31 @@ function SubjectCatalogSection() {
 }
 
 export default function AdminSettings() {
+  const { state } = useStore();
+  if (state.loading) {
+    return (
+      <div className="admin-page">
+        <div className="page-header">
+          <h1>ตั้งค่ารอบสอบ</h1>
+        </div>
+        <div className="card">กำลังโหลดข้อมูล…</div>
+      </div>
+    );
+  }
+  if (state.error) {
+    return (
+      <div className="admin-page">
+        <div className="page-header">
+          <h1>ตั้งค่ารอบสอบ</h1>
+        </div>
+        <div className="card">โหลดข้อมูลไม่สำเร็จ: {state.error}</div>
+      </div>
+    );
+  }
+  return <AdminSettingsForm />;
+}
+
+function AdminSettingsForm() {
   const { state, isAdmin, unlockAdmin, updateRoundSettings, updateSchoolSettings, updateSlotDate, updateSlotTimes, addExamDay, removeExamDay, examMenuEnabled, toggleExamMenu } = useStore();
   const [password, setPassword] = useState("");
   const [unlockError, setUnlockError] = useState<string | null>(null);

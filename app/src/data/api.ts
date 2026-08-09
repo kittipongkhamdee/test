@@ -91,7 +91,10 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
     .eq("is_active", true)
     .limit(1)
     .single();
-  if (roundError) throw roundError;
+  if (roundError) {
+    console.error("fetchActiveRoundBundle: exam_rounds query failed", roundError);
+    throw new Error("ไม่พบรอบสอบที่เปิดใช้งานอยู่ในขณะนี้ กรุณาติดต่อผู้ดูแลระบบ");
+  }
 
   const [
     { data: slotRows, error: slotError },
@@ -118,11 +121,26 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
     supabase.from("config").select("key, value").in("key", ["school_name", "head_academic", "school_logo"]),
     supabase.from("exam_form_options").select("id, category, value, label, icon, sort_order, is_active").order("sort_order"),
   ]);
-  if (slotError) throw slotError;
-  if (teacherError) throw teacherError;
-  if (subError) throw subError;
-  if (configError) throw configError;
-  if (formOptionError) throw formOptionError;
+  if (slotError) {
+    console.error("fetchActiveRoundBundle: exam_round_slots query failed", slotError);
+    throw new Error("โหลดข้อมูลช่วงเวลาสอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  }
+  if (teacherError) {
+    console.error("fetchActiveRoundBundle: exam_teachers query failed", teacherError);
+    throw new Error("โหลดรายชื่อครูไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  }
+  if (subError) {
+    console.error("fetchActiveRoundBundle: exam_submissions query failed", subError);
+    throw new Error("โหลดข้อมูลรายวิชาที่ส่งเข้ามาไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  }
+  if (configError) {
+    console.error("fetchActiveRoundBundle: config query failed", configError);
+    throw new Error("โหลดข้อมูลโรงเรียนไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  }
+  if (formOptionError) {
+    console.error("fetchActiveRoundBundle: exam_form_options query failed", formOptionError);
+    throw new Error("โหลดตัวเลือกฟอร์มสำรวจไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  }
 
   const configMap = new Map((configRows ?? []).map((r) => [r.key, r.value]));
 
@@ -171,17 +189,42 @@ export interface SubmitInput {
 // Real subjects already exist in the catalog as "draft" rows (seeded from the
 // school's subject list). Submitting the survey confirms an existing draft for
 // that subject+grade if one exists, otherwise it adds a new subject.
+//
+// Self-scheduled requests always use a placeholder code ("–") and grade 1, so
+// matching by code+grade would incorrectly treat every self-scheduled request
+// as the same subject — skip the lookup for those entirely.
 export async function submitSubmission(input: SubmitInput): Promise<Submission> {
-  const { data: existing, error: findError } = await supabase
-    .from("exam_submissions")
-    .select("id")
-    .eq("exam_round_id", input.examRoundId)
-    .eq("subject_code", input.code)
-    .eq("grade_level", input.grade)
-    .eq("status", "draft")
-    .limit(1)
-    .maybeSingle();
-  if (findError) throw findError;
+  let existing: { id: string; status: SubmissionStatus; teacher_name: string } | null = null;
+
+  if (!input.selfScheduled) {
+    const { data, error: findError } = await supabase
+      .from("exam_submissions")
+      .select("id, status, teacher_name")
+      .eq("exam_round_id", input.examRoundId)
+      .eq("subject_code", input.code)
+      .eq("grade_level", input.grade)
+      .in("status", ["draft", "pending", "scheduled"])
+      .limit(1)
+      .maybeSingle();
+    if (findError) throw findError;
+    existing = data;
+  }
+
+  // A "draft" row is an unclaimed catalog placeholder (no real submission
+  // yet) — claiming it is the normal flow, not a collision. Anything else
+  // (pending/scheduled) is already a real submission for this subject+grade,
+  // by this teacher or another one — resubmitting into it must always be
+  // rejected, whether that means it'd silently overwrite someone else's row
+  // or silently rewrite the teacher's own already-recorded entry. Either way
+  // the fix is an admin edit on the Submissions page, not a repeat submit.
+  if (existing && existing.status !== "draft") {
+    const statusText = existing.status === "scheduled" ? "จัดตารางสอบแล้ว" : "รอจัดตาราง";
+    const message =
+      existing.teacher_name.trim() === input.teacherName.trim()
+        ? `คุณเคยส่งวิชา ${input.code} ระดับชั้นนี้ไปแล้ว (สถานะ: ${statusText}) หากต้องการแก้ไขข้อมูลเดิม กรุณาแจ้งผู้ดูแลระบบให้แก้ไขที่หน้า "ข้อมูลที่ส่งเข้ามา" แทน`
+        : `วิชา ${input.code} ระดับชั้นนี้มีครู "${existing.teacher_name}" ส่งข้อมูลไว้แล้ว (สถานะ: ${statusText}) กรุณาตรวจสอบรหัสวิชาอีกครั้ง หรือแจ้งผู้ดูแลระบบหากต้องการแก้ไข`;
+    throw new Error(message);
+  }
 
   const payload = {
     subject_code: input.code,
@@ -351,18 +394,29 @@ export interface SubmissionEditInput {
   morningPreference: MorningPreference;
 }
 
-export async function updateSubmissionDetails(id: string, input: SubmissionEditInput): Promise<Submission> {
+// `unschedule` clears the slot assignment when the grade changes on an
+// already-scheduled submission — the cell it was placed in belongs to the
+// old grade's timeline, so it can't stay "scheduled" there without going
+// stale (see store.tsx's editSubmission for the local cellOrder cleanup).
+export async function updateSubmissionDetails(id: string, input: SubmissionEditInput, unschedule: boolean): Promise<Submission> {
+  const patch: Record<string, unknown> = {
+    subject_code: input.code,
+    subject_name: input.subjectName,
+    teacher_name: input.teacherName,
+    grade_level: input.grade,
+    rooms: input.rooms,
+    duration_minutes: input.durationMinutes,
+    session_preference: input.morningPreference,
+  };
+  if (unschedule) {
+    patch.status = "pending";
+    patch.slot_day = null;
+    patch.slot_session = null;
+    patch.manual_start_minutes = null;
+  }
   const { data, error } = await supabase
     .from("exam_submissions")
-    .update({
-      subject_code: input.code,
-      subject_name: input.subjectName,
-      teacher_name: input.teacherName,
-      grade_level: input.grade,
-      rooms: input.rooms,
-      duration_minutes: input.durationMinutes,
-      session_preference: input.morningPreference,
-    })
+    .update(patch)
     .eq("id", id)
     .select(
       "id, subject_code, subject_name, teacher_name, grade_level, rooms, duration_minutes, session_preference, status, slot_day, slot_session, manual_start_minutes, sort_order, submitted_at, self_scheduled, self_scheduled_note",
@@ -505,10 +559,15 @@ interface Pp5SubjectRow {
 
 export async function fetchSubjectCatalog(): Promise<SubjectCatalogEntry[]> {
   // Pull from both PP5 subjects (via security-definer RPC) and manually-added catalog entries.
+  // Errors here degrade to an empty/partial catalog (autocomplete just won't
+  // suggest anything) rather than blocking the whole app's initial load, but
+  // are logged so a silent RPC/query failure is still visible in devtools.
   const [rpcResult, manualResult] = await Promise.all([
     supabase.rpc("get_subject_catalog"),
     supabase.from("subject_catalog").select("id, code, subject_name, grade, created_at").order("grade").order("code"),
   ]);
+  if (rpcResult.error) console.error("fetchSubjectCatalog: get_subject_catalog RPC failed", rpcResult.error);
+  if (manualResult.error) console.error("fetchSubjectCatalog: subject_catalog query failed", manualResult.error);
 
   const pp5Entries: SubjectCatalogEntry[] = ((rpcResult.data ?? []) as Pp5SubjectRow[])
     .map((row) => ({

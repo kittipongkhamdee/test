@@ -75,26 +75,6 @@ function exportGroupedExcel(submissions: Submission[], roundName: string) {
   ws["!merges"] = merges;
   ws["!cols"] = [{ wch: 8 }, { wch: 26 }, { wch: 13 }, { wch: 36 }, { wch: 18 }, { wch: 13 }];
 
-  // Style header row
-  const headerStyle = { font: { bold: true }, fill: { fgColor: { rgb: "E8EEF8" } }, alignment: { horizontal: "center" } };
-  ["A1", "B1", "C1", "D1", "E1", "F1"].forEach((cell) => {
-    if (ws[cell]) ws[cell].s = headerStyle;
-  });
-
-  // Center-align ลำดับ and เวลา columns
-  for (let r = 1; r < rows.length; r++) {
-    const numCell = XLSX.utils.encode_cell({ r, c: 0 });
-    const durCell = XLSX.utils.encode_cell({ r, c: 5 });
-    if (ws[numCell]) ws[numCell].s = { alignment: { horizontal: "center", vertical: "center" } };
-    if (ws[durCell]) ws[durCell].s = { alignment: { horizontal: "center", vertical: "center" } };
-  }
-
-  // Vertical center for merged teacher cells
-  for (const m of merges) {
-    const cell = XLSX.utils.encode_cell({ r: m.s.r, c: m.s.c });
-    if (ws[cell]) ws[cell].s = { alignment: { vertical: "center" } };
-  }
-
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "รายวิชาที่ขอจัดสอบ");
   XLSX.writeFile(wb, `รายวิชาจัดสอบ_${roundName || "ทั้งหมด"}.xlsx`);
@@ -113,6 +93,8 @@ function EditSubmissionModal({ submission, onClose }: { submission: Submission; 
   const [preference, setPreference] = useState<MorningPreference>(submission.morningPreference);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const willUnschedule = submission.status === "scheduled" && grade !== submission.grade;
 
   function toggleRoom(room: number) {
     setRooms((prev) => (prev.includes(room) ? prev.filter((r) => r !== room) : [...prev, room].sort((a, b) => a - b)));
@@ -168,6 +150,11 @@ function EditSubmissionModal({ submission, onClose }: { submission: Submission; 
               </button>
             ))}
           </div>
+          {willUnschedule && (
+            <div className="tform-error">
+              วิชานี้จัดตารางสอบไว้แล้ว — เปลี่ยนระดับชั้นจะย้ายกลับไปเป็น "รอจัด" และต้องจัดตารางใหม่
+            </div>
+          )}
         </div>
 
         <div className="tform-field">
