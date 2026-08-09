@@ -86,11 +86,13 @@ export default function TeacherForm() {
       .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
   }, [submissions, teacherName]);
 
-  // A different teacher already claiming this code+grade is a hard block
-  // (matches the server-side check in submitSubmission — otherwise the
-  // second teacher's submit would silently overwrite the first teacher's
-  // data). The same teacher resubmitting their own code+grade is a legit
-  // self-edit (upsert), so it's surfaced as a note rather than a block.
+  // Mirrors the two server-side blocks in submitSubmission: a different
+  // teacher already claiming this code+grade is always a hard block
+  // (otherwise the submit would silently overwrite that teacher's row), and
+  // so is a match that's already scheduled — even for the same teacher,
+  // since the server rejects that and sends them to the admin instead. Only
+  // a same-teacher match still in draft/pending is a legit self-edit
+  // (upsert), surfaced as a note rather than a block.
   const duplicateMatch = useMemo(() => {
     const normalizedCode = code.trim().replace(/\s+/g, "");
     if (selfScheduled || !normalizedCode || !grade) return null;
@@ -100,8 +102,20 @@ export default function TeacherForm() {
       ) ?? null
     );
   }, [submissions, code, grade, selfScheduled]);
+  const duplicateIsOwn = !!duplicateMatch && duplicateMatch.teacherName.trim() === teacherName.trim();
   const duplicateBlocksSubmit =
-    !!duplicateMatch && duplicateMatch.teacherName.trim() !== teacherName.trim();
+    !!duplicateMatch && (!duplicateIsOwn || duplicateMatch.status === "scheduled");
+  const duplicateMessage = useMemo(() => {
+    if (!duplicateMatch) return null;
+    const label = `${duplicateMatch.code} ${gradeLabel(duplicateMatch.grade)}`;
+    if (!duplicateIsOwn) {
+      return `วิชา ${label} มีครู "${duplicateMatch.teacherName}" ส่งข้อมูลไว้แล้ว (สถานะ: ${statusLabel(duplicateMatch.status).text}) — กรุณาตรวจสอบรหัสวิชาอีกครั้ง หรือแจ้งผู้ดูแลระบบหากต้องการแก้ไข`;
+    }
+    if (duplicateMatch.status === "scheduled") {
+      return `คุณเคยส่งวิชา ${label} ไปแล้วและจัดตารางสอบเรียบร้อยแล้ว หากต้องการแก้ไข กรุณาแจ้งผู้ดูแลระบบให้แก้ไขที่หน้า "ข้อมูลที่ส่งเข้ามา" แทน`;
+    }
+    return `คุณเคยส่งวิชา ${label} ไปแล้ว (สถานะ: ${statusLabel(duplicateMatch.status).text}) — การส่งข้อมูลนี้อีกครั้งจะเป็นการแก้ไขข้อมูลเดิม`;
+  }, [duplicateMatch, duplicateIsOwn]);
 
   const suggestions = useMemo(() => {
     if (!activeSuggestField) return [];
@@ -159,10 +173,8 @@ export default function TeacherForm() {
       setError(windowMessage);
       return;
     }
-    if (duplicateBlocksSubmit && duplicateMatch) {
-      setError(
-        `วิชา ${duplicateMatch.code} ${gradeLabel(duplicateMatch.grade)} มีครู "${duplicateMatch.teacherName}" ส่งข้อมูลไว้แล้ว กรุณาตรวจสอบรหัสวิชาอีกครั้ง`,
-      );
+    if (duplicateBlocksSubmit && duplicateMessage) {
+      setError(duplicateMessage);
       setSubmittedMsg(null);
       return;
     }
@@ -369,12 +381,8 @@ export default function TeacherForm() {
               </label>
             </div>
 
-            {duplicateMatch && (
-              <div className={duplicateBlocksSubmit ? "tform-error" : "tform-note"}>
-                {duplicateBlocksSubmit
-                  ? `วิชา ${duplicateMatch.code} ${gradeLabel(duplicateMatch.grade)} มีครู "${duplicateMatch.teacherName}" ส่งข้อมูลไว้แล้ว (สถานะ: ${statusLabel(duplicateMatch.status).text}) — กรุณาตรวจสอบรหัสวิชาอีกครั้ง หรือแจ้งผู้ดูแลระบบหากต้องการแก้ไข`
-                  : `คุณเคยส่งวิชา ${duplicateMatch.code} ${gradeLabel(duplicateMatch.grade)} ไปแล้ว (สถานะ: ${statusLabel(duplicateMatch.status).text}) — การส่งข้อมูลนี้อีกครั้งจะเป็นการแก้ไขข้อมูลเดิม`}
-              </div>
+            {duplicateMessage && (
+              <div className={duplicateBlocksSubmit ? "tform-error" : "tform-note"}>{duplicateMessage}</div>
             )}
 
             <div className="tform-field">
