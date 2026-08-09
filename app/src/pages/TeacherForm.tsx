@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useActiveFormOptions, useCatalog, useStore, useSubmissions } from "../data/store";
 import { gradeLabel } from "../data/mockData";
@@ -66,6 +66,7 @@ export default function TeacherForm() {
   const [submittedMsg, setSubmittedMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [activeSuggestField, setActiveSuggestField] = useState<"code" | "subjectName" | null>(null);
   const [selfScheduled, setSelfScheduled] = useState(false);
@@ -144,11 +145,17 @@ export default function TeacherForm() {
   }
 
   async function doSubmit() {
+    // submittingRef (not just the `submitting` state) guards against a fast
+    // double-tap firing doSubmit twice before React commits the re-render
+    // that disables the button — without it, both calls can race past the
+    // server's own duplicate check and create two rows.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setShowConfirm(false);
     setSubmitting(true);
     try {
       await submit({
-        code: selfScheduled ? "–" : code.trim(),
+        code: selfScheduled ? "–" : code.trim().replace(/\s+/g, ""),
         subjectName: selfScheduled ? "จัดสอบเอง" : subjectName.trim(),
         teacherName: teacherName.trim(),
         grade: selfScheduled ? 1 : grade!,
@@ -168,6 +175,7 @@ export default function TeacherForm() {
       setError(err instanceof Error ? err.message : "ส่งข้อมูลไม่สำเร็จ กรุณาลองใหม่");
     } finally {
       setSubmitting(false);
+      submittingRef.current = false;
     }
   }
 
