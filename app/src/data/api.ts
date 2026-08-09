@@ -194,12 +194,12 @@ export interface SubmitInput {
 // matching by code+grade would incorrectly treat every self-scheduled request
 // as the same subject — skip the lookup for those entirely.
 export async function submitSubmission(input: SubmitInput): Promise<Submission> {
-  let existing: { id: string; status: SubmissionStatus } | null = null;
+  let existing: { id: string; status: SubmissionStatus; teacher_name: string } | null = null;
 
   if (!input.selfScheduled) {
     const { data, error: findError } = await supabase
       .from("exam_submissions")
-      .select("id, status")
+      .select("id, status, teacher_name")
       .eq("exam_round_id", input.examRoundId)
       .eq("subject_code", input.code)
       .eq("grade_level", input.grade)
@@ -208,6 +208,17 @@ export async function submitSubmission(input: SubmitInput): Promise<Submission> 
       .maybeSingle();
     if (findError) throw findError;
     existing = data;
+  }
+
+  // A "draft" row is an unclaimed catalog placeholder (no real teacher_name
+  // yet) — claiming it is the normal flow, not a collision. Anything else
+  // (pending/scheduled) already belongs to a specific teacher; only that same
+  // teacher may resubmit into it, otherwise this would silently overwrite
+  // someone else's submission.
+  if (existing && existing.status !== "draft" && existing.teacher_name.trim() !== input.teacherName.trim()) {
+    throw new Error(
+      `วิชา ${input.code} ระดับชั้นนี้มีครู "${existing.teacher_name}" ส่งข้อมูลไว้แล้ว กรุณาตรวจสอบรหัสวิชาอีกครั้ง หรือแจ้งผู้ดูแลระบบหากต้องการแก้ไข`,
+    );
   }
 
   if (existing && existing.status === "scheduled") {

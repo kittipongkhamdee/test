@@ -86,6 +86,23 @@ export default function TeacherForm() {
       .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
   }, [submissions, teacherName]);
 
+  // A different teacher already claiming this code+grade is a hard block
+  // (matches the server-side check in submitSubmission — otherwise the
+  // second teacher's submit would silently overwrite the first teacher's
+  // data). The same teacher resubmitting their own code+grade is a legit
+  // self-edit (upsert), so it's surfaced as a note rather than a block.
+  const duplicateMatch = useMemo(() => {
+    const normalizedCode = code.trim().replace(/\s+/g, "");
+    if (selfScheduled || !normalizedCode || !grade) return null;
+    return (
+      submissions.find(
+        (s) => !s.selfScheduled && s.grade === grade && s.code.trim().replace(/\s+/g, "") === normalizedCode,
+      ) ?? null
+    );
+  }, [submissions, code, grade, selfScheduled]);
+  const duplicateBlocksSubmit =
+    !!duplicateMatch && duplicateMatch.teacherName.trim() !== teacherName.trim();
+
   const suggestions = useMemo(() => {
     if (!activeSuggestField) return [];
     const query = (activeSuggestField === "code" ? code : subjectName).trim().toLowerCase();
@@ -127,12 +144,26 @@ export default function TeacherForm() {
   const isRoomsValid = Array.isArray(roomsSelection) && roomsSelection.length > 0;
   const isComplete = selfScheduled
     ? !!teacherName.trim()
-    : !!teacherName.trim() && !!code.trim() && !!subjectName.trim() && !!grade && isRoomsValid && finalDuration > 0 && !!preference;
+    : !!teacherName.trim() &&
+      !!code.trim() &&
+      !!subjectName.trim() &&
+      !!grade &&
+      isRoomsValid &&
+      finalDuration > 0 &&
+      !!preference &&
+      !duplicateBlocksSubmit;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (windowClosed) {
       setError(windowMessage);
+      return;
+    }
+    if (duplicateBlocksSubmit && duplicateMatch) {
+      setError(
+        `วิชา ${duplicateMatch.code} ${gradeLabel(duplicateMatch.grade)} มีครู "${duplicateMatch.teacherName}" ส่งข้อมูลไว้แล้ว กรุณาตรวจสอบรหัสวิชาอีกครั้ง`,
+      );
+      setSubmittedMsg(null);
       return;
     }
     if (!isComplete) {
@@ -337,6 +368,14 @@ export default function TeacherForm() {
                 )}
               </label>
             </div>
+
+            {duplicateMatch && (
+              <div className={duplicateBlocksSubmit ? "tform-error" : "tform-note"}>
+                {duplicateBlocksSubmit
+                  ? `วิชา ${duplicateMatch.code} ${gradeLabel(duplicateMatch.grade)} มีครู "${duplicateMatch.teacherName}" ส่งข้อมูลไว้แล้ว (สถานะ: ${statusLabel(duplicateMatch.status).text}) — กรุณาตรวจสอบรหัสวิชาอีกครั้ง หรือแจ้งผู้ดูแลระบบหากต้องการแก้ไข`
+                  : `คุณเคยส่งวิชา ${duplicateMatch.code} ${gradeLabel(duplicateMatch.grade)} ไปแล้ว (สถานะ: ${statusLabel(duplicateMatch.status).text}) — การส่งข้อมูลนี้อีกครั้งจะเป็นการแก้ไขข้อมูลเดิม`}
+              </div>
+            )}
 
             <div className="tform-field">
               <span className="tform-label">ระดับชั้น</span>
