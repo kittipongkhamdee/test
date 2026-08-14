@@ -26,7 +26,7 @@ function gradeFromCode(code: string): Grade | null {
 function dedupeCatalog(catalog: SubjectCatalogEntry[]): SubjectCatalogEntry[] {
   const seen = new Map<string, SubjectCatalogEntry>();
   for (const s of catalog) {
-    seen.set(`${s.code}_${s.grade}`, s);
+    seen.set(`${s.code}_${s.grade}_${s.teacherName ?? ""}`, s);
   }
   return [...seen.values()];
 }
@@ -111,14 +111,25 @@ export default function TeacherForm() {
     return `วิชา ${label} มีครู "${duplicateMatch.teacherName}" ส่งข้อมูลไว้แล้ว (สถานะ: ${statusText}) — กรุณาตรวจสอบรหัสวิชาอีกครั้ง หรือแจ้งผู้ดูแลระบบหากต้องการแก้ไข`;
   }, [duplicateMatch, teacherName]);
 
+  // Once a teacher is picked, only suggest subjects that teacher actually
+  // teaches (per PP5's per-teacher subject records) — plus any manually-added
+  // catalog entry, which has no teacher attached and stays open to everyone.
+  // Suggestions are just a shortcut either way: the code/name fields are
+  // still plain text, so a subject missing from PP5 can always be typed in.
+  const teacherSubjects = useMemo(() => {
+    const q = teacherName.trim().toLowerCase();
+    if (!q) return knownSubjects;
+    return knownSubjects.filter((s) => !s.teacherName || s.teacherName.trim().toLowerCase() === q);
+  }, [knownSubjects, teacherName]);
+
   const suggestions = useMemo(() => {
     if (!activeSuggestField) return [];
     const query = (activeSuggestField === "code" ? code : subjectName).trim().toLowerCase();
     if (!query) return [];
-    return knownSubjects
+    return teacherSubjects
       .filter((s) => s.code.toLowerCase().includes(query) || s.subjectName.toLowerCase().includes(query))
       .slice(0, 6);
-  }, [activeSuggestField, code, subjectName, knownSubjects]);
+  }, [activeSuggestField, code, subjectName, teacherSubjects]);
 
   function applySuggestion(s: SubjectCatalogEntry) {
     setCode(s.code);

@@ -555,18 +555,22 @@ interface Pp5SubjectRow {
   code: string;
   subject_name: string;
   grade: string; // text in subjects table
+  teacher_name: string | null;
 }
 
 export async function fetchSubjectCatalog(): Promise<SubjectCatalogEntry[]> {
-  // Pull from both PP5 subjects (via security-definer RPC) and manually-added catalog entries.
-  // Errors here degrade to an empty/partial catalog (autocomplete just won't
-  // suggest anything) rather than blocking the whole app's initial load, but
-  // are logged so a silent RPC/query failure is still visible in devtools.
+  // Pull from both PP5 subjects (via security-definer RPC, includes which
+  // teacher teaches each row so the form can filter suggestions by teacher)
+  // and manually-added catalog entries (no teacher attached — those stay
+  // visible to every teacher). Errors here degrade to an empty/partial
+  // catalog (autocomplete just won't suggest anything) rather than blocking
+  // the whole app's initial load, but are logged so a silent RPC/query
+  // failure is still visible in devtools.
   const [rpcResult, manualResult] = await Promise.all([
-    supabase.rpc("get_subject_catalog"),
+    supabase.rpc("get_subject_catalog_with_teacher"),
     supabase.from("subject_catalog").select("id, code, subject_name, grade, created_at").order("grade").order("code"),
   ]);
-  if (rpcResult.error) console.error("fetchSubjectCatalog: get_subject_catalog RPC failed", rpcResult.error);
+  if (rpcResult.error) console.error("fetchSubjectCatalog: get_subject_catalog_with_teacher RPC failed", rpcResult.error);
   if (manualResult.error) console.error("fetchSubjectCatalog: subject_catalog query failed", manualResult.error);
 
   const pp5Entries: SubjectCatalogEntry[] = ((rpcResult.data ?? []) as Pp5SubjectRow[])
@@ -576,16 +580,18 @@ export async function fetchSubjectCatalog(): Promise<SubjectCatalogEntry[]> {
       subjectName: row.subject_name,
       grade: Number(row.grade) as Grade,
       createdAt: "",
+      teacherName: row.teacher_name?.trim() || undefined,
     }))
     .filter((e) => e.grade >= 1 && e.grade <= 6);
 
   const manualEntries: SubjectCatalogEntry[] = (manualResult.data ?? []).map(rowToCatalogEntry);
 
-  // Merge: PP5 entries first, then manual — deduplicate by code+grade.
+  // Merge: PP5 entries first, then manual — deduplicate by code+grade+teacher
+  // (kept separate per teacher, since two teachers can share a code+grade).
   const seen = new Set<string>();
   const merged: SubjectCatalogEntry[] = [];
   for (const e of [...pp5Entries, ...manualEntries]) {
-    const key = `${e.code.toLowerCase()}_${e.grade}`;
+    const key = `${e.code.toLowerCase()}_${e.grade}_${(e.teacherName ?? "").toLowerCase()}`;
     if (!seen.has(key)) {
       seen.add(key);
       merged.push(e);

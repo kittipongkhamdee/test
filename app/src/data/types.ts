@@ -63,6 +63,7 @@ export interface SubjectCatalogEntry {
   subjectName: string;
   grade: Grade;
   createdAt: string;
+  teacherName?: string; // set for PP5-sourced entries; unset for manually-added catalog entries (open to any teacher)
 }
 
 export interface FormOption {
