@@ -55,7 +55,11 @@ export interface SchoolMeta {
   logoUrl: string | null;
 }
 
-export type FormOptionCategory = "grade" | "room" | "duration" | "preference";
+export type FormOptionCategory = "grade" | "duration" | "preference";
+
+// How many exam rooms are selectable for each grade, e.g. { 1: 1, 2: 3 } means
+// ม.1 only has room /1, ม.2 has /1..3. Keyed by grade number.
+export type GradeRoomCounts = Record<number, number>;
 
 export interface SubjectCatalogEntry {
   id: string;

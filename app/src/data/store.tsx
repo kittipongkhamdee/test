@@ -7,6 +7,7 @@ import type {
   FormOption,
   FormOptionCategory,
   Grade,
+  GradeRoomCounts,
   MorningPreference,
   SchoolMeta,
   Submission,
@@ -27,6 +28,7 @@ import {
   fetchSubjectCatalog,
   submitSubmission,
   updateFormOption as apiUpdateFormOption,
+  updateGradeRoomCount as apiUpdateGradeRoomCount,
   updateManualStart,
   updateRoundSettings as apiUpdateRoundSettings,
   updateSchoolSettings as apiUpdateSchoolSettings,
@@ -54,6 +56,7 @@ interface DataState {
   cellOrder: Record<string, string[]>;
   formOptions: FormOption[];
   catalogEntries: SubjectCatalogEntry[];
+  gradeRoomCounts: GradeRoomCounts;
 }
 
 const initialState: DataState = {
@@ -67,6 +70,7 @@ const initialState: DataState = {
   cellOrder: {},
   formOptions: [],
   catalogEntries: [],
+  gradeRoomCounts: {},
 };
 
 function buildCellOrder(submissions: Submission[]): Record<string, string[]> {
@@ -95,8 +99,10 @@ type Action =
       teachers: string[];
       school: SchoolMeta;
       formOptions: FormOption[];
+      gradeRoomCounts: GradeRoomCounts;
     }
   | { type: "LOAD_ERROR"; message: string }
+  | { type: "UPDATE_GRADE_ROOM_COUNT"; grade: Grade; roomCount: number }
   | { type: "UPSERT_SUBMISSION"; submission: Submission }
   | { type: "REMOVE_SUBMISSION"; id: string }
   | { type: "UPDATE_ROUND"; round: ExamRoundMeta }
@@ -142,7 +148,10 @@ function reducer(state: DataState, action: Action): DataState {
         submissions: Object.fromEntries(action.submissions.map((s) => [s.id, s])),
         cellOrder: buildCellOrder(action.submissions),
         formOptions: action.formOptions,
+        gradeRoomCounts: action.gradeRoomCounts,
       };
+    case "UPDATE_GRADE_ROOM_COUNT":
+      return { ...state, gradeRoomCounts: { ...state.gradeRoomCounts, [action.grade]: action.roomCount } };
     case "SET_CATALOG":
       return { ...state, catalogEntries: action.entries };
     case "ADD_CATALOG_ENTRY":
@@ -358,6 +367,7 @@ interface StoreContextValue {
   editFormOption: (id: string, patch: Partial<Pick<FormOptionInput, "label" | "icon" | "sortOrder" | "isActive">>) => Promise<FormOption>;
   removeFormOption: (id: string) => Promise<void>;
   updateSchoolSettings: (schoolName: string, logoUrl: string | null) => Promise<void>;
+  updateGradeRoomCount: (grade: Grade, roomCount: number) => Promise<void>;
   updateSlotDate: (day: ExamDay, examDate: string | null) => Promise<void>;
   addExamDay: (morningStart: string, morningEnd: string, afternoonStart: string, afternoonEnd: string) => Promise<void>;
   removeExamDay: (day: ExamDay) => Promise<void>;
@@ -402,6 +412,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           teachers: bundle.teachers,
           school: bundle.school,
           formOptions: bundle.formOptions,
+          gradeRoomCounts: bundle.gradeRoomCounts,
         });
         dispatchRaw({ type: "SET_CATALOG", entries: catalog });
       })
@@ -622,6 +633,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [state.school],
   );
 
+  const updateGradeRoomCount = useCallback(async (grade: Grade, roomCount: number) => {
+    await apiUpdateGradeRoomCount(grade, roomCount);
+    dispatchRaw({ type: "UPDATE_GRADE_ROOM_COUNT", grade, roomCount });
+  }, []);
+
   const updateSlotDate = useCallback(
     async (day: ExamDay, examDate: string | null) => {
       if (!state.round) throw new Error("ยังไม่มีรอบสอบที่เปิดใช้งาน");
@@ -688,6 +704,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       editFormOption,
       removeFormOption,
       updateSchoolSettings,
+      updateGradeRoomCount,
       updateSlotDate,
       addExamDay,
       removeExamDay,
@@ -714,6 +731,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       editFormOption,
       removeFormOption,
       updateSchoolSettings,
+      updateGradeRoomCount,
       updateSlotDate,
       addExamDay,
       removeExamDay,
@@ -750,6 +768,11 @@ export function useSubmissions(): Submission[] {
 export function useCatalog(): SubjectCatalogEntry[] {
   const { state } = useStore();
   return useMemo(() => state.catalogEntries, [state.catalogEntries]);
+}
+
+export function useGradeRoomCounts(): GradeRoomCounts {
+  const { state } = useStore();
+  return state.gradeRoomCounts;
 }
 
 // All options for a category (any status), sorted for the admin management list.

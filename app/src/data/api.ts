@@ -7,6 +7,7 @@ import type {
   FormOption,
   FormOptionCategory,
   Grade,
+  GradeRoomCounts,
   MorningPreference,
   SchoolMeta,
   Submission,
@@ -82,6 +83,7 @@ export interface RoundBundle {
   school: SchoolMeta;
   submissions: Submission[];
   formOptions: FormOption[];
+  gradeRoomCounts: GradeRoomCounts;
 }
 
 export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
@@ -102,6 +104,7 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
     { data: subRows, error: subError },
     { data: schoolRow, error: schoolError },
     { data: formOptionRows, error: formOptionError },
+    { data: roomCountRows, error: roomCountError },
   ] = await Promise.all([
     supabase
       .from("exam_round_slots")
@@ -120,6 +123,7 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
       .order("submitted_at"),
     supabase.from("exam_school_settings").select("school_name, head_academic, school_logo").eq("id", true).maybeSingle(),
     supabase.from("exam_form_options").select("id, category, value, label, icon, sort_order, is_active").order("sort_order"),
+    supabase.from("exam_grade_room_counts").select("grade, room_count").order("grade"),
   ]);
   if (slotError) {
     console.error("fetchActiveRoundBundle: exam_round_slots query failed", slotError);
@@ -140,6 +144,10 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
   if (formOptionError) {
     console.error("fetchActiveRoundBundle: exam_form_options query failed", formOptionError);
     throw new Error("โหลดตัวเลือกฟอร์มสำรวจไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  }
+  if (roomCountError) {
+    console.error("fetchActiveRoundBundle: exam_grade_room_counts query failed", roomCountError);
+    throw new Error("โหลดข้อมูลจำนวนห้องสอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
   }
 
   return {
@@ -168,7 +176,13 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
     },
     submissions: (subRows ?? []).map(rowToSubmission),
     formOptions: (formOptionRows ?? []).map(rowToFormOption),
+    gradeRoomCounts: Object.fromEntries((roomCountRows ?? []).map((r) => [r.grade, r.room_count])),
   };
+}
+
+export async function updateGradeRoomCount(grade: Grade, roomCount: number): Promise<void> {
+  const { error } = await supabase.from("exam_grade_room_counts").update({ room_count: roomCount }).eq("grade", grade);
+  if (error) throw error;
 }
 
 export interface SubmitInput {

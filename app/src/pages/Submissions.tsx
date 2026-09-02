@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
-import { useActiveFormOptions, useStore, useSubmissions } from "../data/store";
-import { GRADES, gradeLabel } from "../data/mockData";
+import { useActiveFormOptions, useGradeRoomCounts, useStore, useSubmissions } from "../data/store";
+import { GRADES, gradeLabel, roomLabel, roomsForGrade } from "../data/mockData";
 import type { Grade, MorningPreference, Submission } from "../data/types";
 import "./Submissions.css";
 
@@ -82,13 +82,14 @@ function exportGroupedExcel(submissions: Submission[], roundName: string) {
 
 function EditSubmissionModal({ submission, onClose }: { submission: Submission; onClose: () => void }) {
   const { editSubmission } = useStore();
-  const roomOptions = useActiveFormOptions("room");
+  const gradeRoomCounts = useGradeRoomCounts();
   const preferenceOptions = useActiveFormOptions("preference");
   const [code, setCode] = useState(submission.code);
   const [subjectName, setSubjectName] = useState(submission.subjectName);
   const [teacherName, setTeacherName] = useState(submission.teacherName);
   const [grade, setGrade] = useState<Grade>(submission.grade);
   const [rooms, setRooms] = useState<number[]>(submission.rooms);
+  const availableRooms = useMemo(() => roomsForGrade(gradeRoomCounts, grade), [gradeRoomCounts, grade]);
   const [durationMinutes, setDurationMinutes] = useState(submission.durationMinutes);
   const [preference, setPreference] = useState<MorningPreference>(submission.morningPreference);
   const [saving, setSaving] = useState(false);
@@ -144,7 +145,7 @@ function EditSubmissionModal({ submission, onClose }: { submission: Submission; 
                 type="button"
                 key={g}
                 className={"tform-chip" + (grade === g ? " selected" : "")}
-                onClick={() => setGrade(g)}
+                onClick={() => { setGrade(g); setRooms([]); }}
               >
                 {gradeLabel(g)}
               </button>
@@ -160,19 +161,16 @@ function EditSubmissionModal({ submission, onClose }: { submission: Submission; 
         <div className="tform-field">
           <span className="tform-label">ห้องที่จัดสอบ (ไม่เลือก = ทุกห้อง)</span>
           <div className="tform-chip-row">
-            {roomOptions.map((opt) => {
-              const r = Number(opt.value);
-              return (
-                <button
-                  type="button"
-                  key={opt.id}
-                  className={"tform-chip" + (rooms.includes(r) ? " selected" : "")}
-                  onClick={() => toggleRoom(r)}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
+            {availableRooms.map((r) => (
+              <button
+                type="button"
+                key={r}
+                className={"tform-chip" + (rooms.includes(r) ? " selected" : "")}
+                onClick={() => toggleRoom(r)}
+              >
+                {roomLabel(r)}
+              </button>
+            ))}
           </div>
         </div>
 
