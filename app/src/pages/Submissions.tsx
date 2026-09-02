@@ -160,18 +160,22 @@ function EditSubmissionModal({ submission, onClose }: { submission: Submission; 
 
         <div className="tform-field">
           <span className="tform-label">ห้องที่จัดสอบ (ไม่เลือก = ทุกห้อง)</span>
-          <div className="tform-chip-row">
-            {availableRooms.map((r) => (
-              <button
-                type="button"
-                key={r}
-                className={"tform-chip" + (rooms.includes(r) ? " selected" : "")}
-                onClick={() => toggleRoom(r)}
-              >
-                {roomLabel(r)}
-              </button>
-            ))}
-          </div>
+          {availableRooms.length === 1 ? (
+            <div className="tform-label-note">{gradeLabel(grade)} มีห้องเดียว</div>
+          ) : (
+            <div className="tform-chip-row">
+              {availableRooms.map((r) => (
+                <button
+                  type="button"
+                  key={r}
+                  className={"tform-chip" + (rooms.includes(r) ? " selected" : "")}
+                  onClick={() => toggleRoom(r)}
+                >
+                  {roomLabel(r)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="tform-row-2">

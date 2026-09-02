@@ -76,6 +76,12 @@ export default function TeacherForm() {
   const [selfScheduled, setSelfScheduled] = useState(false);
   const [selfScheduledNote, setSelfScheduledNote] = useState("");
 
+  // A grade with only one room has nothing to actually choose between, so
+  // skip making the teacher click it — select it automatically.
+  useEffect(() => {
+    if (availableRooms.length === 1) setRoomsSelection(availableRooms);
+  }, [availableRooms]);
+
   useEffect(() => {
     if (!submittedMsg) return;
     const t = setTimeout(() => setSubmittedMsg(null), 4000);
@@ -415,7 +421,11 @@ export default function TeacherForm() {
               <span className="tform-label">
                 ห้องที่จัดสอบ <span className="tform-label-note">(เลือกได้หลายห้อง)</span>
               </span>
-              {grade ? (
+              {!grade ? (
+                <div className="tform-label-note">กรุณาเลือกระดับชั้นก่อน</div>
+              ) : availableRooms.length === 1 ? (
+                <div className="tform-label-note">{gradeLabel(grade)} มีห้องเดียว ระบบเลือกให้อัตโนมัติ</div>
+              ) : (
                 <div className="tform-chip-row">
                   {availableRooms.map((r) => {
                     const selected = Array.isArray(roomsSelection) && roomsSelection.includes(r);
@@ -431,8 +441,6 @@ export default function TeacherForm() {
                     );
                   })}
                 </div>
-              ) : (
-                <div className="tform-label-note">กรุณาเลือกระดับชั้นก่อน</div>
               )}
             </div>
 
@@ -556,9 +564,11 @@ export default function TeacherForm() {
                   <div className="tform-confirm-row">
                     <span className="tform-confirm-label">ห้องสอบ</span>
                     <span>
-                      {Array.isArray(roomsSelection) && roomsSelection.length > 0
-                        ? roomsSelection.map(roomLabel).join(", ")
-                        : "—"}
+                      {!Array.isArray(roomsSelection) || roomsSelection.length === 0
+                        ? "—"
+                        : availableRooms.length === 1
+                          ? "ห้องเดียว"
+                          : roomsSelection.map(roomLabel).join(", ")}
                     </span>
                   </div>
                   <div className="tform-confirm-row">
