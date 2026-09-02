@@ -100,7 +100,7 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
     { data: slotRows, error: slotError },
     { data: teacherRows, error: teacherError },
     { data: subRows, error: subError },
-    { data: configRows, error: configError },
+    { data: schoolRow, error: schoolError },
     { data: formOptionRows, error: formOptionError },
   ] = await Promise.all([
     supabase
@@ -118,7 +118,7 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
       .eq("exam_round_id", round.id)
       .order("sort_order")
       .order("submitted_at"),
-    supabase.from("config").select("key, value").in("key", ["school_name", "head_academic", "school_logo"]),
+    supabase.from("exam_school_settings").select("school_name, head_academic, school_logo").eq("id", true).maybeSingle(),
     supabase.from("exam_form_options").select("id, category, value, label, icon, sort_order, is_active").order("sort_order"),
   ]);
   if (slotError) {
@@ -133,16 +133,14 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
     console.error("fetchActiveRoundBundle: exam_submissions query failed", subError);
     throw new Error("โหลดข้อมูลรายวิชาที่ส่งเข้ามาไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
   }
-  if (configError) {
-    console.error("fetchActiveRoundBundle: config query failed", configError);
+  if (schoolError) {
+    console.error("fetchActiveRoundBundle: exam_school_settings query failed", schoolError);
     throw new Error("โหลดข้อมูลโรงเรียนไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
   }
   if (formOptionError) {
     console.error("fetchActiveRoundBundle: exam_form_options query failed", formOptionError);
     throw new Error("โหลดตัวเลือกฟอร์มสำรวจไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
   }
-
-  const configMap = new Map((configRows ?? []).map((r) => [r.key, r.value]));
 
   return {
     round: {
@@ -164,9 +162,9 @@ export async function fetchActiveRoundBundle(): Promise<RoundBundle> {
     })),
     teachers: (teacherRows ?? []).map((t) => t.full_name),
     school: {
-      schoolName: configMap.get("school_name") ?? "",
-      headAcademicName: configMap.get("head_academic") ?? "",
-      logoUrl: configMap.get("school_logo") || null,
+      schoolName: schoolRow?.school_name ?? "",
+      headAcademicName: schoolRow?.head_academic ?? "",
+      logoUrl: schoolRow?.school_logo || null,
     },
     submissions: (subRows ?? []).map(rowToSubmission),
     formOptions: (formOptionRows ?? []).map(rowToFormOption),
@@ -478,14 +476,11 @@ export async function deleteFormOption(id: string): Promise<void> {
 }
 
 export async function updateSchoolSettings(schoolName: string, logoUrl: string | null): Promise<void> {
-  const rows = [
-    { key: "school_name", value: schoolName },
-    { key: "school_logo", value: logoUrl ?? "" },
-  ];
-  for (const row of rows) {
-    const { error } = await supabase.from("config").upsert(row, { onConflict: "key" });
-    if (error) throw error;
-  }
+  const { error } = await supabase
+    .from("exam_school_settings")
+    .update({ school_name: schoolName, school_logo: logoUrl })
+    .eq("id", true);
+  if (error) throw error;
 }
 
 export async function updateSlotExamDate(examRoundId: string, day: ExamDay, examDate: string | null): Promise<void> {
