@@ -4,13 +4,13 @@ import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { useActiveFormOptions, useGradeRoomCounts, useStore, useSubmissions } from "../data/store";
 import { GRADES, gradeLabel, roomLabel, roomsForGrade } from "../data/mockData";
-import type { Grade, MorningPreference, Submission } from "../data/types";
+import type { Grade, GradeRoomCounts, MorningPreference, Submission } from "../data/types";
 import "./Submissions.css";
 
 type StatusFilter = "all" | "scheduled" | "pending" | "self-scheduled";
 
-function formatGradeRooms(grade: Grade, rooms: number[]): string {
-  if (rooms.length === 0) return gradeLabel(grade);
+function formatGradeRooms(gradeRoomCounts: GradeRoomCounts, grade: Grade, rooms: number[]): string {
+  if (rooms.length === 0 || roomsForGrade(gradeRoomCounts, grade).length === 1) return gradeLabel(grade);
   return rooms.map((r) => `ม.${grade}/${r}`).join(", ");
 }
 
@@ -20,7 +20,7 @@ function statusBadge(s: Submission) {
   return <span className="badge badge-orange">รอจัด</span>;
 }
 
-function toCsv(rows: Submission[]): string {
+function toCsv(rows: Submission[], gradeRoomCounts: GradeRoomCounts): string {
   const header = ["รหัสวิชา", "ชื่อวิชา", "ครูผู้สอน", "ระดับชั้น", "เวลาสอบ (นาที)", "สถานะ"];
   const lines = [header.join(",")];
   for (const r of rows) {
@@ -29,7 +29,7 @@ function toCsv(rows: Submission[]): string {
         r.code,
         r.subjectName,
         r.teacherName,
-        r.selfScheduled ? "–" : formatGradeRooms(r.grade, r.rooms),
+        r.selfScheduled ? "–" : formatGradeRooms(gradeRoomCounts, r.grade, r.rooms),
         String(r.durationMinutes),
         r.status === "scheduled" ? "จัดแล้ว" : "รอจัด",
       ]
@@ -40,7 +40,7 @@ function toCsv(rows: Submission[]): string {
   return lines.join("\n");
 }
 
-function exportGroupedExcel(submissions: Submission[], roundName: string) {
+function exportGroupedExcel(submissions: Submission[], roundName: string, gradeRoomCounts: GradeRoomCounts) {
   // Group by teacher, sorted by name
   const map = new Map<string, { name: string; subs: Submission[] }>();
   for (const s of [...submissions.filter((s) => !s.selfScheduled)].sort((a, b) =>
@@ -62,7 +62,7 @@ function exportGroupedExcel(submissions: Submission[], roundName: string) {
   for (const [gi, group] of grouped.entries()) {
     const startRow = rowIdx;
     for (const s of group.subs) {
-      rows.push([gi + 1, group.name, s.code, s.subjectName, formatGradeRooms(s.grade, s.rooms), s.durationMinutes]);
+      rows.push([gi + 1, group.name, s.code, s.subjectName, formatGradeRooms(gradeRoomCounts, s.grade, s.rooms), s.durationMinutes]);
       rowIdx++;
     }
     if (group.subs.length > 1) {
@@ -218,6 +218,7 @@ function EditSubmissionModal({ submission, onClose }: { submission: Submission; 
 }
 
 function GroupedTable({ submissions }: { submissions: Submission[] }) {
+  const gradeRoomCounts = useGradeRoomCounts();
   const mainSubs = useMemo(() => submissions.filter((s) => !s.selfScheduled), [submissions]);
 
   const grouped = useMemo(() => {
@@ -267,7 +268,7 @@ function GroupedTable({ submissions }: { submissions: Submission[] }) {
                   )}
                   <td className="subs-gt-code">{s.code}</td>
                   <td className="subs-gt-subject">{s.subjectName}</td>
-                  <td className="subs-gt-grade">{formatGradeRooms(s.grade, s.rooms)}</td>
+                  <td className="subs-gt-grade">{formatGradeRooms(gradeRoomCounts, s.grade, s.rooms)}</td>
                   <td className="subs-gt-duration">{s.durationMinutes} นาที</td>
                 </tr>
               )),
@@ -282,6 +283,7 @@ function GroupedTable({ submissions }: { submissions: Submission[] }) {
 export default function Submissions() {
   const { isAdmin, removeSubmission, state } = useStore();
   const submissions = useSubmissions();
+  const gradeRoomCounts = useGradeRoomCounts();
   const [viewMode, setViewMode] = useState<"list" | "grouped">("list");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -318,7 +320,7 @@ export default function Submissions() {
   const teacherCount = useMemo(() => new Set(submissions.map((s) => s.teacherId)).size, [submissions]);
 
   function handleExport() {
-    const csv = toCsv(filtered);
+    const csv = toCsv(filtered, gradeRoomCounts);
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -383,7 +385,7 @@ export default function Submissions() {
               ⊞ จัดกลุ่มครู
             </button>
           </div>
-          <button className="btn btn-ghost" onClick={() => exportGroupedExcel(filtered, state.round?.name ?? "")}>
+          <button className="btn btn-ghost" onClick={() => exportGroupedExcel(filtered, state.round?.name ?? "", gradeRoomCounts)}>
             ⬇ ส่งออก Excel (จัดกลุ่ม)
           </button>
           <button className="btn btn-ghost" onClick={handleExport}>
@@ -461,7 +463,7 @@ export default function Submissions() {
                 <span className="subs-code">{s.code}</span>
                 <span>{s.subjectName}</span>
                 <span>{s.teacherName}</span>
-                <span>{s.selfScheduled ? "–" : formatGradeRooms(s.grade, s.rooms)}</span>
+                <span>{s.selfScheduled ? "–" : formatGradeRooms(gradeRoomCounts, s.grade, s.rooms)}</span>
                 <span>{s.selfScheduled ? "–" : `${s.durationMinutes} นาที`}</span>
                 <span>{statusBadge(s)}</span>
                 {isAdmin && (
