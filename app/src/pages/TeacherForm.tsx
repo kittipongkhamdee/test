@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useActiveFormOptions, useCatalog, useStore, useSubmissions } from "../data/store";
-import { gradeLabel } from "../data/mockData";
+import { useActiveFormOptions, useCatalog, useGradeRoomCounts, useStore, useSubmissions } from "../data/store";
+import { gradeLabel, roomLabel, roomsForGrade } from "../data/mockData";
 import type { Grade, MorningPreference, SubmissionStatus, SubjectCatalogEntry } from "../data/types";
 import { formatRelativeTime, formatThaiDateTime } from "../lib/time";
 import { useCountdown } from "../lib/useCountdown";
@@ -36,7 +36,7 @@ export default function TeacherForm() {
   const catalog = useCatalog();
   const submissions = useSubmissions();
   const gradeOptions = useActiveFormOptions("grade");
-  const roomOptions = useActiveFormOptions("room");
+  const gradeRoomCounts = useGradeRoomCounts();
   const durationOptions = useActiveFormOptions("duration");
   const preferenceOptions = useActiveFormOptions("preference");
   const knownSubjects = useMemo(() => dedupeCatalog(catalog), [catalog]);
@@ -69,6 +69,10 @@ export default function TeacherForm() {
   const submittingRef = useRef(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [activeSuggestField, setActiveSuggestField] = useState<"code" | "subjectName" | null>(null);
+  const availableRooms = useMemo(
+    () => (grade ? roomsForGrade(gradeRoomCounts, grade) : []),
+    [gradeRoomCounts, grade],
+  );
   const [selfScheduled, setSelfScheduled] = useState(false);
   const [selfScheduledNote, setSelfScheduledNote] = useState("");
 
@@ -411,22 +415,25 @@ export default function TeacherForm() {
               <span className="tform-label">
                 ห้องที่จัดสอบ <span className="tform-label-note">(เลือกได้หลายห้อง)</span>
               </span>
-              <div className="tform-chip-row">
-                {roomOptions.map((opt) => {
-                  const r = Number(opt.value);
-                  const selected = Array.isArray(roomsSelection) && roomsSelection.includes(r);
-                  return (
-                    <button
-                      type="button"
-                      key={opt.id}
-                      className={"tform-chip" + (selected ? " selected" : "")}
-                      onClick={() => toggleRoom(r)}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
+              {grade ? (
+                <div className="tform-chip-row">
+                  {availableRooms.map((r) => {
+                    const selected = Array.isArray(roomsSelection) && roomsSelection.includes(r);
+                    return (
+                      <button
+                        type="button"
+                        key={r}
+                        className={"tform-chip" + (selected ? " selected" : "")}
+                        onClick={() => toggleRoom(r)}
+                      >
+                        {roomLabel(r)}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="tform-label-note">กรุณาเลือกระดับชั้นก่อน</div>
+              )}
             </div>
 
             <div className="tform-field">
@@ -550,10 +557,7 @@ export default function TeacherForm() {
                     <span className="tform-confirm-label">ห้องสอบ</span>
                     <span>
                       {Array.isArray(roomsSelection) && roomsSelection.length > 0
-                        ? roomsSelection.map((r) => {
-                            const opt = roomOptions.find((o) => Number(o.value) === r);
-                            return opt ? opt.label : `ห้อง ${r}`;
-                          }).join(", ")
+                        ? roomsSelection.map(roomLabel).join(", ")
                         : "—"}
                     </span>
                   </div>

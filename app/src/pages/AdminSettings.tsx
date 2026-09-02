@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useCatalog, useFormOptions, useStore } from "../data/store";
+import { useCatalog, useFormOptions, useGradeRoomCounts, useStore } from "../data/store";
 import { createNewExamRound } from "../data/api";
-import { gradeLabel } from "../data/mockData";
-import type { FormOption, FormOptionCategory, SubjectCatalogEntry } from "../data/types";
+import { GRADES, gradeLabel, roomLabel, roomsForGrade } from "../data/mockData";
+import type { FormOption, FormOptionCategory, Grade, SubjectCatalogEntry } from "../data/types";
 import "./AdminSettings.css";
 
 function isoToLocalInput(iso: string | null): string {
@@ -252,6 +252,67 @@ function OptionCategorySection({
         ))}
       </div>
       {allowAddRemove && <AddOptionForm category={category} nextSortOrder={nextSortOrder} withIcon={withIcon} />}
+    </div>
+  );
+}
+
+function GradeRoomCountRow({ grade, roomCount }: { grade: Grade; roomCount: number }) {
+  const { updateGradeRoomCount } = useStore();
+  const [value, setValue] = useState(String(roomCount));
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => setValue(String(roomCount)), [roomCount]);
+
+  async function save() {
+    const n = Math.min(20, Math.max(1, Math.round(Number(value)) || 1));
+    setValue(String(n));
+    if (n === roomCount) return;
+    setBusy(true);
+    try {
+      await updateGradeRoomCount(grade, n);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="admin-opt-row">
+      <span className="admin-room-grade-label">{gradeLabel(grade)}</span>
+      <div className="admin-opt-fields">
+        <input
+          className="tform-input admin-room-count-input"
+          type="number"
+          min={1}
+          max={20}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={save}
+          disabled={busy}
+        />
+        <span className="admin-opt-hint">
+          ห้อง → {roomsForGrade({ [grade]: Number(value) || 1 }, grade).map(roomLabel).join(", ")}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function GradeRoomCountsSection() {
+  const gradeRoomCounts = useGradeRoomCounts();
+
+  return (
+    <div className="card admin-opt-card">
+      <div className="admin-opt-header">
+        <div className="admin-opt-title">ห้องที่จัดสอบ</div>
+        <div className="admin-opt-hint">
+          กำหนดจำนวนห้องของแต่ละระดับชั้น ระบบจะสร้างตัวเลือก /1, /2, … ให้ครูเลือกในฟอร์มสำรวจอัตโนมัติตามจำนวนนี้
+        </div>
+      </div>
+      <div className="admin-opt-list">
+        {GRADES.map((g) => (
+          <GradeRoomCountRow key={g} grade={g} roomCount={gradeRoomCounts[g] ?? 1} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -1030,13 +1091,7 @@ function AdminSettingsForm() {
           allowAddRemove={false}
           withIcon={false}
         />
-        <OptionCategorySection
-          category="room"
-          title="ห้องที่จัดสอบ"
-          hint="เปิด/ปิด เพิ่ม ลบ แก้ไข และจัดลำดับห้องที่ให้เลือกในฟอร์มได้อย่างอิสระ"
-          allowAddRemove={true}
-          withIcon={false}
-        />
+        <GradeRoomCountsSection />
         <OptionCategorySection
           category="duration"
           title="เวลาที่ใช้สอบ"

@@ -264,6 +264,19 @@
   text-align: center;
 }
 
+.admin-room-grade-label {
+  width: 40px;
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.admin-room-count-input {
+  width: 64px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
 .admin-opt-actions {
   display: flex;
   gap: 6px;
