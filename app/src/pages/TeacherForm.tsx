@@ -144,7 +144,10 @@ export default function TeacherForm() {
   function applySuggestion(s: SubjectCatalogEntry) {
     setCode(s.code);
     setSubjectName(s.subjectName);
-    setGrade(s.grade);
+    if (s.grade !== grade) {
+      setGrade(s.grade);
+      setRoomsSelection(null);
+    }
     setActiveSuggestField(null);
   }
 
@@ -346,7 +349,17 @@ export default function TeacherForm() {
                     const v = e.target.value;
                     setCode(v);
                     const detected = gradeFromCode(v);
-                    if (detected !== null) { setGrade(detected); setRoomsSelection(null); }
+                    // Only reset the room selection when the grade is actually
+                    // changing — gradeFromCode keeps re-detecting the same
+                    // grade on every keystroke after the code's grade digits,
+                    // and resetting on every one of those would wipe out the
+                    // single-room auto-selection (below) with nothing left to
+                    // re-trigger it, since its effect only fires when the
+                    // grade (and so the room list) actually changes.
+                    if (detected !== null && detected !== grade) {
+                      setGrade(detected);
+                      setRoomsSelection(null);
+                    }
                   }}
                   onFocus={() => setActiveSuggestField("code")}
                   onBlur={() => setTimeout(() => setActiveSuggestField(null), 150)}
@@ -408,7 +421,7 @@ export default function TeacherForm() {
                       type="button"
                       key={opt.id}
                       className={"tform-chip" + (grade === g ? " selected" : "")}
-                      onClick={() => { setGrade(g); setRoomsSelection(null); }}
+                      onClick={() => { if (g !== grade) { setGrade(g); setRoomsSelection(null); } }}
                     >
                       {opt.label}
                     </button>
