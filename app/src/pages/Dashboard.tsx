@@ -31,8 +31,11 @@ export default function Dashboard() {
 
   const totalTeachers = state.teachers.length;
 
+  // A self-scheduled request is still a real response to the survey, so it
+  // counts as "submitted" here — only the subject-count stats below (which
+  // track actual subject entries, not survey responses) exclude it.
   const submittedTeacherNames = useMemo(
-    () => new Set(submissions.filter((s) => !s.selfScheduled).map((s) => s.teacherName.trim().toLowerCase())),
+    () => new Set(submissions.map((s) => s.teacherName.trim().toLowerCase())),
     [submissions],
   );
 
