@@ -142,6 +142,12 @@ body {
 .pub-off-code { font-weight: 600; }
 .pub-off-break { font-weight: 700; background: #f3f4f6; }
 .pub-off-divider td { border: none; padding: 4px 0; }
+.pub-off-time,
+.pub-off-subject,
+.pub-off-duration,
+.pub-off-room {
+  font-weight: 300;
+}
 `;
 
 export default function Publish() {
