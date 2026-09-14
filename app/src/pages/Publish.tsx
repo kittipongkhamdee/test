@@ -137,13 +137,14 @@ body {
   vertical-align: middle;
 }
 .pub-off-table th { font-weight: 700; background: #f3f4f6; }
-.pub-off-date { white-space: nowrap; font-weight: 600; }
+.pub-off-date { white-space: nowrap; }
 .pub-off-table td.pub-off-subject { text-align: left; }
-.pub-off-code { font-weight: 600; }
 .pub-off-break { font-weight: 700; background: #f3f4f6; }
 .pub-off-divider td { border: none; padding: 4px 0; }
+.pub-off-date,
 .pub-off-time,
 .pub-off-subject,
+.pub-off-code,
 .pub-off-duration,
 .pub-off-room {
   font-weight: 300;
