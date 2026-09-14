@@ -304,7 +304,7 @@ export default function Publish() {
             return (
               `<tr>${dateCell}` +
               `<td class="pub-off-time">${escHtml(r.start.replace(":", "."))}-${escHtml(r.end.replace(":", "."))}</td>` +
-              `<td class="pub-off-subject">${escHtml(r.code)} – ${escHtml(r.subjectName)}</td>` +
+              `<td class="pub-off-subject">${escHtml(r.subjectName)}</td>` +
               `<td class="pub-off-code">${escHtml(r.code)}</td>` +
               `<td class="pub-off-duration">${escHtml(r.durationMinutes)} นาที</td>` +
               `<td class="pub-off-room">${escHtml(roomRange)}</td></tr>`
