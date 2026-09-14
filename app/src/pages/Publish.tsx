@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { useStore, useSubmissions } from "../data/store";
+import { useGradeRoomCounts, useStore, useSubmissions } from "../data/store";
 import { computeCellTimes } from "../data/scheduling";
-import type { ExamDay, ExamSession, ExamSlotMeta, Grade } from "../data/types";
-import { gradeLabel } from "../data/mockData";
+import type { ExamDay, ExamSession, ExamSlotMeta, Grade, GradeRoomCounts } from "../data/types";
+import { gradeLabel, roomsForGrade } from "../data/mockData";
 import { escHtml, openPrintPopup } from "../lib/printPopup";
 import "./Publish.css";
 
@@ -14,9 +14,21 @@ function dayTitle(examDate: string | null | undefined, day: ExamDay): string {
   return new Date(examDate).toLocaleDateString("th-TH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
+// Two-line variant for the merged date cell in the official per-grade sheet,
+// e.g. "วันจันทร์ ที่ 20" / "กรกฎาคม 2569".
+function dayTitleTwoLine(examDate: string | null | undefined, day: ExamDay): [string, string] {
+  if (!examDate) return [`วันที่ ${day}`, "ของการสอบ"];
+  const d = new Date(examDate);
+  const weekday = d.toLocaleDateString("th-TH", { weekday: "long" });
+  const dayNum = d.toLocaleDateString("th-TH", { day: "numeric" });
+  const monthYear = d.toLocaleDateString("th-TH", { month: "long", year: "numeric" });
+  return [`${weekday} ที่ ${dayNum}`, monthYear];
+}
+
 interface PrintRow {
   start: string;
   end: string;
+  session: ExamSession;
   code: string;
   subjectName: string;
   grade: Grade;
@@ -29,6 +41,16 @@ function fmtGradeRooms(grade: Grade, rooms: number[]): string {
   if (rooms.length === 0) return gradeLabel(grade);
   return rooms.map((r) => `ม.${grade}/${r}`).join(", ");
 }
+
+// The official per-grade sheet shows the grade's whole registered room
+// range (e.g. "ม.2/1-2/2"), not each submission's individually-picked
+// rooms — the printed schedule is for the whole grade sitting together.
+function fmtGradeRoomRange(gradeRoomCounts: GradeRoomCounts, grade: Grade): string {
+  const rooms = roomsForGrade(gradeRoomCounts, grade);
+  if (rooms.length <= 1) return gradeLabel(grade);
+  return `ม.${grade}/${rooms[0]}-${grade}/${rooms[rooms.length - 1]}`;
+}
+
 
 const PRINT_CSS = `
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -81,17 +103,44 @@ body {
 }
 .pub-code { font-weight: 600; }
 .pub-table-empty { padding: 12px 8px; color: #6b7280; font-size: 12px; }
-.pub-table-head.pub-table-head-bygrade,
-.pub-table-row.pub-table-row-bygrade {
-  grid-template-columns: 110px 110px 80px 1fr 120px 65px 120px;
-}
 .pub-grade-print-page { padding: 0; }
 .pub-grade-page-break { page-break-after: always; }
+
+/* ---------- Official per-grade sheet ---------- */
+.pub-off-title {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 14px;
+}
+.pub-off-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  color: #1a1a2e;
+}
+.pub-off-table th,
+.pub-off-table td {
+  border: 1px solid #9ca3af;
+  padding: 6px 8px;
+  text-align: center;
+  vertical-align: middle;
+}
+.pub-off-table th { font-weight: 700; background: #f3f4f6; }
+.pub-off-date { white-space: nowrap; font-weight: 600; }
+.pub-off-subject { text-align: left; }
+.pub-off-code { font-weight: 600; }
+.pub-off-break { font-weight: 700; background: #f3f4f6; }
+.pub-off-divider td { border: none; padding: 4px 0; }
 `;
 
 export default function Publish() {
   const { state } = useStore();
   const submissions = useSubmissions();
+  const gradeRoomCounts = useGradeRoomCounts();
   const [gradeFilter, setGradeFilter] = useState<Grade | null>(null);
 
   const days = useMemo(
@@ -120,6 +169,7 @@ export default function Publish() {
             byDay[day].push({
               start: times[i].start,
               end: times[i].end,
+              session,
               code: item.code,
               subjectName: item.subjectName,
               grade,
@@ -138,19 +188,6 @@ export default function Publish() {
 
     return byDay;
   }, [submissions, state.slots, days, state.round?.gapMinutes]);
-
-  const rowsByGrade = useMemo(() => {
-    const byGrade = new Map<Grade, Array<{ dayLabel: string; row: PrintRow }>>();
-    for (const day of days) {
-      const slot = state.slots.find((s) => s.day === day);
-      const label = dayTitle(slot?.examDate, day);
-      for (const row of rowsByDay[day] ?? []) {
-        if (!byGrade.has(row.grade)) byGrade.set(row.grade, []);
-        byGrade.get(row.grade)!.push({ dayLabel: label, row });
-      }
-    }
-    return byGrade;
-  }, [rowsByDay, days, state.slots]);
 
   const availableGrades = useMemo(() => {
     const grades = new Set<Grade>();
@@ -216,34 +253,83 @@ export default function Publish() {
     );
   }
 
+  // One officially-formatted row descriptor: either a subject or the
+  // midday break, so the merged date cell (rowspan) can attach to
+  // whichever one ends up structurally first for that day.
+  type RowDescriptor = { kind: "subject"; row: PrintRow } | { kind: "break"; start: string; end: string };
+
+  function buildOfficialGradeTable(grade: Grade): string {
+    const roomRange = fmtGradeRoomRange(gradeRoomCounts, grade);
+
+    const dayBlocks = days
+      .map((day) => {
+        const slot = state.slots.find((s) => s.day === day);
+        const morningSlot = state.slots.find((s) => s.day === day && s.session === "morning");
+        const afternoonSlot = state.slots.find((s) => s.day === day && s.session === "afternoon");
+        const dayRows = (rowsByDay[day] ?? []).filter((r) => r.grade === grade);
+        const morningRows = dayRows.filter((r) => r.session === "morning");
+        const afternoonRows = dayRows.filter((r) => r.session === "afternoon");
+        if (morningRows.length === 0 && afternoonRows.length === 0) return null;
+
+        const descriptors: RowDescriptor[] = [
+          ...morningRows.map((row): RowDescriptor => ({ kind: "subject", row })),
+          ...(morningSlot && afternoonSlot
+            ? [{ kind: "break" as const, start: morningSlot.end, end: afternoonSlot.start }]
+            : []),
+          ...afternoonRows.map((row): RowDescriptor => ({ kind: "subject", row })),
+        ];
+
+        const [dateLine1, dateLine2] = dayTitleTwoLine(slot?.examDate, day);
+        const rowsHtml = descriptors
+          .map((d, i) => {
+            const dateCell =
+              i === 0
+                ? `<td class="pub-off-date" rowspan="${descriptors.length}">${escHtml(dateLine1)}<br/>${escHtml(dateLine2)}</td>`
+                : "";
+            if (d.kind === "break") {
+              return (
+                `<tr>${dateCell}` +
+                `<td class="pub-off-time">${escHtml(d.start.replace(":", "."))}-${escHtml(d.end.replace(":", "."))}</td>` +
+                `<td class="pub-off-break" colspan="4">พักกลางวัน</td></tr>`
+              );
+            }
+            const r = d.row;
+            return (
+              `<tr>${dateCell}` +
+              `<td class="pub-off-time">${escHtml(r.start.replace(":", "."))}-${escHtml(r.end.replace(":", "."))}</td>` +
+              `<td class="pub-off-subject">${escHtml(r.subjectName)}</td>` +
+              `<td class="pub-off-code">${escHtml(r.code)}</td>` +
+              `<td class="pub-off-duration">${escHtml(r.durationMinutes)} นาที</td>` +
+              `<td class="pub-off-room">${escHtml(roomRange)}</td></tr>`
+            );
+          })
+          .join("");
+        return rowsHtml;
+      })
+      .filter((block): block is string => block !== null)
+      .join(`<tr class="pub-off-divider"><td colspan="6"></td></tr>`);
+
+    return (
+      `<table class="pub-off-table">` +
+      `<thead><tr>` +
+      `<th>วัน /เดือน/ปี</th><th>เวลา</th><th>รายวิชาที่สอบ</th><th>รหัสวิชา</th><th>เวลา</th><th>ห้องที่สอบ</th>` +
+      `</tr></thead>` +
+      `<tbody>${dayBlocks}</tbody></table>`
+    );
+  }
+
   function buildPrintByGradeHTML(): string {
-    const grades = [...rowsByGrade.keys()].sort((a, b) => a - b);
+    const grades = [...availableGrades];
     return grades.map((grade, idx) => {
-      const entries = rowsByGrade.get(grade) ?? [];
-      const rowsHtml = entries.map(({ dayLabel, row }) =>
-        `<div class="pub-table-row pub-table-row-bygrade">` +
-        `<span>${escHtml(dayLabel)}</span>` +
-        `<span>${escHtml(row.start.replace(":", "."))}–${escHtml(row.end.replace(":", "."))}</span>` +
-        `<span class="pub-code">${escHtml(row.code)}</span>` +
-        `<span>${escHtml(row.subjectName)}</span>` +
-        `<span>${escHtml(row.gradeRooms)}</span>` +
-        `<span>${escHtml(row.durationMinutes)}</span>` +
-        `<span>${escHtml(row.teacherName)}</span>` +
-        `</div>`
-      ).join("");
       const pageBreak = idx < grades.length - 1 ? " pub-grade-page-break" : "";
       return (
         `<div class="pub-grade-print-page${pageBreak}">` +
-        `<div class="pub-sheet-title">` +
-        `<div class="pub-sheet-h1">ตาราง${escHtml(examTitle)}</div>` +
-        `<div class="pub-sheet-h2">${escHtml(schoolName)} — ${escHtml(gradeLabel(grade))}</div>` +
+        `<div class="pub-off-title">` +
+        `<span>ตาราง${escHtml(examTitle)}</span>` +
+        `<span>${escHtml(fullGradeLabel(grade))}</span>` +
         `</div>` +
-        `<div class="pub-table">` +
-        `<div class="pub-table-head pub-table-head-bygrade">` +
-        `<span>วัน</span><span>เวลา</span><span>รหัสวิชา</span>` +
-        `<span>ชื่อวิชา</span><span>ระดับชั้น</span><span>เวลา (นาที)</span>` +
-        `<span>ครูผู้ออกข้อสอบ</span>` +
-        `</div>${rowsHtml}</div></div>`
+        buildOfficialGradeTable(grade) +
+        `</div>`
       );
     }).join("");
   }
