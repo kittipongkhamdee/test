@@ -214,11 +214,6 @@
   }
 }
 
-/* ---------- Print by grade ---------- */
-.pub-print-grade-wrap {
-  display: none;
-}
-
 @page {
   size: A4 portrait;
   margin: 12mm 15mm;
@@ -256,27 +251,5 @@
     display: block !important;
     overflow: visible !important;
     white-space: normal !important;
-  }
-
-  /* --- by-grade print mode overrides --- */
-  .pub-by-grade-mode .pub-sheet-wrap {
-    display: none !important;
-  }
-  .pub-by-grade-mode .pub-grade-filter {
-    display: none !important;
-  }
-  .pub-by-grade-mode .pub-print-grade-wrap {
-    display: block !important;
-  }
-  .pub-grade-page-break {
-    page-break-after: always;
-  }
-  .pub-grade-print-page {
-    padding: 0;
-  }
-  .pub-table-head.pub-table-head-bygrade,
-  .pub-table-row.pub-table-row-bygrade {
-    grid-template-columns: 110px 110px 80px 1fr 120px 65px 120px !important;
-    min-width: 0 !important;
   }
 }
