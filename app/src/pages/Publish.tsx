@@ -107,6 +107,13 @@ body {
 .pub-grade-page-break { page-break-after: always; }
 
 /* ---------- Official per-grade sheet ---------- */
+.pub-off-school {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
 .pub-off-title {
   display: flex;
   justify-content: center;
@@ -131,7 +138,7 @@ body {
 }
 .pub-off-table th { font-weight: 700; background: #f3f4f6; }
 .pub-off-date { white-space: nowrap; font-weight: 600; }
-.pub-off-subject { text-align: left; }
+.pub-off-table td.pub-off-subject { text-align: left; }
 .pub-off-code { font-weight: 600; }
 .pub-off-break { font-weight: 700; background: #f3f4f6; }
 .pub-off-divider td { border: none; padding: 4px 0; }
@@ -324,6 +331,7 @@ export default function Publish() {
       const pageBreak = idx < grades.length - 1 ? " pub-grade-page-break" : "";
       return (
         `<div class="pub-grade-print-page${pageBreak}">` +
+        `<div class="pub-off-school">${escHtml(schoolName)}</div>` +
         `<div class="pub-off-title">` +
         `<span>ตาราง${escHtml(examTitle)}</span>` +
         `<span>${escHtml(fullGradeLabel(grade))}</span>` +
