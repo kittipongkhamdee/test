@@ -109,7 +109,7 @@ body {
 /* ---------- Official per-grade sheet ---------- */
 .pub-off-school {
   text-align: center;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: #1a1a2e;
   margin-bottom: 4px;
