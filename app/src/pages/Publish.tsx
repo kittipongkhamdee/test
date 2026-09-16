@@ -137,7 +137,7 @@ body {
 }
 .pub-off-table th,
 .pub-off-table td {
-  border: 1px solid #9ca3af;
+  border: 1px solid #000;
   padding: 6px 8px;
   text-align: center;
   vertical-align: middle;
