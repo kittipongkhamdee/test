@@ -53,7 +53,13 @@ function fmtGradeRoomRange(gradeRoomCounts: GradeRoomCounts, grade: Grade): stri
 
 
 const PRINT_CSS = `
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
 body {
   font-family: 'Sarabun', 'Noto Sans Thai', 'Segoe UI', Arial, sans-serif;
   font-size: 13px;
