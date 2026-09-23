@@ -173,12 +173,25 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8mm;
+  gap: 4mm;
   text-align: center;
 }
-.env-title { font-size: 20px; font-weight: 700; }
-.env-line { font-size: 15px; }
-.env-sign { margin-top: 8mm; font-size: 15px; }
+.env-title { font-size: 26px; font-weight: 700; }
+.env-line { font-size: 19px; }
+.env-sign { margin-top: 4mm; font-size: 19px; }
+.env-cut-line {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 6mm;
+  margin: 0 5mm;
+  border-top: 1.5px dashed #000;
+  font-size: 12px;
+  color: #444;
+}
+.env-cut-line span { transform: translateY(-50%); background: #fff; padding: 0 8px; }
 `;
 
 export default function Publish() {
@@ -441,6 +454,7 @@ export default function Publish() {
         const b = entries[i + 1];
         pages.push(
           `<div class="env-half">${buildEnvelopeHalf(a.row, a.room, a.examDate)}</div>` +
+          `<div class="env-cut-line"><span>✂ ตัดตามรอยประ</span></div>` +
           `<div class="env-half">${b ? buildEnvelopeHalf(b.row, b.room, b.examDate) : ""}</div>`
         );
       }
