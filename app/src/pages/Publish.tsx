@@ -414,10 +414,12 @@ export default function Publish() {
       dateLine = `สอบวันที่ ${day} เดือน${month} ${year}`;
     }
     const examTypeWord = examTitle.includes("กลาง") ? "กลางภาค" : examTitle.includes("ปลาย") ? "ปลายภาค" : "";
+    const roomCount = roomsForGrade(gradeRoomCounts, row.grade).length;
+    const gradeRoomLabel = roomCount <= 1 ? `ม.${row.grade}` : `ม.${row.grade}/${room}`;
     return (
       `<div class="env-title">แบบทดสอบวัดผล${escHtml(examTypeWord)}</div>` +
       `<div class="env-line">ภาคเรียนที่ ${escHtml(state.round?.semester ?? "")} ปีการศึกษา ${escHtml(state.round?.academicYear ?? "")}</div>` +
-      `<div class="env-line">รายวิชา ${escHtml(row.subjectName)} รหัสวิชา ${escHtml(row.code)} ชั้น ม.${escHtml(row.grade)}/${escHtml(room)}</div>` +
+      `<div class="env-line">รายวิชา ${escHtml(row.subjectName)} รหัสวิชา ${escHtml(row.code)} ชั้น ${escHtml(gradeRoomLabel)}</div>` +
       `<div class="env-line">${escHtml(dateLine)}</div>` +
       `<div class="env-line">สอบเวลา ${escHtml(row.start.replace(":", "."))}-${escHtml(row.end.replace(":", "."))} น.</div>` +
       `<div class="env-sign">` +
