@@ -253,3 +253,66 @@
     white-space: normal !important;
   }
 }
+
+/* ---------- Envelope cover teacher-picker modal ---------- */
+.pub-env-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 28, 0.55);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.pub-env-modal {
+  width: min(420px, 100%);
+  max-height: 80vh;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pub-env-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.pub-env-modal-toolbar {
+  display: flex;
+  gap: 8px;
+}
+.pub-env-teacher-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 4px;
+}
+.pub-env-teacher-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--text-strong);
+  cursor: pointer;
+}
+.pub-env-teacher-row:hover {
+  background: var(--bg-subtle);
+}
+.pub-env-teacher-row input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+.pub-env-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-soft);
+}
