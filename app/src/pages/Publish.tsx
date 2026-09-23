@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import * as XLSX from "xlsx";
 import { useGradeRoomCounts, useStore, useSubmissions } from "../data/store";
 import { computeCellTimes } from "../data/scheduling";
@@ -185,6 +186,8 @@ export default function Publish() {
   const submissions = useSubmissions();
   const gradeRoomCounts = useGradeRoomCounts();
   const [gradeFilter, setGradeFilter] = useState<Grade | null>(null);
+  const [showEnvelopeModal, setShowEnvelopeModal] = useState(false);
+  const [envSelectedTeachers, setEnvSelectedTeachers] = useState<Set<string>>(new Set());
 
   const days = useMemo(
     () => [...new Set(state.slots.map((s) => s.day))].sort((a, b) => a - b),
@@ -238,6 +241,14 @@ export default function Publish() {
       for (const row of rowsByDay[day] ?? []) grades.add(row.grade);
     }
     return [...grades].sort((a, b) => a - b);
+  }, [rowsByDay, days]);
+
+  const envelopeTeachers = useMemo(() => {
+    const names = new Set<string>();
+    for (const day of days) {
+      for (const row of rowsByDay[day] ?? []) names.add(row.teacherName);
+    }
+    return [...names].sort((a, b) => a.localeCompare(b, "th"));
   }, [rowsByDay, days]);
 
   const filteredByDay = useMemo(() => {
@@ -403,23 +414,36 @@ export default function Publish() {
     );
   }
 
-  function buildEnvelopeCoverHTML(): string {
-    const halves: string[] = [];
+  // Grouped by teacher (never mixed across teachers on the same page, even
+  // if that leaves one teacher's last page with an empty second half) so
+  // each teacher's set of envelopes can be handed out or cut apart on its
+  // own, and filtered to just the selected teachers.
+  function buildEnvelopeCoverHTML(selectedTeachers: Set<string>): string {
+    type EnvEntry = { row: PrintRow; room: number; examDate: string | null | undefined };
+    const byTeacher = new Map<string, EnvEntry[]>();
     for (const day of days) {
       const examDate = slotsByDay(day)?.examDate;
       for (const row of rowsByDay[day] ?? []) {
+        if (!selectedTeachers.has(row.teacherName)) continue;
         for (const room of roomsForGrade(gradeRoomCounts, row.grade)) {
-          halves.push(buildEnvelopeHalf(row, room, examDate));
+          if (!byTeacher.has(row.teacherName)) byTeacher.set(row.teacherName, []);
+          byTeacher.get(row.teacherName)!.push({ row, room, examDate });
         }
       }
     }
 
+    const teacherNames = [...byTeacher.keys()].sort((a, b) => a.localeCompare(b, "th"));
     const pages: string[] = [];
-    for (let i = 0; i < halves.length; i += 2) {
-      pages.push(
-        `<div class="env-half">${halves[i]}</div>` +
-        `<div class="env-half">${halves[i + 1] ?? ""}</div>`
-      );
+    for (const teacherName of teacherNames) {
+      const entries = byTeacher.get(teacherName)!;
+      for (let i = 0; i < entries.length; i += 2) {
+        const a = entries[i];
+        const b = entries[i + 1];
+        pages.push(
+          `<div class="env-half">${buildEnvelopeHalf(a.row, a.room, a.examDate)}</div>` +
+          `<div class="env-half">${b ? buildEnvelopeHalf(b.row, b.room, b.examDate) : ""}</div>`
+        );
+      }
     }
 
     return pages
@@ -435,8 +459,24 @@ export default function Publish() {
     openPrintPopup(PRINT_CSS, buildPrintByGradeHTML());
   }
 
+  function openEnvelopeModal() {
+    setEnvSelectedTeachers(new Set(envelopeTeachers));
+    setShowEnvelopeModal(true);
+  }
+
+  function toggleEnvelopeTeacher(name: string) {
+    setEnvSelectedTeachers((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
+
   function handlePrintEnvelopeCovers() {
-    openPrintPopup(PRINT_CSS, buildEnvelopeCoverHTML());
+    if (envSelectedTeachers.size === 0) return;
+    openPrintPopup(PRINT_CSS, buildEnvelopeCoverHTML(envSelectedTeachers));
+    setShowEnvelopeModal(false);
   }
 
   function handleExportExcel() {
@@ -525,7 +565,7 @@ export default function Publish() {
           <button className="btn btn-ghost" onClick={handlePrintByGrade}>
             🖨 พิมพ์รายชั้น
           </button>
-          <button className="btn btn-ghost" onClick={handlePrintEnvelopeCovers}>
+          <button className="btn btn-ghost" onClick={openEnvelopeModal}>
             🖨 พิมพ์ปิดซองข้อสอบ
           </button>
           <button className="btn btn-primary" onClick={handlePrint}>
@@ -593,6 +633,54 @@ export default function Publish() {
           ))}
         </div>
       </div>
+
+      {showEnvelopeModal && createPortal(
+        <div className="pub-env-modal-overlay" onClick={() => setShowEnvelopeModal(false)}>
+          <div className="card pub-env-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pub-env-modal-title">เลือกครูที่จะพิมพ์ปิดซองข้อสอบ</div>
+            {envelopeTeachers.length === 0 ? (
+              <div className="pub-table-empty">ยังไม่มีวิชาที่จัดลงตารางแล้ว</div>
+            ) : (
+              <>
+                <div className="pub-env-modal-toolbar">
+                  <button type="button" className="btn btn-ghost" onClick={() => setEnvSelectedTeachers(new Set(envelopeTeachers))}>
+                    เลือกทั้งหมด
+                  </button>
+                  <button type="button" className="btn btn-ghost" onClick={() => setEnvSelectedTeachers(new Set())}>
+                    ไม่เลือกเลย
+                  </button>
+                </div>
+                <div className="pub-env-teacher-list">
+                  {envelopeTeachers.map((name) => (
+                    <label className="pub-env-teacher-row" key={name}>
+                      <input
+                        type="checkbox"
+                        checked={envSelectedTeachers.has(name)}
+                        onChange={() => toggleEnvelopeTeacher(name)}
+                      />
+                      <span>{name}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+            <div className="pub-env-modal-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setShowEnvelopeModal(false)}>
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handlePrintEnvelopeCovers}
+                disabled={envSelectedTeachers.size === 0}
+              >
+                🖨 พิมพ์ ({envSelectedTeachers.size})
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
