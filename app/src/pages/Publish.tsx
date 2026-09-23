@@ -155,6 +155,29 @@ body {
 .pub-off-room {
   font-weight: 300;
 }
+
+/* ---------- Exam envelope cover sheets (2 per A4 page) ---------- */
+.env-page {
+  height: 273mm;
+  display: flex;
+  flex-direction: column;
+}
+.env-page-break { page-break-after: always; }
+.env-half {
+  flex: 1;
+  border: 2px solid #000;
+  margin: 5mm;
+  padding: 14mm 10mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8mm;
+  text-align: center;
+}
+.env-title { font-size: 20px; font-weight: 700; }
+.env-line { font-size: 15px; }
+.env-sign { margin-top: 8mm; font-size: 15px; }
 `;
 
 export default function Publish() {
@@ -355,12 +378,65 @@ export default function Publish() {
     }).join("");
   }
 
+  // One cover sheet per (subject × room) — every physical room needs its own
+  // sealed envelope, even for a subject the whole grade sits together for.
+  function buildEnvelopeHalf(row: PrintRow, room: number, examDate: string | null | undefined): string {
+    let dateLine = "สอบวันที่ ....................................";
+    if (examDate) {
+      const d = new Date(examDate);
+      const day = d.toLocaleDateString("th-TH", { day: "numeric" });
+      const month = d.toLocaleDateString("th-TH", { month: "long" });
+      const year = d.toLocaleDateString("th-TH", { year: "numeric" });
+      dateLine = `สอบวันที่ ${day} เดือน${month} ${year}`;
+    }
+    const examTypeWord = examTitle.includes("กลาง") ? "กลางภาค" : examTitle.includes("ปลาย") ? "ปลายภาค" : "";
+    return (
+      `<div class="env-title">แบบทดสอบวัดผล${escHtml(examTypeWord)}</div>` +
+      `<div class="env-line">ภาคเรียนที่ ${escHtml(state.round?.semester ?? "")} ปีการศึกษา ${escHtml(state.round?.academicYear ?? "")}</div>` +
+      `<div class="env-line">รายวิชา ${escHtml(row.subjectName)} รหัสวิชา ${escHtml(row.code)} ชั้น ม.${escHtml(row.grade)}/${escHtml(room)}</div>` +
+      `<div class="env-line">${escHtml(dateLine)}</div>` +
+      `<div class="env-line">สอบเวลา ${escHtml(row.start.replace(":", "."))}-${escHtml(row.end.replace(":", "."))} น.</div>` +
+      `<div class="env-sign">` +
+      `<div>ลงชื่อ.................................... ครูผู้สอน</div>` +
+      `<div>(${escHtml(row.teacherName)})</div>` +
+      `</div>`
+    );
+  }
+
+  function buildEnvelopeCoverHTML(): string {
+    const halves: string[] = [];
+    for (const day of days) {
+      const examDate = slotsByDay(day)?.examDate;
+      for (const row of rowsByDay[day] ?? []) {
+        for (const room of roomsForGrade(gradeRoomCounts, row.grade)) {
+          halves.push(buildEnvelopeHalf(row, room, examDate));
+        }
+      }
+    }
+
+    const pages: string[] = [];
+    for (let i = 0; i < halves.length; i += 2) {
+      pages.push(
+        `<div class="env-half">${halves[i]}</div>` +
+        `<div class="env-half">${halves[i + 1] ?? ""}</div>`
+      );
+    }
+
+    return pages
+      .map((page, idx) => `<div class="env-page${idx < pages.length - 1 ? " env-page-break" : ""}">${page}</div>`)
+      .join("");
+  }
+
   function handlePrint() {
     openPrintPopup(PRINT_CSS, buildPrintHTML());
   }
 
   function handlePrintByGrade() {
     openPrintPopup(PRINT_CSS, buildPrintByGradeHTML());
+  }
+
+  function handlePrintEnvelopeCovers() {
+    openPrintPopup(PRINT_CSS, buildEnvelopeCoverHTML());
   }
 
   function handleExportExcel() {
@@ -448,6 +524,9 @@ export default function Publish() {
           </button>
           <button className="btn btn-ghost" onClick={handlePrintByGrade}>
             🖨 พิมพ์รายชั้น
+          </button>
+          <button className="btn btn-ghost" onClick={handlePrintEnvelopeCovers}>
+            🖨 พิมพ์ปิดซองข้อสอบ
           </button>
           <button className="btn btn-primary" onClick={handlePrint}>
             🖨 พิมพ์
